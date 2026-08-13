@@ -9,7 +9,7 @@ function Ambiente({ irPara }) {
     {
       id: 1,
       texto:
-        "e se o único jeito de não se sentir mal, for parar de sentir qualque coisa pra sempre? ",
+        "e se o único jeito de não se sentir mal, for parar de sentir qualquer coisa pra sempre? ",
       data: "Hoje",
       comentarios: [
         {
