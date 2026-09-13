@@ -1,4 +1,7 @@
 import React, { useState } from "react";
+import { supabase } from "../lib/supabase";
+
+const API_URL = "http://localhost:3001";
 
 function Cadastro({ irPara }) {
   const [nome, setNome] = useState("");
@@ -13,16 +16,18 @@ function Cadastro({ irPara }) {
   const [documento, setDocumento] = useState("");
   const [nomeDocumento, setNomeDocumento] = useState("");
 
+  const [carregando, setCarregando] = useState(false);
+  const [aceitouTermos, setAceitouTermos] = useState(false);
+  const [mostrarTermos, setMostrarTermos] = useState(false);
+
   // =========================
   // SELECIONAR FOTO
   // =========================
 
   function selecionarFoto(e) {
-    const arquivo = e.target.files[0];
+    const arquivo = e.target.files?.[0];
 
-    if (!arquivo) {
-      return;
-    }
+    if (!arquivo) return;
 
     if (!arquivo.type.startsWith("image/")) {
       alert("Selecione apenas uma imagem.");
@@ -43,11 +48,9 @@ function Cadastro({ irPara }) {
   // =========================
 
   function selecionarDocumento(e) {
-    const arquivo = e.target.files[0];
+    const arquivo = e.target.files?.[0];
 
-    if (!arquivo) {
-      return;
-    }
+    if (!arquivo) return;
 
     const tiposPermitidos = [
       "application/pdf",
@@ -57,17 +60,12 @@ function Cadastro({ irPara }) {
     ];
 
     if (!tiposPermitidos.includes(arquivo.type)) {
-      alert(
-        "Envie um documento em PDF, JPG, PNG ou WEBP."
-      );
+      alert("Envie um documento em PDF, JPG, PNG ou WEBP.");
       return;
     }
 
-    // Limite de 5 MB
     if (arquivo.size > 5 * 1024 * 1024) {
-      alert(
-        "O documento deve ter no máximo 5 MB."
-      );
+      alert("O documento deve ter no máximo 5 MB.");
       return;
     }
 
@@ -86,10 +84,17 @@ function Cadastro({ irPara }) {
   // CADASTRAR
   // =========================
 
-  function cadastrar(e) {
+  async function cadastrar(e) {
     e.preventDefault();
 
-    // Campos básicos
+    if (carregando) return;
+
+    if (!aceitouTermos) {
+      alert("Você precisa ler e aceitar o Termo de Uso para criar sua conta.");
+      return;
+    }
+
+    // Verificação dos campos básicos
     if (
       !nome.trim() ||
       !email.trim() ||
@@ -98,33 +103,24 @@ function Cadastro({ irPara }) {
       !confirmarSenha ||
       !foto
     ) {
+      alert("Preencha todos os campos e selecione uma foto.");
+      return;
+    }
+
+    const emailNormalizado = email.trim().toLowerCase();
+
+    // Funcionário Brisanet
+    if (
+      tipo === "colaborador" &&
+      !emailNormalizado.endsWith("@grupobrisanet.com.br")
+    ) {
       alert(
-        "Preencha todos os campos e selecione uma foto."
+        "Para se cadastrar como Funcionário Brisanet, use seu e-mail corporativo terminando com @grupobrisanet.com.br."
       );
       return;
     }
 
-    // =========================
-    // E-MAIL DO FUNCIONÁRIO BRISANET
-    // =========================
-
-    if (tipo === "colaborador") {
-      const emailColaborador =
-        email.trim().toLowerCase();
-
-      if (
-        !emailColaborador.endsWith(
-          "@grupobrisanet.com.br"
-        )
-      ) {
-        alert(
-          "Para se cadastrar como Funcionário Brisanet, use seu e-mail corporativo terminando com @grupobrisanet.com.br."
-        );
-        return;
-      }
-    }
-
-    // Campos do psicólogo
+    // Psicólogo
     if (tipo === "psicologo") {
       if (!crp.trim()) {
         alert("Informe seu CRP.");
@@ -141,9 +137,7 @@ function Cadastro({ irPara }) {
 
     // Senha
     if (senha.length < 6) {
-      alert(
-        "A senha precisa ter pelo menos 6 caracteres."
-      );
+      alert("A senha precisa ter pelo menos 6 caracteres.");
       return;
     }
 
@@ -152,169 +146,122 @@ function Cadastro({ irPara }) {
       return;
     }
 
-    // Usuários existentes
-    const usuariosSalvos =
-      JSON.parse(
-        localStorage.getItem("usuariosPulsan")
-      ) || [];
+    try {
+      setCarregando(true);
 
-    // E-mail existente
-    const usuarioExistente =
-      usuariosSalvos.find(
-        (usuario) =>
-          usuario.email.toLowerCase() ===
-          email.trim().toLowerCase()
-      );
+      // ==========================================
+      // CADASTRO SEGURO PELO SUPABASE AUTH
+      // ==========================================
 
-    if (usuarioExistente) {
-      alert("Este e-mail já está cadastrado.");
-      return;
-    }
+      const { data: cadastroAuth, error: erroAuth } =
+        await supabase.auth.signUp({
+          email: emailNormalizado,
+          password: senha,
+          options: {
+            data: {
+              nome: nome.trim(),
+              tipo_usuario: tipo,
+            },
+          },
+        });
 
-    // =========================
-    // NOVO USUÁRIO
-    // =========================
+      if (erroAuth) {
+        throw new Error(erroAuth.message || "Não foi possível criar a conta.");
+      }
 
-    const novoUsuario = {
-      id: Date.now(),
+      const usuarioAuth = cadastroAuth?.user;
 
-      nome: nome.trim(),
+      if (!usuarioAuth) {
+        throw new Error("O Supabase não retornou o usuário criado.");
+      }
 
-      email:
-        email.trim().toLowerCase(),
+      // O perfil é criado automaticamente pelo trigger do Supabase.
+      // Não inserir novamente em "perfis", pois isso causa duplicate key.
 
-      tipo: tipo,
 
-      senha: senha,
+      if (tipo === "psicologo") {
+        const resposta = await fetch(`${API_URL}/api/psicologos`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: usuarioAuth.id,
+            nome: nome.trim(),
+            email: emailNormalizado,
+            crp: crp.trim(),
+          }),
+        });
 
-      foto: foto,
+        const resultado = await resposta.json();
 
-      // =========================
-      // DADOS DO PSICÓLOGO
-      // =========================
+        if (!resposta.ok) {
+          throw new Error(
+            resultado?.erro || resultado?.error || "Não foi possível registrar o psicólogo."
+          );
+        }
+      }
 
-      psicologoParceiro:
-        tipo === "psicologo",
-
-      crp:
-        tipo === "psicologo"
-          ? crp.trim()
-          : "",
-
-      documentoProfissional:
-        tipo === "psicologo"
-          ? documento
-          : "",
-
-      nomeDocumento:
-        tipo === "psicologo"
-          ? nomeDocumento
-          : "",
-
-      // O selo NÃO é liberado automaticamente
-      seloPsicologo:
-        false,
-
-      // Status da verificação
-      verificacaoPsicologo:
-        tipo === "psicologo"
-          ? "pendente"
-          : "nao_se_aplica",
-
-      // Selo de apoiador
-      seloApoiador:
-        false,
-
-      // Dados iniciais
-      avaliacoes: [],
-
-      pontos: 0,
-
-      ajudas: 0,
-    };
-
-    // Adiciona usuário
-    usuariosSalvos.push(novoUsuario);
-
-    // Salva
-    localStorage.setItem(
-      "usuariosPulsan",
-      JSON.stringify(usuariosSalvos)
-    );
-
-    // Dados do usuário atual
-    localStorage.setItem(
-      "pulsanNome",
-      nome.trim()
-    );
-
-    localStorage.setItem(
-      "pulsanFoto",
-      foto
-    );
-
-    localStorage.setItem(
-      "pulsanTipo",
-      tipo
-    );
-
-    // =========================
-    // DADOS DO PSICÓLOGO ATUAL
-    // =========================
-
-    if (tipo === "psicologo") {
+      // Mantém somente dados não sensíveis da sessão local.
+      localStorage.setItem("pulsanNome", nome.trim());
+      localStorage.setItem("pulsanEmail", emailNormalizado);
+      localStorage.setItem("pulsanFoto", foto);
+      localStorage.setItem("pulsanTipo", tipo);
       localStorage.setItem(
-        "pulsanCRP",
-        crp.trim()
+        "pulsanUsuarioAtual",
+        JSON.stringify({
+          id: usuarioAuth.id,
+          nome: nome.trim(),
+          email: emailNormalizado,
+          tipo_usuario: tipo,
+          foto_url: foto,
+          termos_aceitos: true,
+          data_aceite_termos: new Date().toISOString(),
+          versao_termos: "1.0",
+        })
       );
 
-      localStorage.setItem(
-        "pulsanPsicologoParceiro",
-        "false"
-      );
+      if (tipo === "psicologo") {
+        localStorage.setItem("pulsanCRP", crp.trim());
+        localStorage.setItem("pulsanPsicologoParceiro", "false");
+        localStorage.setItem("pulsanVerificacaoPsicologo", "pendente");
+        localStorage.setItem("pulsanDocumentoProfissional", documento);
+        localStorage.setItem("pulsanNomeDocumento", nomeDocumento);
+      } else {
+        localStorage.removeItem("pulsanCRP");
+        localStorage.removeItem("pulsanPsicologoParceiro");
+        localStorage.removeItem("pulsanVerificacaoPsicologo");
+        localStorage.removeItem("pulsanDocumentoProfissional");
+        localStorage.removeItem("pulsanNomeDocumento");
+      }
 
-      localStorage.setItem(
-        "pulsanVerificacaoPsicologo",
-        "pendente"
-      );
-    } else {
-      localStorage.removeItem(
-        "pulsanCRP"
-      );
+      // ==========================================
+      // MENSAGEM
+      // ==========================================
 
-      localStorage.removeItem(
-        "pulsanPsicologoParceiro"
-      );
+      if (tipo === "psicologo") {
+        alert(
+          "Cadastro realizado! 🧠\n\nSua solicitação para ser Psicólogo Parceiro Pulsan foi enviada para análise da equipe responsável."
+        );
+      } else {
+        alert("Conta criada com sucesso! 💚");
+      }
 
-      localStorage.removeItem(
-        "pulsanVerificacaoPsicologo"
-      );
-    }
+      // Vai para login
+      irPara("login");
+    } catch (erro) {
+      console.error("Erro no cadastro:", erro);
 
-    // =========================
-    // FINAL
-    // =========================
-
-    if (tipo === "psicologo") {
       alert(
-        "Cadastro realizado! 🧠\n\n" +
-        "Sua solicitação para ser Psicólogo Parceiro Pulsan foi enviada para verificação.\n\n" +
-        "O selo será liberado somente após a aprovação."
+        "Não foi possível concluir o cadastro.\n\n" +
+          (erro?.message || "Verifique se o servidor está funcionando.")
       );
-    } else {
-      alert(
-        "Conta criada com sucesso! 💚"
-      );
+    } finally {
+      setCarregando(false);
     }
-
-    // Vai para login
-    irPara("login");
   }
 
   return (
     <main className="auth-page">
       <div className="auth-card">
-
         {/* LOGO */}
 
         <img
@@ -323,69 +270,46 @@ function Cadastro({ irPara }) {
           className="auth-logo"
         />
 
-        <div className="auth-brand">
-          PULSAN
-        </div>
+        <div className="auth-brand">PULSAN</div>
 
-        <h1>
-          Criar minha conta 💚
-        </h1>
+        <h1>Criar minha conta 💚</h1>
 
         <p className="auth-description">
           Faça parte de um espaço seguro de apoio.
         </p>
 
-        {/* =========================
-            FORMULÁRIO
-        ========================= */}
+        {/* FORMULÁRIO */}
 
-        <form
-          className="auth-form"
-          onSubmit={cadastrar}
-        >
-
+        <form className="auth-form" onSubmit={cadastrar}>
           {/* NOME */}
 
           <div className="form-group">
-            <label htmlFor="nome">
-              Nome
-            </label>
+            <label htmlFor="nome">Nome</label>
 
             <input
               id="nome"
               type="text"
               placeholder="Digite seu nome"
               value={nome}
-              onChange={(e) =>
-                setNome(e.target.value)
-              }
+              onChange={(e) => setNome(e.target.value)}
               autoComplete="name"
             />
           </div>
 
-          {/* =========================
-              FOTO
-          ========================= */}
+          {/* FOTO */}
 
           <div className="profile-photo-group">
-
-            <label>
-              Foto de perfil
-            </label>
+            <label>Foto de perfil</label>
 
             <div className="profile-photo-preview">
-
               {foto ? (
                 <img
                   src={foto}
                   alt="Prévia da foto de perfil"
                 />
               ) : (
-                <span>
-                  👤
-                </span>
+                <span>👤</span>
               )}
-
             </div>
 
             <label
@@ -404,28 +328,22 @@ function Cadastro({ irPara }) {
             />
 
             <small>
-              Sua foto será usada para identificar
-              você quando oferecer ajuda a outra pessoa.
+              Sua foto será usada para identificar você
+              quando oferecer ajuda a outra pessoa.
             </small>
-
           </div>
 
           {/* E-MAIL */}
 
           <div className="form-group">
-
-            <label htmlFor="cadastro-email">
-              E-mail
-            </label>
+            <label htmlFor="cadastro-email">E-mail</label>
 
             <input
               id="cadastro-email"
               type="email"
               placeholder="Digite seu e-mail"
               value={email}
-              onChange={(e) =>
-                setEmail(e.target.value)
-              }
+              onChange={(e) => setEmail(e.target.value)}
               autoComplete="email"
             />
 
@@ -439,38 +357,27 @@ function Cadastro({ irPara }) {
                 }}
               >
                 🏢 Funcionários Brisanet devem usar o
-                e-mail corporativo
-                <strong> @grupobrisanet.com.br</strong>.
+                e-mail corporativo{" "}
+                <strong>@grupobrisanet.com.br</strong>.
               </small>
             )}
-
           </div>
 
-          {/* =========================
-              TIPO DE USUÁRIO
-          ========================= */}
+          {/* TIPO DE USUÁRIO */}
 
           <div className="form-group">
-
-            <label htmlFor="tipo">
-              Você é
-            </label>
+            <label htmlFor="tipo">Você é</label>
 
             <select
               id="tipo"
               value={tipo}
-              onChange={(e) =>
-                setTipo(e.target.value)
-              }
+              onChange={(e) => setTipo(e.target.value)}
             >
-
               <option value="">
                 Selecione uma opção
               </option>
 
-              <option value="aluno">
-                Aluno
-              </option>
+              <option value="aluno">Aluno</option>
 
               <option value="colaborador">
                 Funcionário Brisanet
@@ -479,14 +386,10 @@ function Cadastro({ irPara }) {
               <option value="psicologo">
                 🧠 Psicólogo / Profissional parceiro
               </option>
-
             </select>
-
           </div>
 
-          {/* =========================
-              ÁREA DO PSICÓLOGO
-          ========================= */}
+          {/* ÁREA DO PSICÓLOGO */}
 
           {tipo === "psicologo" && (
             <div
@@ -494,12 +397,10 @@ function Cadastro({ irPara }) {
                 marginTop: "15px",
                 padding: "20px",
                 background: "#f4f9ff",
-                border:
-                  "1px solid #cfe2f3",
+                border: "1px solid #cfe2f3",
                 borderRadius: "16px",
               }}
             >
-
               <div
                 style={{
                   fontSize: "25px",
@@ -535,7 +436,6 @@ function Cadastro({ irPara }) {
               {/* CRP */}
 
               <div className="form-group">
-
                 <label htmlFor="crp">
                   Número do CRP
                 </label>
@@ -545,11 +445,8 @@ function Cadastro({ irPara }) {
                   type="text"
                   placeholder="Ex.: CRP 00/00000"
                   value={crp}
-                  onChange={(e) =>
-                    setCrp(e.target.value)
-                  }
+                  onChange={(e) => setCrp(e.target.value)}
                 />
-
               </div>
 
               {/* DOCUMENTO */}
@@ -560,10 +457,7 @@ function Cadastro({ irPara }) {
                   marginTop: "15px",
                 }}
               >
-
-                <label>
-                  Documento comprobatório
-                </label>
+                <label>Documento comprobatório</label>
 
                 <label
                   htmlFor="documento-profissional"
@@ -571,8 +465,7 @@ function Cadastro({ irPara }) {
                     display: "block",
                     padding: "14px",
                     marginTop: "7px",
-                    border:
-                      "1px dashed #9bbfd8",
+                    border: "1px dashed #9bbfd8",
                     borderRadius: "12px",
                     background: "#ffffff",
                     cursor: "pointer",
@@ -618,7 +511,6 @@ function Cadastro({ irPara }) {
                   Aceitamos PDF, JPG, PNG ou WEBP.
                   Tamanho máximo: 5 MB.
                 </small>
-
               </div>
 
               {/* AVISO */}
@@ -628,8 +520,7 @@ function Cadastro({ irPara }) {
                   marginTop: "18px",
                   padding: "13px",
                   background: "#fffdf3",
-                  border:
-                    "1px solid #eee0a8",
+                  border: "1px solid #eee0a8",
                   borderRadius: "10px",
                   color: "#75651b",
                   fontSize: "12px",
@@ -638,41 +529,35 @@ function Cadastro({ irPara }) {
               >
                 🔒 O documento será utilizado somente
                 para verificação profissional.
+
                 <br />
                 <br />
+
                 O selo de Psicólogo Parceiro não será
                 liberado automaticamente. A aprovação
                 será feita pela equipe responsável.
               </div>
-
             </div>
           )}
 
           {/* SENHA */}
 
           <div className="form-group">
-
-            <label htmlFor="cadastro-senha">
-              Senha
-            </label>
+            <label htmlFor="cadastro-senha">Senha</label>
 
             <input
               id="cadastro-senha"
               type="password"
               placeholder="Crie uma senha"
               value={senha}
-              onChange={(e) =>
-                setSenha(e.target.value)
-              }
+              onChange={(e) => setSenha(e.target.value)}
               autoComplete="new-password"
             />
-
           </div>
 
           {/* CONFIRMAR SENHA */}
 
           <div className="form-group">
-
             <label htmlFor="confirmar-senha">
               Confirmar senha
             </label>
@@ -687,20 +572,42 @@ function Cadastro({ irPara }) {
               }
               autoComplete="new-password"
             />
+          </div>
 
+          {/* TERMOS DE USO */}
+
+          <div className="terms-group">
+            <label style={{ display: "flex", alignItems: "flex-start", gap: "10px", fontSize: "13px", lineHeight: "1.5", cursor: "pointer" }}>
+              <input
+                type="checkbox"
+                checked={aceitouTermos}
+                onChange={(e) => setAceitouTermos(e.target.checked)}
+                disabled={carregando}
+              />
+
+              <span>
+                Li e aceito o{" "}
+                <button
+                  type="button"
+                  onClick={() => setMostrarTermos(true)}
+                  disabled={carregando}
+                  style={{ border: "none", background: "transparent", padding: 0, color: "var(--cor-primaria, #3a7dff)", textDecoration: "underline", cursor: "pointer", fontWeight: "700" }}
+                >
+                  Termo de Uso
+                </button>{" "}
+                e a Política de Privacidade do Pulsan.
+              </span>
+            </label>
           </div>
 
           {/* PRIVACIDADE */}
 
           <div className="auth-security">
-
             🔒 Seus dados são protegidos.
 
             <br />
 
-            Sua participação na comunidade
-            pode ser anônima.
-
+            Sua participação na comunidade pode ser anônima.
           </div>
 
           {/* BOTÃO */}
@@ -708,20 +615,43 @@ function Cadastro({ irPara }) {
           <button
             type="submit"
             className="primary-button auth-button"
+            disabled={carregando}
           >
-            Criar conta
+            {carregando ? "Criando conta..." : "Criar conta"}
           </button>
-
         </form>
+
+        {mostrarTermos && (
+          <div style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,.55)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+            <div style={{ width: "100%", maxWidth: "620px", maxHeight: "85vh", overflowY: "auto", background: "var(--cor-card, #fff)", color: "var(--cor-texto, #17345f)", borderRadius: "18px", padding: "24px", boxSizing: "border-box" }}>
+              <h2>Termo de Uso e Consentimento — Pulsan</h2>
+              <p>O Pulsan é uma plataforma de apoio emocional. Ele busca incentivar a escuta, o respeito e a empatia, mas não substitui atendimento psicológico, médico ou psiquiátrico.</p>
+              <h3>Uso responsável</h3>
+              <p>Não é permitido publicar ameaças, ofensas, preconceito, assédio, perseguição, exposição de dados pessoais, incentivo à violência, automutilação ou suicídio.</p>
+              <h3>Privacidade e anonimato</h3>
+              <p>O Pulsan busca oferecer espaços anônimos, mas o anonimato não é uma garantia absoluta. Informações poderão ser analisadas ou compartilhadas quando necessário para cumprir a lei ou proteger alguém.</p>
+              <h3>Conversas privadas</h3>
+              <p>Conversas privadas dependem da aceitação do outro usuário. Ninguém é obrigado a aceitar ou continuar uma interação.</p>
+              <h3>Moderação e situações de risco</h3>
+              <p>O Pulsan poderá utilizar moderação automática e humana para identificar conteúdos ofensivos, ameaças, bullying e possíveis situações de risco.</p>
+              <h3>Declaração de aceite</h3>
+              <p>Ao aceitar, o usuário declara que leu e compreendeu as regras de utilização e entende que o Pulsan não é um serviço de emergência.</p>
+              <button type="button" className="primary-button auth-button" onClick={() => { setAceitouTermos(true); setMostrarTermos(false); }}>
+                Li e aceito os termos
+              </button>
+              <button type="button" className="auth-back" onClick={() => setMostrarTermos(false)}>
+                Fechar
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* LOGIN */}
 
         <button
           type="button"
           className="auth-register"
-          onClick={() =>
-            irPara("login")
-          }
+          onClick={() => irPara("login")}
         >
           Já tenho uma conta
         </button>
@@ -731,13 +661,10 @@ function Cadastro({ irPara }) {
         <button
           type="button"
           className="auth-back"
-          onClick={() =>
-            irPara("inicio")
-          }
+          onClick={() => irPara("inicio")}
         >
           ← Voltar
         </button>
-
       </div>
     </main>
   );

@@ -1,20 +1,136 @@
-import React, { useState } from "react";
+import { useState } from "react";
+import { supabase } from "../lib/supabase";
 
 function Escola({ irPara }) {
   const [texto, setTexto] = useState("");
+  const [analisando, setAnalisando] = useState(false);
 
-  function publicar(e) {
+ async function publicar(e) {
+  if (e) {
     e.preventDefault();
+  }
 
-    if (!texto.trim()) {
-      alert("Escreva algo antes de publicar.");
+  const textoLimpo = texto.trim();
+
+  if (!textoLimpo) {
+    alert("Escreva algo antes de publicar.");
+    return;
+  }
+
+  if (analisando) {
+    return;
+  }
+
+  try {
+    setAnalisando(true);
+
+    // Envia o desabafo para a IA
+    const { data, error } = await supabase.functions.invoke(
+      "analisar-desabafo",
+      {
+        body: {
+          texto: textoLimpo,
+          ambiente: "escolar",
+        },
+      }
+    );
+
+    if (error) {
+      console.error("Erro na análise:", error);
+
+      alert(
+        "Não foi possível analisar seu desabafo. Tente novamente."
+      );
+
       return;
     }
 
-    alert("Seu desabafo foi publicado anonimamente. 💚");
-    setTexto("");
-  }
+    console.log("Resultado da análise:", data);
 
+    // ==========================================
+    // BLOQUEIO DE OFENSA DIRETA
+    // ==========================================
+
+    if (data?.permitir_publicacao === false) {
+      alert(
+        data?.mensagem ||
+          "Sua mensagem contém linguagem ofensiva. Reformule o texto."
+      );
+
+      return;
+    }
+
+    // ==========================================
+    // PUBLICAÇÃO NORMAL
+    // ==========================================
+
+    setTexto("");
+
+    // ==========================================
+    // ALERTA DE RISCO
+    // ==========================================
+
+    if (data?.possivel_risco) {
+      alert(
+        "Seu relato foi recebido e recebeu prioridade de atenção. Pessoas autorizadas poderão avaliar a situação."
+      );
+
+      return;
+    }
+
+    // ==========================================
+    // ALERTA DE AMEAÇA
+    // ==========================================
+
+    if (data?.possivel_ameaca) {
+      alert(
+        "Seu relato foi recebido e recebeu um alerta prioritário para avaliação."
+      );
+
+      return;
+    }
+
+    // ==========================================
+    // ALERTA DE BULLYING
+    // ==========================================
+
+    if (data?.possivel_bullying) {
+      alert(
+        "Seu relato foi publicado anonimamente. Identificamos possíveis sinais de bullying e o caso poderá receber atenção."
+      );
+
+      return;
+    }
+
+    // ==========================================
+    // ASSÉDIO
+    // ==========================================
+
+    if (data?.possivel_assedio) {
+      alert(
+        "Seu relato foi publicado anonimamente e poderá receber atenção de pessoas autorizadas."
+      );
+
+      return;
+    }
+
+    // ==========================================
+    // DESABAFO NORMAL
+    // ==========================================
+
+    alert(
+      "Seu desabafo foi publicado anonimamente. 💚"
+    );
+  } catch (erro) {
+    console.error("Erro inesperado:", erro);
+
+    alert(
+      "Ocorreu um erro ao analisar seu desabafo. Tente novamente."
+    );
+  } finally {
+    setAnalisando(false);
+  }
+}
   return (
     <main className="escola-page">
 
@@ -248,13 +364,16 @@ function Escola({ irPara }) {
 
         {/* BOTÃO */}
 
-        <button
-          type="button"
-          className="escola-publish-button"
-          onClick={publicar}
-        >
-          💚 Publicar anonimamente
-        </button>
+       <button
+  type="button"
+  className="escola-publish-button"
+  onClick={publicar}
+  disabled={analisando}
+>
+  {analisando
+    ? "🤖 Analisando..."
+    : "💚 Publicar anonimamente"}
+</button>
 
       </section>
 

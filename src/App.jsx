@@ -1,18 +1,23 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import "./tema.css";
 
 import Inicio from "./pages/Inicio";
 import Login from "./pages/Login";
+import PainelAdmin from "./pages/PainelAdmin";
+import GestaoPsicologos from "./pages/GestaoPsicologos";
+import Alertas from "./pages/Alertas";
 import Cadastro from "./pages/Cadastro";
 import Ambiente from "./pages/Ambiente";
 import Desabafar from "./pages/Desabafar";
-import Ajudar from "./pages/Ajudar";
+import Reflexao from "./pages/Reflexao";
 import Conversa from "./pages/Conversa";
 import Solicitacoes from "./pages/Solicitacoes";
 import SolicitarAjuda from "./pages/SolicitarAjuda";
 import Avaliacao from "./pages/Avaliacao";
 import Perfil from "./pages/Perfil";
 import Premios from "./pages/Premios";
-
+import RecuperarSenha from "./pages/RecuperarSenha";
+import RedefinirSenha from "./pages/RedefinirSenha";
 
 // =====================================================
 // MENU INFERIOR
@@ -22,7 +27,7 @@ function MenuInferior({ pagina, irPara }) {
   const paginasComMenu = [
     "ambiente",
     "desabafar",
-    "ajudar",
+    "reflexao",
     "solicitacoes",
     "conversa",
     "solicitar-ajuda",
@@ -37,241 +42,392 @@ function MenuInferior({ pagina, irPara }) {
 
   return (
     <nav
+      className="pulsan-menu-inferior"
+      aria-label="Menu principal"
       style={{
         position: "fixed",
         bottom: 0,
         left: 0,
         right: 0,
-        height: "76px",
-        background: "rgba(255,255,255,0.97)",
-        borderTop: "1px solid #e5e5e5",
+        minHeight: "76px",
+        background: "var(--pulsan-card, rgba(255,255,255,0.97))",
+        borderTop: "1px solid var(--pulsan-borda, #e5e5e5)",
         display: "grid",
         gridTemplateColumns: "repeat(4, 1fr)",
         alignItems: "center",
         boxShadow: "0 -5px 18px rgba(0,0,0,0.05)",
         zIndex: 9999,
         backdropFilter: "blur(10px)",
+        WebkitBackdropFilter: "blur(10px)",
+        padding: "5px 8px",
+        boxSizing: "border-box",
       }}
     >
-
-      {/* ==========================================
-          INÍCIO
-      ========================================== */}
-
       <button
         type="button"
         onClick={() => irPara("ambiente")}
+        aria-label="Início"
+        aria-current={pagina === "ambiente" ? "page" : undefined}
         style={{
           border: "none",
           background: "transparent",
           cursor: "pointer",
           color:
             pagina === "ambiente"
-              ? "#20adb0"
-              : "#777",
+              ? "var(--pulsan-primaria, #20adb0)"
+              : "var(--pulsan-texto-secundario, #777)",
           fontSize: "11px",
-          fontWeight:
-            pagina === "ambiente"
-              ? "700"
-              : "600",
+          fontWeight: pagina === "ambiente" ? "700" : "600",
           padding: "6px",
+          minWidth: 0,
         }}
       >
-        <div
-          style={{
-            fontSize: "22px",
-            marginBottom: "3px",
-          }}
-        >
+        <div style={{ fontSize: "22px", marginBottom: "3px" }}>
           🏠
         </div>
 
-        <span>
-          Início
-        </span>
+        <span>Início</span>
       </button>
-
-
-      {/* ==========================================
-          CONVERSAS
-      ========================================== */}
 
       <button
         type="button"
-        onClick={() =>
-          irPara("solicitacoes")
+        onClick={() => irPara("solicitacoes")}
+        aria-label="Conversas"
+        aria-current={
+          pagina === "solicitacoes" || pagina === "conversa"
+            ? "page"
+            : undefined
         }
         style={{
           border: "none",
           background: "transparent",
           cursor: "pointer",
           color:
-            pagina === "solicitacoes" ||
-            pagina === "conversa"
-              ? "#20adb0"
-              : "#777",
+            pagina === "solicitacoes" || pagina === "conversa"
+              ? "var(--pulsan-primaria, #20adb0)"
+              : "var(--pulsan-texto-secundario, #777)",
           fontSize: "11px",
           fontWeight:
-            pagina === "solicitacoes" ||
-            pagina === "conversa"
+            pagina === "solicitacoes" || pagina === "conversa"
               ? "700"
               : "600",
           padding: "6px",
+          minWidth: 0,
         }}
       >
-        <div
-          style={{
-            fontSize: "22px",
-            marginBottom: "3px",
-          }}
-        >
+        <div style={{ fontSize: "22px", marginBottom: "3px" }}>
           💬
         </div>
 
-        <span>
-          Conversas
-        </span>
+        <span>Conversas</span>
       </button>
-
-
-      {/* ==========================================
-          AJUDAR
-          SOMENTE DECORAÇÃO
-      ========================================== */}
 
       <button
         type="button"
+        onClick={() => irPara("reflexao")}
+        aria-label="Reflexão"
+        aria-current={pagina === "reflexao" ? "page" : undefined}
         style={{
           border: "none",
           background: "transparent",
-          cursor: "default",
-          color: "#4d7f70",
+          cursor: "pointer",
+          color:
+            pagina === "reflexao"
+              ? "var(--pulsan-primaria, #20adb0)"
+              : "var(--pulsan-texto-secundario, #777)",
           fontSize: "11px",
-          fontWeight: "600",
+          fontWeight: pagina === "reflexao" ? "700" : "600",
           padding: "6px",
+          minWidth: 0,
         }}
       >
-        <div
-          style={{
-            fontSize: "22px",
-            marginBottom: "3px",
-          }}
-        >
-          💚
+        <div style={{ fontSize: "22px", marginBottom: "3px" }}>
+          🧠
         </div>
 
-        <span>
-          Ajudar
-        </span>
+        <span>Reflexão</span>
       </button>
-
-
-      {/* ==========================================
-          PERFIL
-      ========================================== */}
 
       <button
         type="button"
-        onClick={() =>
-          irPara("perfil")
-        }
+        onClick={() => irPara("perfil")}
+        aria-label="Perfil"
+        aria-current={pagina === "perfil" ? "page" : undefined}
         style={{
           border: "none",
           background: "transparent",
           cursor: "pointer",
           color:
             pagina === "perfil"
-              ? "#20adb0"
-              : "#777",
+              ? "var(--pulsan-primaria, #20adb0)"
+              : "var(--pulsan-texto-secundario, #777)",
           fontSize: "11px",
-          fontWeight:
-            pagina === "perfil"
-              ? "700"
-              : "600",
+          fontWeight: pagina === "perfil" ? "700" : "600",
           padding: "6px",
+          minWidth: 0,
         }}
       >
-        <div
-          style={{
-            fontSize: "22px",
-            marginBottom: "3px",
-          }}
-        >
+        <div style={{ fontSize: "22px", marginBottom: "3px" }}>
           👤
         </div>
 
-        <span>
-          Perfil
-        </span>
+        <span>Perfil</span>
       </button>
-
     </nav>
   );
 }
-
 
 // =====================================================
 // APP
 // =====================================================
 
 function App() {
-  const [pagina, setPagina] =
-    useState("inicio");
+  const [pagina, setPagina] = useState("inicio");
 
+  function usuarioEstaLogado() {
+    return Boolean(
+      localStorage.getItem("usuarioLogado") ||
+      localStorage.getItem("pulsanUsuarioAtual")
+    );
+  }
+
+  function sairDaConta() {
+    [
+      "usuarioLogado",
+      "pulsanUsuarioAtual",
+      "pulsanNome",
+      "pulsanEmail",
+      "pulsanFoto",
+      "pulsanTipo",
+      "pulsanCRP",
+      "pulsanVerificacaoPsicologo",
+      "pulsanPsicologoParceiro",
+      "pulsanDocumentoProfissional",
+      "pulsanNomeDocumento",
+      "pulsanEquipePulsan",
+    ].forEach((chave) => localStorage.removeItem(chave));
+
+    setPagina("inicio");
+  }
+
+  // =====================================================
+  // ACESSIBILIDADE GLOBAL
+  // =====================================================
+
+  const [acessibilidade, setAcessibilidade] = useState(() => {
+    try {
+      const configuracoesSalvas = localStorage.getItem(
+        "pulsanAcessibilidade"
+      );
+
+      if (configuracoesSalvas) {
+        return JSON.parse(configuracoesSalvas);
+      }
+    } catch (erro) {
+      console.error(
+        "Erro ao carregar acessibilidade:",
+        erro
+      );
+    }
+
+    return {
+      altoContraste: false,
+      textoMaior: false,
+      botoesMaiores: false,
+      reduzirAnimacoes: false,
+    };
+  });
+
+  useEffect(() => {
+    const html = document.documentElement;
+
+    html.setAttribute(
+      "data-contraste",
+      acessibilidade.altoContraste ? "alto" : "normal"
+    );
+
+    html.setAttribute(
+      "data-texto-grande",
+      acessibilidade.textoMaior ? "true" : "false"
+    );
+
+    html.setAttribute(
+      "data-botoes-grandes",
+      acessibilidade.botoesMaiores ? "true" : "false"
+    );
+
+    html.setAttribute(
+      "data-reduzir-animacoes",
+      acessibilidade.reduzirAnimacoes ? "true" : "false"
+    );
+
+    localStorage.setItem(
+      "pulsanAcessibilidade",
+      JSON.stringify(acessibilidade)
+    );
+  }, [acessibilidade]);
+
+  function alterarAcessibilidade(opcao, valor) {
+    setAcessibilidade((anterior) => ({
+      ...anterior,
+      [opcao]: valor,
+    }));
+  }
+
+  // =====================================================
+  // VERIFICAR TIPO DE USUÁRIO
+  // =====================================================
+
+  function usuarioEhEquipePulsan() {
+    const usuarioLogado =
+      localStorage.getItem("usuarioLogado");
+
+    const tipo = localStorage.getItem("pulsanTipo");
+
+    if (!usuarioLogado) {
+      return false;
+    }
+
+    return tipo === "equipe_pulsan";
+  }
+
+  // =====================================================
+  // TEMA GLOBAL
+  // =====================================================
+
+  const [tema, setTema] = useState(() => {
+    const temaSalvo =
+      localStorage.getItem("pulsanTema");
+
+    return temaSalvo === "escuro"
+      ? "escuro"
+      : "claro";
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute(
+      "data-theme",
+      tema
+    );
+
+    localStorage.setItem(
+      "pulsanTema",
+      tema
+    );
+  }, [tema]);
+
+  // =====================================================
+  // PROTEÇÃO DA EQUIPE PULSAN
+  // =====================================================
+
+  useEffect(() => {
+    const equipePulsan =
+      usuarioEhEquipePulsan();
+
+    const paginasPermitidasEquipe = [
+      "painel-admin",
+      "alertas",
+      "gestao-psicologos",
+    ];
+
+    if (
+      equipePulsan &&
+      pagina !== "inicio" &&
+      !paginasPermitidasEquipe.includes(pagina)
+    ) {
+      setPagina("painel-admin");
+    }
+  }, [pagina]);
+
+  // =====================================================
+  // ALTERAR TEMA
+  // =====================================================
+
+  function alterarTema(novoTema) {
+    if (
+      novoTema !== "claro" &&
+      novoTema !== "escuro"
+    ) {
+      return;
+    }
+
+    setTema(novoTema);
+  }
 
   // =====================================================
   // NAVEGAÇÃO
   // =====================================================
 
   function irPara(novaPagina) {
+    const paginasPublicas = ["inicio", "login", "cadastro"];
+
+    if (
+      !paginasPublicas.includes(novaPagina) &&
+      !usuarioEstaLogado()
+    ) {
+      setPagina("login");
+      return;
+    }
+
+    if (
+      usuarioEhEquipePulsan() &&
+      novaPagina !== "inicio"
+    ) {
+      const paginasPermitidasEquipe = [
+        "painel-admin",
+        "alertas",
+        "gestao-psicologos",
+      ];
+
+      if (
+        !paginasPermitidasEquipe.includes(novaPagina)
+      ) {
+        setPagina("painel-admin");
+
+        window.scrollTo({
+          top: 0,
+          behavior: acessibilidade.reduzirAnimacoes
+            ? "auto"
+            : "smooth",
+        });
+
+        return;
+      }
+    }
+
     setPagina(novaPagina);
 
-    // Sempre volta para o topo
     window.scrollTo({
       top: 0,
-      behavior: "smooth",
+      behavior: acessibilidade.reduzirAnimacoes
+        ? "auto"
+        : "smooth",
     });
   }
-
 
   // =====================================================
   // TELA INICIAL
   // =====================================================
 
   if (pagina === "inicio") {
-    return (
-      <Inicio
-        irPara={irPara}
-      />
-    );
+    return <Inicio irPara={irPara} />;
   }
-
 
   // =====================================================
   // LOGIN
   // =====================================================
 
   if (pagina === "login") {
-    return (
-      <Login
-        irPara={irPara}
-      />
-    );
+    return <Login irPara={irPara} />;
   }
-
 
   // =====================================================
   // CADASTRO
   // =====================================================
 
   if (pagina === "cadastro") {
-    return (
-      <Cadastro
-        irPara={irPara}
-      />
-    );
+    return <Cadastro irPara={irPara} />;
   }
-
 
   // =====================================================
   // PÁGINAS INTERNAS
@@ -279,100 +435,186 @@ function App() {
 
   let conteudo = null;
 
-
   if (pagina === "ambiente") {
     conteudo = (
       <Ambiente
         irPara={irPara}
+        tema={tema}
+        alterarTema={alterarTema}
+        acessibilidade={acessibilidade}
+        alterarAcessibilidade={alterarAcessibilidade}
       />
     );
   }
-
 
   if (pagina === "desabafar") {
     conteudo = (
       <Desabafar
         irPara={irPara}
+        tema={tema}
+        alterarTema={alterarTema}
+        acessibilidade={acessibilidade}
+        alterarAcessibilidade={alterarAcessibilidade}
       />
     );
   }
 
-
-  if (pagina === "ajudar") {
+  if (pagina === "reflexao") {
     conteudo = (
-      <Ajudar
+      <Reflexao
         irPara={irPara}
+        tema={tema}
+        alterarTema={alterarTema}
+        acessibilidade={acessibilidade}
+        alterarAcessibilidade={alterarAcessibilidade}
       />
     );
   }
 
+  if (pagina === "alertas") {
+    conteudo = (
+      <Alertas
+        irPara={irPara}
+        tema={tema}
+        alterarTema={alterarTema}
+        acessibilidade={acessibilidade}
+        alterarAcessibilidade={alterarAcessibilidade}
+      />
+    );
+  }
+
+  if (pagina === "gestao-psicologos") {
+    conteudo = (
+      <GestaoPsicologos
+        irPara={irPara}
+        tema={tema}
+        alterarTema={alterarTema}
+        acessibilidade={acessibilidade}
+        alterarAcessibilidade={alterarAcessibilidade}
+      />
+    );
+  }
+
+  if (pagina === "painel-admin") {
+    conteudo = (
+      <PainelAdmin
+        irPara={irPara}
+        tema={tema}
+        alterarTema={alterarTema}
+        acessibilidade={acessibilidade}
+        alterarAcessibilidade={alterarAcessibilidade}
+      />
+    );
+  }
 
   if (pagina === "solicitacoes") {
     conteudo = (
       <Solicitacoes
         irPara={irPara}
+        tema={tema}
+        alterarTema={alterarTema}
+        acessibilidade={acessibilidade}
+        alterarAcessibilidade={alterarAcessibilidade}
       />
     );
   }
-
 
   if (pagina === "conversa") {
     conteudo = (
       <Conversa
         irPara={irPara}
+        tema={tema}
+        alterarTema={alterarTema}
+        acessibilidade={acessibilidade}
+        alterarAcessibilidade={alterarAcessibilidade}
       />
     );
   }
-
 
   if (pagina === "solicitar-ajuda") {
     conteudo = (
       <SolicitarAjuda
         irPara={irPara}
+        tema={tema}
+        alterarTema={alterarTema}
+        acessibilidade={acessibilidade}
+        alterarAcessibilidade={alterarAcessibilidade}
       />
     );
   }
-
 
   if (pagina === "avaliacao") {
     conteudo = (
       <Avaliacao
         irPara={irPara}
+        tema={tema}
+        alterarTema={alterarTema}
+        acessibilidade={acessibilidade}
+        alterarAcessibilidade={alterarAcessibilidade}
       />
     );
   }
-
 
   if (pagina === "perfil") {
     conteudo = (
       <Perfil
         irPara={irPara}
+        tema={tema}
+        alterarTema={alterarTema}
+        acessibilidade={acessibilidade}
+        alterarAcessibilidade={alterarAcessibilidade}
+        sairDaConta={sairDaConta}
       />
     );
   }
-
 
   if (pagina === "premios") {
     conteudo = (
       <Premios
         irPara={irPara}
+        tema={tema}
+        alterarTema={alterarTema}
+        acessibilidade={acessibilidade}
+        alterarAcessibilidade={alterarAcessibilidade}
       />
     );
   }
 
+  if (pagina === "recuperar-senha") {
+    conteudo = (
+      <RecuperarSenha
+        irPara={irPara}
+        tema={tema}
+        alterarTema={alterarTema}
+        acessibilidade={acessibilidade}
+        alterarAcessibilidade={alterarAcessibilidade}
+      />
+    );
+  }
 
-  // =====================================================
-  // CASO NÃO ENCONTRE
-  // =====================================================
+  if (pagina === "redefinir-senha") {
+    conteudo = (
+      <RedefinirSenha
+        irPara={irPara}
+        tema={tema}
+        alterarTema={alterarTema}
+        acessibilidade={acessibilidade}
+        alterarAcessibilidade={alterarAcessibilidade}
+      />
+    );
+  }
 
   if (!conteudo) {
     conteudo = (
       <Ambiente
         irPara={irPara}
+        tema={tema}
+        alterarTema={alterarTema}
+        acessibilidade={acessibilidade}
+        alterarAcessibilidade={alterarAcessibilidade}
       />
     );
   }
-
 
   // =====================================================
   // PÁGINA + MENU
@@ -381,22 +623,28 @@ function App() {
   return (
     <>
       <div
+        className={`pulsan-app ${acessibilidade.altoContraste ? "acessibilidade-alto-contraste" : ""} ${acessibilidade.textoMaior ? "acessibilidade-texto-maior" : ""} ${acessibilidade.botoesMaiores ? "acessibilidade-botoes-maiores" : ""} ${acessibilidade.reduzirAnimacoes ? "acessibilidade-reduzir-animacoes" : ""}`}
         style={{
           minHeight: "100vh",
+          width: "100%",
           paddingBottom: "76px",
           boxSizing: "border-box",
+          overflowX: "hidden",
+          background: "var(--pulsan-bg, #fffdf9)",
+          color: "var(--pulsan-texto, #172c35)",
         }}
       >
         {conteudo}
       </div>
 
-      <MenuInferior
-        pagina={pagina}
-        irPara={irPara}
-      />
+      {!usuarioEhEquipePulsan() && (
+        <MenuInferior
+          pagina={pagina}
+          irPara={irPara}
+        />
+      )}
     </>
   );
 }
-
 
 export default App;

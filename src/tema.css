@@ -1,0 +1,634 @@
+/* =====================================================
+   PULSAN — SISTEMA GLOBAL DE TEMAS
+   ===================================================== */
+
+:root,
+html[data-theme="claro"] {
+  --pulsan-fundo: #ffffff;
+  --pulsan-fundo-secundario: #f4f8ff;
+
+  --pulsan-card: #eaf3ff;
+  --pulsan-card-secundario: #dceaff;
+
+  --pulsan-texto: #1e293b;
+  --pulsan-texto-secundario: #64748b;
+
+  --pulsan-borda: #c7dcf5;
+
+  --pulsan-primaria: #a8c7ff;
+  --pulsan-primaria-forte: #3a7dff;
+
+  --pulsan-destaque: #d6e5ff;
+  --pulsan-destaque-suave: #edf4ff;
+
+  --pulsan-sucesso: #70b98a;
+  --pulsan-alerta: #e8b65c;
+  --pulsan-perigo: #df7883;
+
+  --pulsan-sombra: rgba(58, 125, 255, 0.12);
+
+  --pulsan-comentario-fundo: #eaf3ff;
+  --pulsan-comentario-texto: #1e293b;
+  --pulsan-comentario-borda: #a8c7ff;
+
+  --pulsan-bg: var(--pulsan-fundo);
+}
+
+/* =====================================================
+   TEMA ESCURO
+   ===================================================== */
+
+html[data-theme="escuro"] {
+  --pulsan-comentario-fundo: #a8c7ff;
+  --pulsan-comentario-texto: #0f2d5b;
+  --pulsan-comentario-borda: #3a7dff;
+
+  --pulsan-fundo: #101827;
+  --pulsan-fundo-secundario: #162238;
+
+  --pulsan-card: #1d2b42;
+  --pulsan-card-secundario: #243653;
+
+  --pulsan-texto: #ffffff;
+  --pulsan-texto-secundario: #a8c7ff;
+
+  --pulsan-borda: #344b6b;
+
+  --pulsan-primaria: #3a7dff;
+  --pulsan-primaria-forte: #2864d8;
+
+  --pulsan-destaque: #a8c7ff;
+  --pulsan-destaque-suave: #214b87;
+
+  --pulsan-sucesso: #7acb91;
+  --pulsan-alerta: #f0bd62;
+  --pulsan-perigo: #f0808b;
+
+  --pulsan-sombra: rgba(0, 0, 0, 0.28);
+}
+
+/* =====================================================
+   BASE GLOBAL
+   ===================================================== */
+
+html,
+body,
+#root {
+  width: 100%;
+  min-height: 100%;
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  overflow-x: hidden;
+  background: var(--pulsan-fundo);
+  color: var(--pulsan-texto);
+}
+
+::selection {
+  background: var(--pulsan-primaria);
+  color: #ffffff;
+}
+
+a {
+  color: var(--pulsan-primaria);
+}
+
+input,
+textarea,
+select {
+  background: var(--pulsan-card);
+  color: var(--pulsan-texto);
+  border: 1px solid var(--pulsan-borda);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--pulsan-texto-secundario);
+}
+
+button {
+  transition:
+    background 0.3s ease,
+    color 0.3s ease,
+    border-color 0.3s ease,
+    transform 0.2s ease;
+}
+
+/* =====================================================
+   CLASSES GLOBAIS
+   ===================================================== */
+
+.pulsan-fundo {
+  background: var(--pulsan-fundo);
+  color: var(--pulsan-texto);
+}
+
+.pulsan-card {
+  background: var(--pulsan-card);
+  color: var(--pulsan-texto);
+  border: 1px solid var(--pulsan-borda);
+  box-shadow: 0 8px 25px var(--pulsan-sombra);
+}
+
+.pulsan-texto-secundario {
+  color: var(--pulsan-texto-secundario);
+}
+
+.pulsan-destaque {
+  color: var(--pulsan-destaque);
+}
+
+.pulsan-botao {
+  background: var(--pulsan-primaria);
+  color: #ffffff;
+  border: none;
+}
+
+.pulsan-botao:hover {
+  background: var(--pulsan-primaria-forte);
+  transform: translateY(-1px);
+}
+
+/* =====================================================
+   BARRA DE ROLAGEM
+   ===================================================== */
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--pulsan-fundo);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--pulsan-primaria);
+  border-radius: 20px;
+}
+
+/* =====================================================
+   ACESSIBILIDADE GLOBAL
+   ===================================================== */
+
+/* TEXTO MAIOR */
+
+html[data-texto-grande="true"] {
+  font-size: 18px;
+}
+
+html[data-texto-grande="true"] body {
+  font-size: 1.08rem;
+}
+
+html[data-texto-grande="true"] h1 {
+  font-size: 2.2em;
+}
+
+html[data-texto-grande="true"] h2 {
+  font-size: 1.7em;
+}
+
+html[data-texto-grande="true"] h3 {
+  font-size: 1.35em;
+}
+
+html[data-texto-grande="true"] p,
+html[data-texto-grande="true"] span,
+html[data-texto-grande="true"] label,
+html[data-texto-grande="true"] li,
+html[data-texto-grande="true"] button,
+html[data-texto-grande="true"] input,
+html[data-texto-grande="true"] textarea,
+html[data-texto-grande="true"] select {
+  font-size: 1.08em;
+}
+
+/* BOTÕES MAIORES */
+
+html[data-botoes-grandes="true"] button {
+  min-height: 52px;
+  min-width: 48px;
+  padding: 13px 20px;
+}
+
+html[data-botoes-grandes="true"] .pulsan-menu-button {
+  min-height: 60px;
+}
+
+html[data-botoes-grandes="true"] input,
+html[data-botoes-grandes="true"] textarea,
+html[data-botoes-grandes="true"] select {
+  min-height: 48px;
+}
+
+/* ALTO CONTRASTE */
+
+html[data-contraste="alto"] {
+  --pulsan-fundo: #ffffff;
+  --pulsan-fundo-secundario: #f2f2f2;
+
+  --pulsan-card: #ffffff;
+  --pulsan-card-secundario: #eeeeee;
+
+  --pulsan-texto: #000000;
+  --pulsan-texto-secundario: #202020;
+
+  --pulsan-borda: #000000;
+
+  --pulsan-primaria: #0057b8;
+  --pulsan-primaria-forte: #003f88;
+
+  --pulsan-destaque: #d9eaff;
+  --pulsan-sombra: rgba(0, 0, 0, 0.35);
+}
+
+html[data-contraste="alto"] body,
+html[data-contraste="alto"] main,
+html[data-contraste="alto"] section,
+html[data-contraste="alto"] article,
+html[data-contraste="alto"] header,
+html[data-contraste="alto"] footer {
+  background-color: var(--pulsan-fundo);
+  color: var(--pulsan-texto);
+}
+
+html[data-contraste="alto"] *,
+html[data-contraste="alto"] *::before,
+html[data-contraste="alto"] *::after {
+  border-color: var(--pulsan-borda);
+}
+
+html[data-contraste="alto"] h1,
+html[data-contraste="alto"] h2,
+html[data-contraste="alto"] h3,
+html[data-contraste="alto"] h4,
+html[data-contraste="alto"] h5,
+html[data-contraste="alto"] h6,
+html[data-contraste="alto"] p,
+html[data-contraste="alto"] span,
+html[data-contraste="alto"] label,
+html[data-contraste="alto"] strong,
+html[data-contraste="alto"] small {
+  color: var(--pulsan-texto);
+}
+
+html[data-contraste="alto"] input,
+html[data-contraste="alto"] textarea,
+html[data-contraste="alto"] select {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border: 2px solid #000000 !important;
+}
+
+html[data-contraste="alto"] input::placeholder,
+html[data-contraste="alto"] textarea::placeholder {
+  color: #202020 !important;
+}
+
+html[data-contraste="alto"] button {
+  background: #0057b8 !important;
+  color: #ffffff !important;
+  border: 2px solid #000000 !important;
+}
+
+html[data-contraste="alto"] a {
+  color: #003f88 !important;
+  text-decoration: underline;
+}
+
+html[data-contraste="alto"] .pulsan-card {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border: 2px solid #000000 !important;
+  box-shadow: none !important;
+}
+
+/* ALTO CONTRASTE NO MODO ESCURO */
+
+html[data-theme="escuro"][data-contraste="alto"] {
+  --pulsan-fundo: #000000;
+  --pulsan-fundo-secundario: #080808;
+
+  --pulsan-card: #111111;
+  --pulsan-card-secundario: #1c1c1c;
+
+  --pulsan-texto: #ffffff;
+  --pulsan-texto-secundario: #eeeeee;
+
+  --pulsan-borda: #ffffff;
+
+  --pulsan-primaria: #6ea1ff;
+  --pulsan-primaria-forte: #9abaff;
+}
+
+html[data-theme="escuro"][data-contraste="alto"] body,
+html[data-theme="escuro"][data-contraste="alto"] main,
+html[data-theme="escuro"][data-contraste="alto"] section,
+html[data-theme="escuro"][data-contraste="alto"] article,
+html[data-theme="escuro"][data-contraste="alto"] header,
+html[data-theme="escuro"][data-contraste="alto"] footer {
+  background-color: #000000;
+  color: #ffffff;
+}
+
+html[data-theme="escuro"][data-contraste="alto"] h1,
+html[data-theme="escuro"][data-contraste="alto"] h2,
+html[data-theme="escuro"][data-contraste="alto"] h3,
+html[data-theme="escuro"][data-contraste="alto"] h4,
+html[data-theme="escuro"][data-contraste="alto"] h5,
+html[data-theme="escuro"][data-contraste="alto"] h6,
+html[data-theme="escuro"][data-contraste="alto"] p,
+html[data-theme="escuro"][data-contraste="alto"] span,
+html[data-theme="escuro"][data-contraste="alto"] label,
+html[data-theme="escuro"][data-contraste="alto"] strong,
+html[data-theme="escuro"][data-contraste="alto"] small {
+  color: #ffffff;
+}
+
+html[data-theme="escuro"][data-contraste="alto"] input,
+html[data-theme="escuro"][data-contraste="alto"] textarea,
+html[data-theme="escuro"][data-contraste="alto"] select {
+  background: #000000 !important;
+  color: #ffffff !important;
+  border: 2px solid #ffffff !important;
+}
+
+html[data-theme="escuro"][data-contraste="alto"] button {
+  background: #6ea1ff !important;
+  color: #000000 !important;
+  border: 2px solid #ffffff !important;
+}
+
+html[data-theme="escuro"][data-contraste="alto"] a {
+  color: #9abaff !important;
+}
+
+/* REDUZIR ANIMAÇÕES */
+
+html[data-reduzir-animacoes="true"],
+html[data-reduzir-animacoes="true"] *,
+html[data-reduzir-animacoes="true"] *::before,
+html[data-reduzir-animacoes="true"] *::after {
+  animation: none !important;
+  transition: none !important;
+  scroll-behavior: auto !important;
+}
+
+/* FOCO PARA TECLADO */
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 3px solid var(--pulsan-primaria-forte);
+  outline-offset: 3px;
+}
+
+/* =====================================================
+   RESPONSIVIDADE GLOBAL
+   ===================================================== */
+
+img,
+video,
+svg {
+  max-width: 100%;
+}
+
+input,
+textarea,
+select,
+button {
+  max-width: 100%;
+}
+
+.pulsan-app {
+  width: 100%;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+.pulsan-page-container {
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 30px;
+  min-width: 0;
+}
+
+.pulsan-menu-button {
+  min-width: 0;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* =====================================================
+   CELULAR
+   ===================================================== */
+
+@media (max-width: 600px) {
+  body {
+    font-size: 15px;
+  }
+
+  button {
+    min-height: 42px;
+  }
+
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+
+  .pulsan-container,
+  .pulsan-page-container {
+    width: 100%;
+    max-width: 100%;
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .pulsan-card {
+    border-radius: 16px;
+  }
+
+  .pulsan-menu-button {
+    font-size: 10px !important;
+    padding: 5px 2px !important;
+  }
+
+  .pulsan-menu-button > div {
+    font-size: 20px !important;
+  }
+
+  html[data-texto-grande="true"] {
+    font-size: 18px;
+  }
+
+  html[data-botoes-grandes="true"] button {
+    min-height: 48px;
+  }
+}
+
+/* =====================================================
+   TABLET
+   ===================================================== */
+
+@media (min-width: 601px) and (max-width: 1024px) {
+  .pulsan-container,
+  .pulsan-page-container {
+    width: 100%;
+    max-width: 900px;
+    margin: 0 auto;
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+}
+
+/* =====================================================
+   DESKTOP
+   ===================================================== */
+
+@media (min-width: 1025px) {
+  .pulsan-container,
+  .pulsan-page-container {
+    width: 100%;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding-left: 30px;
+    padding-right: 30px;
+  }
+}
+
+/* =====================================================
+   MONITORES GRANDES
+   ===================================================== */
+
+@media (min-width: 1400px) {
+  .pulsan-container,
+  .pulsan-page-container {
+    max-width: 1200px;
+  }
+}
+
+/* =====================================================
+   REDUÇÃO DE MOVIMENTOS DO SISTEMA
+   ===================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* =====================================================
+   COMENTÁRIOS — CONTRASTE GLOBAL
+   ===================================================== */
+
+.pulsan-comentario,
+.pulsan-comentario p,
+.pulsan-comentario span,
+.pulsan-comentario strong,
+.pulsan-comentario small {
+  background: var(--pulsan-comentario-fundo) !important;
+  color: var(--pulsan-comentario-texto) !important;
+}
+
+.pulsan-comentario {
+  border: 1px solid var(--pulsan-comentario-borda) !important;
+  border-radius: 14px;
+  padding: 12px 16px;
+}
+
+[data-theme="escuro"] .pulsan-comentario,
+[data-theme="escuro"] .pulsan-comentario p,
+[data-theme="escuro"] .pulsan-comentario span,
+[data-theme="escuro"] .pulsan-comentario strong,
+[data-theme="escuro"] .pulsan-comentario small {
+  color: #102a43 !important;
+}
+/* =====================================================
+   ACESSIBILIDADE GLOBAL
+===================================================== */
+
+html[data-texto-grande="true"] {
+  font-size: 118%;
+}
+
+html[data-texto-grande="true"] body {
+  line-height: 1.7;
+}
+
+html[data-botoes-grandes="true"] button,
+html[data-botoes-grandes="true"] a,
+html[data-botoes-grandes="true"] input,
+html[data-botoes-grandes="true"] select,
+html[data-botoes-grandes="true"] textarea {
+  min-height: 48px;
+  font-size: 1.05em;
+}
+
+html[data-contraste="alto"] {
+  filter: contrast(1.18);
+}
+
+html[data-contraste="alto"] body {
+  background: #000000 !important;
+  color: #ffffff !important;
+}
+
+html[data-contraste="alto"] button,
+html[data-contraste="alto"] input,
+html[data-contraste="alto"] textarea,
+html[data-contraste="alto"] select {
+  border: 2px solid #ffffff !important;
+}
+
+html[data-reduzir-animacoes="true"],
+html[data-reduzir-animacoes="true"] *,
+html[data-reduzir-animacoes="true"] *::before,
+html[data-reduzir-animacoes="true"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* Mantém o conteúdo acessível em telas menores */
+html[data-texto-grande="true"] .pulsan-app {
+  overflow-wrap: anywhere;
+}
+
+html[data-botoes-grandes="true"] .pulsan-menu-inferior button {
+  padding: 10px 8px !important;
+}
+
+/* =====================================================
+   NAVEGAÇÃO POR TECLADO
+===================================================== */
+
+html[data-navegacao-teclado="true"] button:focus-visible,
+html[data-navegacao-teclado="true"] a:focus-visible,
+html[data-navegacao-teclado="true"] input:focus-visible,
+html[data-navegacao-teclado="true"] select:focus-visible,
+html[data-navegacao-teclado="true"] textarea:focus-visible {
+  outline: 4px solid #ffb703 !important;
+  outline-offset: 5px !important;
+  box-shadow: 0 0 0 3px #000000 !important;
+}

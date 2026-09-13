@@ -7,49 +7,400 @@ function Desabafar({ irPara }) {
   // =====================================
   // AMBIENTE
   // =====================================
-  // escola = análise contextual + filtro ofensivo
-  // empresa = somente filtro ofensivo
 
   const ambiente =
     localStorage.getItem("pulsanAmbiente") || "escola";
 
 
   // =====================================
-  // FILTRO BÁSICO DE PALAVRAS OFENSIVAS
+  // FILTRO DE PALAVRAS OFENSIVAS
   // =====================================
-  // Este filtro é uma primeira barreira.
-  // Depois teremos também a análise de
-  // moderação no servidor.
 
   const palavrasOfensivas = [
     "idiota",
     "imbecil",
     "burro",
     "burra",
-    "otário",
+    "burro demais",
+    "burra demais",
+    "otario",
     "otaria",
     "otário",
+    "otária",
     "retardado",
     "retardada",
+    "retardado mental",
+    "retardada mental",
+    "babaca",
+    "besta",
+    "cretino",
+    "cretina",
+    "canalha",
+    "patife",
+    "inutil",
+    "inútil",
+    "incompetente",
+    "idiota completo",
+    "idiota completa",
+    "palhaco",
+    "palhaço",
+    "palhaca",
+    "palhaça",
+    "otario de merda",
+    "otária de merda",
+    "sem noção",
+    "sem nocao",
+    "animal",
+    "verme",
+    "lixo",
+    "fracassado",
+    "fracassada",
+    "ridiculo",
+    "ridículo",
+    "ridicula",
+    "ridícula",
+    "nojento",
+    "nojenta",
+    "asqueroso",
+    "asquerosa",
+    "repugnante",
+    "desgraçado",
+    "desgracado",
+    "desgraçada",
+    "desgracada",
+    "maldito",
+    "maldita",
+    "miseravel",
+    "miserável",
+    "safado",
+    "safada",
+    "sacana",
+    "vagabundo",
+    "vagabunda",
+    "moleque",
+    "moleca",
+
+    "merda",
+    "merdinha",
+    "merdao",
+    "merdão",
+    "porra",
+    "porrinha",
+    "caralho",
+    "caralhinho",
+    "cacete",
+    "caceteiro",
+    "caceteira",
+    "foda",
+    "foda-se",
+    "fodase",
+    "foder",
+    "fudê",
+    "fude",
+    "fuder",
+    "fudido",
+    "fudida",
+    "fodido",
+    "fodida",
+    "fucking",
+    "fuck",
+    "shit",
+    "bosta",
+    "bostinha",
+    "bostao",
+    "bostão",
+    "cu",
+    "cuzinho",
+    "cuzão",
+    "cuzao",
+    "cuzona",
+    "buceta",
+    "bucetinha",
+    "bucetao",
+    "bucetão",
+    "xota",
+    "xoxota",
+    "xoxotinha",
+    "pica",
+    "picao",
+    "picão",
+    "piroca",
+    "piroquinha",
+    "rola",
+    "rolinha",
+    "pau no cu",
+
+    "filho da puta",
+    "filha da puta",
+    "filho de uma puta",
+    "filha de uma puta",
+    "filho de puta",
+    "filha de puta",
+    "seu filho da puta",
+    "sua filha da puta",
+    "seu filho de uma puta",
+    "sua filha de uma puta",
+    "seu merda",
+    "sua merda",
+    "seu idiota",
+    "sua idiota",
+    "seu imbecil",
+    "sua imbecil",
+    "seu otario",
+    "sua otaria",
+    "seu otário",
+    "sua otária",
+    "seu babaca",
+    "sua babaca",
+    "seu burro",
+    "sua burra",
+    "seu retardado",
+    "sua retardada",
+    "seu desgraçado",
+    "sua desgraçada",
+    "seu desgracado",
+    "sua desgracada",
+    "seu canalha",
+    "sua canalha",
+    "seu vagabundo",
+    "sua vagabunda",
+    "seu lixo",
+    "sua lixo",
+    "seu verme",
+    "sua verme",
+    "seu nojento",
+    "sua nojenta",
+
+    "vai se foder",
+    "vai tomar no cu",
+    "vai pro inferno",
+    "vai para o inferno",
+    "vai à merda",
+    "vai a merda",
+    "vai pra merda",
+    "vai para merda",
+    "vai se ferrar",
+    "vai se lascar",
+    "vai se danar",
+    "foda-se você",
+    "foda se voce",
+    "foda-se voce",
+    "foda se você",
+    "que se foda",
+    "que se dane",
+    "que se lasque",
+    "que se ferre",
+    "puta que pariu",
+    "puta que o pariu",
+    "filho do caralho",
+    "filha do caralho",
+    "seu pedaço de merda",
+    "sua pedaço de merda",
+    "pedaço de merda",
+    "pedaco de merda",
+    "bando de idiotas",
+    "bando de imbecis",
+    "bando de babacas",
+    "seus idiotas",
+    "suas idiotas",
+    "seus imbecis",
+    "suas imbecis",
+    "seus babacas",
+    "suas babacas",
+
+    "puta",
+    "puto",
+    "putinha",
+    "putinha de merda",
+    "puto de merda",
+    "vadia",
+    "vadia de merda",
+    "vadiazinha",
+    "prostituta de merda",
+    "prostituto de merda",
+    "piranha",
+    "piranha de merda",
+    "piranha velha",
+    "cachorra",
+    "cachorro de merda",
+    "cachorra de merda",
+    "galinha",
+    "galinha de merda",
+
+    "tomar no cu",
+    "tomou no cu",
+    "toma no cu",
+    "vai tomar no cu",
+    "enfia no cu",
+    "enfia isso no cu",
+    "enfia essa merda",
+    "enfia essa porra",
+    "enfia isso",
+    "chupa",
+    "chupa meu pau",
+    "chupa essa",
+    "chupa essa porra",
+    "vai chupar",
+    "vai chupar o dedo",
+    "lambe meu",
+    "se foder",
+    "se fode",
+    "foda se",
+    "foda voce",
+    "foda você",
+
+    "vou te matar",
+    "eu vou te matar",
+    "quero te matar",
+    "vou acabar com voce",
+    "vou acabar com você",
+    "vou acabar contigo",
+    "quero acabar contigo",
+    "vou te pegar",
+    "vou te arrebentar",
+    "vou te bater",
+    "vou bater em voce",
+    "vou bater em você",
+    "vou te espancar",
+    "vou quebrar sua cara",
+    "quebrar sua cara",
+    "vou acabar com sua vida",
+    "acabar com sua vida",
+    "merece morrer",
+    "você merece morrer",
+    "voce merece morrer",
+    "tomara que morra",
+    "tomara que voce morra",
+    "tomara que você morra",
+    "vai morrer",
+    "vou fazer voce sofrer",
+    "vou fazer você sofrer",
+
+    "lixo humano",
+    "ser humano lixo",
+    "escoria",
+    "escória",
+    "escoria humana",
+    "escória humana",
+    "sem vergonha",
+    "sem-vergonha",
+    "cara de pau",
+    "cara de merda",
+    "mente de merda",
+    "vida de merda",
+    "trabalho de merda",
+    "escola de merda",
+    "empresa de merda",
+    "professor de merda",
+    "professora de merda",
+    "aluno de merda",
+    "aluna de merda",
+    "colega de merda",
+    "amigo de merda",
+    "amiga de merda",
+
+    "fdp",
+    "f d p",
+    "f.d.p",
+    "vsf",
+    "vai tomar no c",
+    "vtc",
+    "vtnc",
+    "pqp",
+    "p q p",
+    "p.q.p",
+    "tnc",
+    "toma no c",
+    "seu fdp",
+    "sua fdp",
+    "seu f d p",
+    "sua f d p",
+    "filho duma puta",
+    "filha duma puta",
+    "filho duma p",
+    "filha duma p",
+    "fdp de merda",
+    "idiota de merda",
+    "imbecil de merda",
+    "babaca de merda",
+    "otario de merda",
+    "otária de merda",
+    "burro de merda",
+    "burra de merda",
+    "retardado de merda",
+    "retardada de merda",
   ];
 
 
+  // =====================================
+  // NORMALIZAR TEXTO
+  // =====================================
+
+  function normalizarTexto(conteudo) {
+    return conteudo
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[0-9]/g, (numero) => {
+        const mapa = {
+          "0": "o",
+          "1": "i",
+          "2": "z",
+          "3": "e",
+          "4": "a",
+          "5": "s",
+          "6": "g",
+          "7": "t",
+          "8": "b",
+          "9": "g",
+        };
+
+        return mapa[numero] || numero;
+      })
+      .replace(/[@!$]/g, (simbolo) => {
+        const mapa = {
+          "@": "a",
+          "!": "i",
+          "$": "s",
+        };
+
+        return mapa[simbolo] || simbolo;
+      })
+      .replace(/[.,!?;:()[\]{}"'`´~^_*+=<>/@#$%&|\\-]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+
+  // =====================================
+  // VERIFICAR PALAVRAS OFENSIVAS
+  // =====================================
+
   function possuiPalavraOfensiva(conteudo) {
     const textoNormalizado =
-      conteudo
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "");
+      normalizarTexto(conteudo);
 
-    return palavrasOfensivas.some(
-      (palavra) =>
-        textoNormalizado.includes(
-          palavra
-            .toLowerCase()
-            .normalize("NFD")
-            .replace(/[\u0300-\u036f]/g, "")
-        )
-    );
+    return palavrasOfensivas.some((palavra) => {
+      const palavraNormalizada =
+        normalizarTexto(palavra);
+
+      if (!palavraNormalizada) {
+        return false;
+      }
+
+      if (palavraNormalizada.includes(" ")) {
+        return textoNormalizado.includes(
+          palavraNormalizada
+        );
+      }
+
+      const regex = new RegExp(
+        `(^|\\s)${palavraNormalizada}(?=\\s|$)`,
+        "i"
+      );
+
+      return regex.test(textoNormalizado);
+    });
   }
 
 
@@ -69,42 +420,39 @@ function Desabafar({ irPara }) {
 
 
     // ===================================
-    // FILTRO DE PALAVRAS OFENSIVAS
+    // FILTRO LOCAL
     // ===================================
 
     if (possuiPalavraOfensiva(conteudo)) {
       alert(
         "Seu desabafo contém linguagem inadequada.\n\n" +
-        "Revise o texto antes de publicar. 💚"
+        "Por favor, revise o texto antes de publicar. 💚"
       );
 
       return;
     }
 
 
-    // ===================================
-    // COMEÇA ANÁLISE
-    // ===================================
-
     setAnalisando(true);
 
 
     try {
-
       let classificacao = "normal";
       let alerta = false;
+
+      // =================================
+      // RESULTADO DA IA
+      // =================================
+
+      let resultadoIA = null;
 
 
       // =================================
       // ESCOLA
       // =================================
-      // Na escola fazemos análise
-      // contextual pela IA.
 
       if (ambiente === "escola") {
-
         try {
-
           const resposta =
             await fetch(
               "/api/analisar-desabafo",
@@ -125,55 +473,63 @@ function Desabafar({ irPara }) {
 
 
           if (resposta.ok) {
-
-            const resultado =
+            resultadoIA =
               await resposta.json();
 
 
+            // =================================
+            // MODERAÇÃO DO SERVIDOR
+            // =================================
+
             if (
-              resultado.classificacao ===
-              "grave"
+              resultadoIA.publicarPermitido ===
+              false
             ) {
+              alert(
+                resultadoIA.motivoModeracao ||
+                  "Seu desabafo contém linguagem ofensiva ou inadequada. Revise o texto antes de publicar."
+              );
 
-              classificacao =
-                "grave";
+              return;
+            }
 
+
+            // =================================
+            // CLASSIFICAÇÃO
+            // =================================
+
+            if (
+              resultadoIA.classificacao ===
+              "urgente"
+            ) {
+              classificacao = "urgente";
               alerta = true;
 
             } else if (
-              resultado.classificacao ===
+              resultadoIA.classificacao ===
+              "grave"
+            ) {
+              classificacao = "grave";
+              alerta = true;
+
+            } else if (
+              resultadoIA.classificacao ===
               "intermediario"
             ) {
-
-              classificacao =
-                "intermediario";
-
+              classificacao = "intermediario";
               alerta = true;
 
             } else {
-
-              classificacao =
-                "normal";
-
+              classificacao = "normal";
               alerta = false;
             }
           }
 
         } catch (erro) {
-
           console.error(
             "Erro na análise da IA:",
             erro
           );
-
-          /*
-           * Se a IA estiver indisponível,
-           * não vamos inventar uma classificação.
-           *
-           * O desabafo segue como normal
-           * até a integração do servidor
-           * estar funcionando.
-           */
 
           classificacao = "normal";
           alerta = false;
@@ -184,18 +540,15 @@ function Desabafar({ irPara }) {
       // =================================
       // EMPRESA
       // =================================
-      // Empresa NÃO possui análise
-      // contextual nem alertas.
 
       if (ambiente === "empresa") {
-
         classificacao = "normal";
         alerta = false;
       }
 
 
       // =================================
-      // BUSCAR PUBLICAÇÕES
+      // PUBLICAÇÕES EXISTENTES
       // =================================
 
       const publicacoes =
@@ -211,7 +564,6 @@ function Desabafar({ irPara }) {
       // =================================
 
       const novaPublicacao = {
-
         id: Date.now(),
 
         texto: conteudo,
@@ -237,12 +589,11 @@ function Desabafar({ irPara }) {
 
 
       // =================================
-      // SALVAR
+      // SALVAR PUBLICAÇÃO
       // =================================
 
       localStorage.setItem(
         "pulsanPublicacoes",
-
         JSON.stringify([
           novaPublicacao,
           ...publicacoes,
@@ -250,21 +601,50 @@ function Desabafar({ irPara }) {
       );
 
 
-      // =================================
-      // ALERTA LOCAL
-      // =================================
-      // Apenas escola.
+      // =====================================
+      // ALERTA REAL
+      // =====================================
       //
-      // Normal = não faz nada.
-      // Intermediário = alerta.
-      // Grave = alerta prioritário.
+      // O backend já cria o alerta no
+      // Supabase durante a análise.
+      //
+      // Aqui apenas garantimos que a resposta
+      // da IA foi recebida e registrada.
+      //
+
+      if (
+        ambiente === "escola" &&
+        alerta &&
+        resultadoIA
+      ) {
+        console.log(
+          "🔔 Alerta real processado:",
+          {
+            classificacao:
+              resultadoIA.classificacao,
+
+            prioridade:
+              resultadoIA.prioridade,
+
+            tipo:
+              resultadoIA.tipo,
+
+            motivo:
+              resultadoIA.motivo,
+          }
+        );
+      }
+
+
+      // =====================================
+      // ALERTA LOCAL
+      // =====================================
 
       if (
         ambiente === "escola" &&
         classificacao ===
           "intermediario"
       ) {
-
         localStorage.setItem(
           "pulsanNovoAlerta",
           "true"
@@ -289,7 +669,6 @@ function Desabafar({ irPara }) {
         classificacao ===
           "grave"
       ) {
-
         localStorage.setItem(
           "pulsanNovoAlerta",
           "true"
@@ -309,23 +688,56 @@ function Desabafar({ irPara }) {
       }
 
 
-      // =================================
+      if (
+        ambiente === "escola" &&
+        classificacao ===
+          "urgente"
+      ) {
+        localStorage.setItem(
+          "pulsanNovoAlerta",
+          "true"
+        );
+
+        localStorage.setItem(
+          "pulsanTipoAlerta",
+          "urgente"
+        );
+
+        localStorage.setItem(
+          "pulsanAlertaPublicacao",
+          JSON.stringify(
+            novaPublicacao
+          )
+        );
+      }
+
+
+      // =====================================
       // LIMPAR
-      // =================================
+      // =====================================
 
       setTexto("");
 
 
-      // =================================
+      // =====================================
       // MENSAGEM PARA O USUÁRIO
-      // =================================
+      // =====================================
 
       if (
         ambiente === "escola" &&
         classificacao ===
+          "urgente"
+      ) {
+        alert(
+          "Seu desabafo foi publicado. 💚\n\n" +
+          "Nossa equipe poderá acompanhar a situação."
+        );
+
+      } else if (
+        ambiente === "escola" &&
+        classificacao ===
           "grave"
       ) {
-
         alert(
           "Seu desabafo foi publicado. 💚\n\n" +
           "Nossa equipe poderá acompanhar a situação."
@@ -336,35 +748,31 @@ function Desabafar({ irPara }) {
         classificacao ===
           "intermediario"
       ) {
-
         alert(
           "Seu desabafo foi publicado. 💚\n\n" +
           "Ele poderá receber atenção adicional."
         );
 
       } else {
-
         alert(
           "Seu desabafo foi publicado anonimamente. 💚"
         );
       }
 
 
-      // =================================
+      // =====================================
       // VOLTAR
-      // =================================
+      // =====================================
 
       irPara("ambiente");
 
     } finally {
-
       setAnalisando(false);
     }
   }
 
 
   return (
-
     <div
       style={{
         minHeight: "100vh",
@@ -687,11 +1095,9 @@ function Desabafar({ irPara }) {
                   : "pointer",
             }}
           >
-
             {analisando
               ? "🤖 Analisando..."
               : "💬 Publicar anonimamente"}
-
           </button>
 
         </form>
@@ -841,8 +1247,7 @@ function Desabafar({ irPara }) {
               "column",
             alignItems:
               "center",
-            gap:
-              "5px",
+            gap: "5px",
             color:
               "#777",
             fontSize:

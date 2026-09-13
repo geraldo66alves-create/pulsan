@@ -2,16 +2,18 @@ import React, { useState } from "react";
 
 function Desabafo({ irPara }) {
   const [texto, setTexto] = useState("");
+  const [analisandoIA, setAnalisandoIA] = useState(false);
 
   const limite = 1000;
-
 
   // =====================================================
   // PUBLICAR DESABAFO
   // =====================================================
 
-  function publicar(e) {
+  async function publicar(e) {
     e.preventDefault();
+
+    if (analisandoIA) return;
 
     const textoLimpo = texto.trim();
 
@@ -22,6 +24,78 @@ function Desabafo({ irPara }) {
       return;
     }
 
+    // ===================================================
+    // ANÁLISE DE SEGURANÇA PELA IA DO PULSAN
+    // ===================================================
+
+    setAnalisandoIA(true);
+
+    let analiseIA = null;
+
+    try {
+      const API_URL =
+        import.meta.env.VITE_API_URL ||
+        "http://localhost:3001";
+
+      const respostaIA = await fetch(
+        `${API_URL}/api/analisar-desabafo`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            texto: textoLimpo,
+            ambiente: "geral",
+          }),
+        }
+      );
+
+      if (!respostaIA.ok) {
+        throw new Error(
+          "Não foi possível analisar o desabafo."
+        );
+      }
+
+      analiseIA = await respostaIA.json();
+
+    } catch (erro) {
+      console.error(
+        "❌ Pulsan: erro ao analisar desabafo com IA.",
+        erro
+      );
+
+      alert(
+        "Não foi possível verificar seu desabafo no momento. Tente novamente."
+      );
+
+      setAnalisandoIA(false);
+      return;
+    }
+
+    // ===================================================
+    // NOVA MODERAÇÃO DE CONTEÚDO
+    // ===================================================
+    // Se a IA identificar que o autor está realmente
+    // utilizando conteúdo ofensivo, a publicação é bloqueada.
+    //
+    // Importante:
+    // Se a pessoa estiver apenas relatando que sofreu
+    // uma ofensa, a IA deverá retornar publicarPermitido=true.
+    // ===================================================
+
+    if (
+      analiseIA?.publicarPermitido === false
+    ) {
+      setAnalisandoIA(false);
+
+      alert(
+        analiseIA.motivoModeracao ||
+          "Seu texto contém linguagem ofensiva ou inadequada. Revise a mensagem e tente novamente."
+      );
+
+      return;
+    }
 
     // ===================================================
     // PEGAR PUBLICAÇÕES EXISTENTES
@@ -33,7 +107,6 @@ function Desabafo({ irPara }) {
           "pulsanPublicacoes"
         ) || "[]"
       );
-
 
     // ===================================================
     // CRIAR NOVO DESABAFO
@@ -64,6 +137,61 @@ function Desabafo({ irPara }) {
       comentarios:
         [],
 
+      // ===================================================
+      // RESULTADO INTERNO DA IA
+      // ===================================================
+      // Não é exibido para outros usuários.
+
+      analiseIA: analiseIA
+        ? {
+            classificacao:
+              analiseIA.classificacao ||
+              "normal",
+
+            tipoSituacao:
+              analiseIA.tipoSituacao ||
+              "nenhum",
+
+            motivo:
+              analiseIA.motivo || "",
+
+            alerta:
+              Boolean(
+                analiseIA.alerta
+              ),
+
+            prioridadeAlerta:
+              analiseIA.prioridadeAlerta ||
+              "nenhuma",
+
+            ambienteEscolar:
+              Boolean(
+                analiseIA.ambienteEscolar
+              ),
+
+            // =================================================
+            // NOVOS DADOS DE MODERAÇÃO
+            // =================================================
+
+            conteudoOfensivo:
+              Boolean(
+                analiseIA.conteudoOfensivo
+              ),
+
+            categoriaOfensa:
+              analiseIA.categoriaOfensa ||
+              "nenhuma",
+
+            publicarPermitido:
+              analiseIA.publicarPermitido !==
+              false,
+
+            motivoModeracao:
+              analiseIA.motivoModeracao ||
+              "",
+          }
+        : null,
+
       data:
         new Date().toLocaleDateString(
           "pt-BR"
@@ -79,7 +207,6 @@ function Desabafo({ irPara }) {
         ),
     };
 
-
     // ===================================================
     // COLOCAR A PUBLICAÇÃO MAIS NOVA NO INÍCIO
     // ===================================================
@@ -88,7 +215,6 @@ function Desabafo({ irPara }) {
       novaPublicacao,
       ...publicacoesSalvas,
     ];
-
 
     // ===================================================
     // SALVAR
@@ -101,22 +227,21 @@ function Desabafo({ irPara }) {
       )
     );
 
-
     // ===================================================
     // LIMPAR CAMPO
     // ===================================================
 
     setTexto("");
 
-
     // ===================================================
     // AVISO
     // ===================================================
 
+    setAnalisandoIA(false);
+
     alert(
       "Seu desabafo foi publicado anonimamente. 💚"
     );
-
 
     // ===================================================
     // VOLTAR PARA O INÍCIO
@@ -124,7 +249,6 @@ function Desabafo({ irPara }) {
 
     irPara("ambiente");
   }
-
 
   // =====================================================
   // RENDER
@@ -859,7 +983,8 @@ function Desabafo({ irPara }) {
                 "800",
 
               cursor:
-                texto.trim()
+                texto.trim() &&
+                !analisandoIA
                   ? "pointer"
                   : "default",
 
@@ -872,7 +997,9 @@ function Desabafo({ irPara }) {
                 "0.2s ease",
             }}
           >
-            💚 Publicar anonimamente
+            {analisandoIA
+              ? "🤖 Verificando com segurança..."
+              : "💚 Publicar anonimamente"}
           </button>
 
         </form>

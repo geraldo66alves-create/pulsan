@@ -1,314 +1,469 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { supabase } from "../lib/supabase";
+function Ambiente({ irPara }) {useEffect(() => {
+  async function testarSupabase() {
+    const { data, error } = await supabase
+      .from("perfis")
+      .select("*")
+      .limit(1);
 
-function Ambiente({ irPara }) {
-  // =====================================================
-  // ESTADOS
-  // =====================================================
+    console.log("Teste Supabase:", { data, error });
+  }
 
-  const [publicacoes, setPublicacoes] = useState([
-    {
-      id: 1,
-      texto:
-        "e se o único jeito de não se sentir mal, for parar de sentir qualquer coisa pra sempre? ",
-      data: "Hoje",
-      comentarios: [
-        {
-          id: 1,
-          texto:
-            "Você não precisa passar por tudo isso sozinho. 💚",
-        },
-        {
-          id: 2,
-          texto:
-            "Espero que as coisas fiquem melhores para você.",
-        },
-      ],
-      apoios: 98,
-    },
+  testarSupabase();
+}, []);
+  const [desabafos, setDesabafos] = useState(() => {
+    try {
+      const dados = localStorage.getItem("pulsanPublicacoes");
 
-    {
-      id: 2,
-      texto:
-        "Estou passando por uma fase complicada e tenho medo de decepcionar as pessoas que gostam de mim.",
-      data: "Hoje",
-      comentarios: [
-        {
-          id: 1,
-          texto:
-            "Você também precisa se permitir descansar.",
-        },
-      ],
-      apoios: 64,
-    },
+      if (!dados) {
+        return [];
+      }
 
-    {
-      id: 3,
-      texto:
-        "Às vezes eu só queria ter alguém para conversar sem precisar fingir que está tudo bem.",
-      data: "Ontem",
-      comentarios: [
-        {
-          id: 1,
-          texto:
-            "Aqui você pode falar sem medo de ser julgado. 💚",
-        },
-      ],
-      apoios: 73,
-    },
-  ]);
+      const lista = JSON.parse(dados);
 
-  const [apoiosDados, setApoiosDados] = useState({});
+      return Array.isArray(lista) ? lista : [];
+    } catch (erro) {
+      console.log("Erro ao carregar desabafos:", erro);
+      return [];
+    }
+  });
 
   const [comentariosAbertos, setComentariosAbertos] =
-    useState({});
+    useState(null);
 
-  const [novoComentario, setNovoComentario] =
-    useState({});
+  const [comentario, setComentario] =
+    useState("");
 
-  const [solicitacoes, setSolicitacoes] =
-    useState({});
+  // =====================================================
+  // USUÁRIO
+  // =====================================================
 
+  let usuario = {};
+
+  try {
+    usuario =
+      JSON.parse(
+        localStorage.getItem("usuarioLogado") ||
+        localStorage.getItem("pulsanUsuarioAtual") ||
+        "{}"
+      ) || {};
+  } catch (erro) {
+    usuario = {};
+  }
+
+  const usuarioId =
+    usuario.id ||
+    usuario.email ||
+    "usuario";
+
+  const nomeUsuario =
+    usuario.nome ||
+    usuario.name ||
+    "Usuário";
+
+  // =====================================================
+  // SEQUÊNCIA DE APOIO
+  // =====================================================
+
+  function registrarApoioDiario() {
+    const hoje = new Date().toISOString().split("T")[0];
+    const salvo = JSON.parse(
+      localStorage.getItem("pulsanSequenciaApoio") || "{}"
+    );
+
+    if (salvo.ultimoDia === hoje) {
+      return;
+    }
+
+    const ontem = new Date();
+    ontem.setDate(ontem.getDate() - 1);
+    const dataOntem = ontem.toISOString().split("T")[0];
+
+    const sequencia =
+      salvo.ultimoDia === dataOntem
+        ? (salvo.sequencia || 0) + 1
+        : 1;
+
+    localStorage.setItem(
+      "pulsanSequenciaApoio",
+      JSON.stringify({ sequencia, ultimoDia: hoje })
+    );
+  }
+
+  // =====================================================
+  // SALVAR DESABAFOS
+  // =====================================================
+
+  function salvar(lista) {
+    setDesabafos(lista);
+
+    localStorage.setItem(
+      "pulsanPublicacoes",
+      JSON.stringify(lista)
+    );
+  }
 
   // =====================================================
   // APOIAR
   // =====================================================
 
-  function apoiar(publicacaoId) {
-    const jaApoiou =
-      apoiosDados[publicacaoId];
+  function apoiar(id) {
+    registrarApoioDiario();
+    const lista = desabafos.map((item) => {
+      if (item.id !== id) {
+        return item;
+      }
 
-    setApoiosDados((anteriores) => ({
-      ...anteriores,
-      [publicacaoId]: !jaApoiou,
-    }));
+      const apoiadores =
+        Array.isArray(item.apoiadores)
+          ? item.apoiadores
+          : [];
 
-    setPublicacoes((anteriores) =>
-      anteriores.map((publicacao) => {
-        if (
-          publicacao.id !==
-          publicacaoId
-        ) {
-          return publicacao;
-        }
+      const jaApoiou =
+        apoiadores.includes(usuarioId);
 
-        return {
-          ...publicacao,
-          apoios: jaApoiou
-            ? Math.max(
-                0,
-                publicacao.apoios - 1
-              )
-            : publicacao.apoios + 1,
-        };
-      })
-    );
+      return {
+        ...item,
+
+        apoiadores: jaApoiou
+          ? apoiadores.filter(
+              (idApoiador) =>
+                idApoiador !== usuarioId
+            )
+          : [
+              ...apoiadores,
+              usuarioId,
+            ],
+      };
+    });
+
+    salvar(lista);
+    // SEQUÊNCIA DIÁRIA DE APOIO
+const hoje = new Date().toISOString().split("T")[0];
+
+const sequenciaSalva = JSON.parse(
+  localStorage.getItem("pulsanSequenciaApoio") || "{}"
+);
+
+if (sequenciaSalva.ultimoDia !== hoje) {
+  const ontem = new Date();
+  ontem.setDate(ontem.getDate() - 1);
+
+  const dataOntem = ontem.toISOString().split("T")[0];
+
+  const novaSequencia =
+    sequenciaSalva.ultimoDia === dataOntem
+      ? (sequenciaSalva.sequencia || 0) + 1
+      : 1;
+
+  localStorage.setItem(
+    "pulsanSequenciaApoio",
+    JSON.stringify({
+      sequencia: novaSequencia,
+      ultimoDia: hoje,
+    })
+  );
+}
   }
 
-
   // =====================================================
-  // ABRIR / FECHAR COMENTÁRIOS
-  // =====================================================
-
-  function abrirComentarios(publicacaoId) {
-    setComentariosAbertos(
-      (anteriores) => ({
-        ...anteriores,
-        [publicacaoId]:
-          !anteriores[publicacaoId],
-      })
-    );
-  }
-
-
-  // =====================================================
-  // ALTERAR COMENTÁRIO
+  // COMENTAR
   // =====================================================
 
-  function alterarComentario(
-    publicacaoId,
-    valor
-  ) {
-    setNovoComentario(
-      (anteriores) => ({
-        ...anteriores,
-        [publicacaoId]: valor,
-      })
-    );
-  }
-
-
-  // =====================================================
-  // ADICIONAR COMENTÁRIO
-  // =====================================================
-
-  function adicionarComentario(
-    publicacaoId
-  ) {
-    const texto =
-      novoComentario[
-        publicacaoId
-      ];
-
-    if (!texto || !texto.trim()) {
+  function enviarComentario(id) {
+    if (!comentario.trim()) {
       return;
     }
 
-    const comentario = {
-      id: Date.now(),
-      texto: texto.trim(),
-    };
+    const lista = desabafos.map((item) => {
+      if (item.id !== id) {
+        return item;
+      }
 
-    setPublicacoes((anteriores) =>
-      anteriores.map((publicacao) => {
-        if (
-          publicacao.id !==
-          publicacaoId
-        ) {
-          return publicacao;
-        }
+      const comentarios =
+        Array.isArray(item.comentarios)
+          ? item.comentarios
+          : [];
 
-        return {
-          ...publicacao,
+      return {
+        ...item,
 
-          comentarios: [
-            ...publicacao.comentarios,
-            comentario,
-          ],
-        };
-      })
-    );
+        comentarios: [
+          ...comentarios,
 
-    setNovoComentario(
-      (anteriores) => ({
-        ...anteriores,
-        [publicacaoId]: "",
-      })
-    );
+          {
+            id: `comentario-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+
+            usuarioId: String(usuarioId),
+
+            nome: "Anônimo",
+
+            texto: comentario.trim(),
+
+            data: new Date().toISOString(),
+          },
+        ],
+      };
+    });
+
+    salvar(lista);
+
+    setComentario("");
   }
-
 
   // =====================================================
   // SOLICITAR CHAT
   // =====================================================
 
-  function solicitarChat(publicacao) {
-    const nome =
-      localStorage.getItem(
-        "pulsanNome"
-      ) || "Usuário";
+  function solicitarChat(item) {
+    const donoId =
+      item.usuarioId ||
+      item.autorId ||
+      item.donoId ||
+      "";
 
-    const foto =
-      localStorage.getItem(
-        "pulsanFoto"
-      ) || "";
+    // Não solicitar chat do próprio desabafo
+    if (
+      String(donoId) ===
+      String(usuarioId)
+    ) {
+      alert(
+        "Esse desabafo pertence a você."
+      );
+
+      return;
+    }
 
     const confirmar =
       window.confirm(
-        "Ao solicitar o chat, a pessoa que publicou este desabafo verá seu nome e sua foto antes de decidir se aceita a conversa.\n\n" +
-          "A pessoa que publicou continuará anônima para você.\n\n" +
-          "Deseja enviar a solicitação?"
+        "Deseja solicitar um chat privado com esta pessoa?"
       );
 
     if (!confirmar) {
       return;
     }
 
-    const solicitacao = {
-      id: Date.now(),
+    let solicitacoes = [];
+
+    try {
+      solicitacoes =
+        JSON.parse(
+          localStorage.getItem(
+            "pulsanSolicitacoesChat"
+          ) || "[]"
+        );
+
+      if (!Array.isArray(solicitacoes)) {
+        solicitacoes = [];
+      }
+    } catch (erro) {
+      solicitacoes = [];
+    }
+
+    // Verificar solicitação repetida
+    const existente =
+      solicitacoes.find(
+        (solicitacao) =>
+          solicitacao.publicacaoId ===
+            item.id &&
+          String(
+            solicitacao.solicitanteId
+          ) ===
+            String(usuarioId) &&
+          solicitacao.status ===
+            "pendente"
+      );
+
+    if (existente) {
+      alert(
+        "Você já solicitou esse chat."
+      );
+
+      return;
+    }
+
+    const mediaAvaliacoes =
+      usuario.mediaAvaliacoes ??
+      usuario.avaliacao ??
+      usuario.nota ??
+      "Novo";
+
+    const quantidadeAvaliacoes =
+      usuario.quantidadeAvaliacoes ??
+      usuario.totalAvaliacoes ??
+      0;
+
+    const novaSolicitacao = {
+      id:
+        "solicitacao-" +
+        Date.now(),
 
       publicacaoId:
-        publicacao.id,
+        item.id,
 
+      solicitanteId:
+        String(usuarioId),
+
+      // Campos principais usados pela tela de Solicitações
       nomeSolicitante:
-        nome,
+        nomeUsuario,
 
       fotoSolicitante:
-        foto,
+        usuario.foto ||
+        localStorage.getItem("pulsanFoto") ||
+        "",
 
+      mediaAvaliacoes,
+
+      quantidadeAvaliacoes,
+
+      seloApoiador:
+        usuario.seloApoiador === true,
+
+      seloPsicologo:
+        usuario.seloPsicologo === true,
+
+      // Mantidos para compatibilidade com versões anteriores
+      solicitanteNome:
+        nomeUsuario,
+
+      solicitanteFoto:
+        usuario.foto ||
+        localStorage.getItem("pulsanFoto") ||
+        "",
+
+      destinatarioId:
+        String(donoId),
+
+      destinatarioNome:
+        item.nomeUsuario ||
+        "Usuário",
+
+      destinatarioFoto:
+        item.fotoUsuario ||
+        "",
+
+      // Desabafo completo que originou a solicitação
       textoDesabafo:
-        publicacao.texto,
+        item.texto || "",
+
+      texto:
+        item.texto || "",
+
+      categoria:
+        item.categoria ||
+        item.sentimento ||
+        "Conversa privada",
+
+      urgencia:
+        item.urgencia ||
+        item.prioridade ||
+        "normal",
 
       status:
         "pendente",
 
       data:
-        new Date().toLocaleString(
-          "pt-BR"
-        ),
+        new Date().toISOString(),
     };
 
-    setSolicitacoes(
-      (anteriores) => ({
-        ...anteriores,
-
-        [publicacao.id]:
-          solicitacao,
-      })
+    solicitacoes.push(
+      novaSolicitacao
     );
 
-
-    // =================================================
-    // SALVAR NO LOCALSTORAGE
-    // =================================================
-
-    const salvas =
-      JSON.parse(
-        localStorage.getItem(
-          "pulsanSolicitacoesChat"
-        ) || "[]"
-      );
-
-    const jaExiste =
-      salvas.some(
-        (item) =>
-          item.publicacaoId ===
-            publicacao.id &&
-          item.nomeSolicitante ===
-            nome &&
-          item.status ===
-            "pendente"
-      );
-
-    if (!jaExiste) {
-      salvas.unshift(
-        solicitacao
-      );
-
-      localStorage.setItem(
-        "pulsanSolicitacoesChat",
-        JSON.stringify(salvas)
-      );
-    }
+    localStorage.setItem(
+      "pulsanSolicitacoesChat",
+      JSON.stringify(
+        solicitacoes
+      )
+    );
 
     alert(
-      "Solicitação enviada! 💚\n\n" +
-        "A pessoa poderá ver suas informações e decidir se aceita a conversa."
+      "Solicitação enviada com sucesso! 💚"
     );
   }
 
+  // =====================================================
+  // DENUNCIAR
+  // =====================================================
+
+  function denunciar(item) {
+    const motivo =
+      window.prompt(
+        "Digite o motivo da denúncia:"
+      );
+
+    if (!motivo) {
+      return;
+    }
+
+    let denuncias = [];
+
+    try {
+      denuncias =
+        JSON.parse(
+          localStorage.getItem(
+            "pulsanDenuncias"
+          ) || "[]"
+        );
+
+      if (!Array.isArray(denuncias)) {
+        denuncias = [];
+      }
+    } catch (erro) {
+      denuncias = [];
+    }
+
+    denuncias.push({
+      id: Date.now(),
+
+      publicacaoId:
+        item.id,
+
+      motivo: motivo,
+
+      usuarioId:
+        usuarioId,
+
+      data:
+        new Date().toISOString(),
+    });
+
+    localStorage.setItem(
+      "pulsanDenuncias",
+      JSON.stringify(
+        denuncias
+      )
+    );
+
+    alert(
+      "Denúncia enviada. Obrigado por ajudar a manter o Pulsan seguro."
+    );
+  }
+
+  function obterSequenciaApoio() {
+    try {
+      const dados = JSON.parse(
+        localStorage.getItem("pulsanSequenciaApoio") || "{}"
+      );
+      return Number(dados.sequencia) || 0;
+    } catch (erro) {
+      return 0;
+    }
+  }
 
   // =====================================================
-  // RENDER
+  // TELA
   // =====================================================
 
   return (
-    <main
+    <div
       style={{
         minHeight: "100vh",
-
         background:
-          "linear-gradient(180deg, #f6f3f1 0%, #edf5f1 50%, #f8f3f5 100%)",
-
-        color: "#173b38",
-
-        fontFamily:
-          "Arial, Helvetica, sans-serif",
-
-        paddingBottom:
-          "150px",
-
-        boxSizing:
-          "border-box",
+          "var(--pulsan-fundo, #f5f9f8)",
+        paddingBottom: "110px",
       }}
     >
 
@@ -316,1350 +471,575 @@ function Ambiente({ irPara }) {
           CABEÇALHO
       ================================================= */}
 
-      <header
+      <div
         style={{
-          position:
-            "sticky",
-
-          top: 0,
-
-          zIndex: 100,
-
           background:
-            "rgba(250,247,244,0.95)",
-
-          backdropFilter:
-            "blur(12px)",
-
+            "var(--pulsan-card, #ffffff)",
+          padding: "20px",
           borderBottom:
-            "1px solid rgba(220,215,211,0.7)",
-
-          padding:
-            "12px 18px",
-
-          display:
-            "flex",
-
-          alignItems:
-            "center",
-
-          justifyContent:
-            "space-between",
-
-          boxSizing:
-            "border-box",
+            "1px solid var(--pulsan-borda, #e5e5e5)",
         }}
       >
-
-        {/* LOGO */}
-
-        <div
+        <h1
           style={{
-            display:
-              "flex",
-
-            alignItems:
-              "center",
-
-            gap:
-              "9px",
+            margin: 0,
+            color:
+              "var(--pulsan-texto, #173b38)",
           }}
         >
+          Pulsan
+        </h1>
 
-          <img
-            src="/logo.png"
-            alt="Logo Pulsan"
-            style={{
-              width:
-                "42px",
-
-              height:
-                "42px",
-
-              objectFit:
-                "contain",
-            }}
-          />
-
-          <div>
-
-            <strong
-              style={{
-                display:
-                  "block",
-
-                fontSize:
-                  "18px",
-
-                letterSpacing:
-                  "4px",
-
-                color:
-                  "#173b38",
-              }}
-            >
-              PULSAN
-            </strong>
-
-            <span
-              style={{
-                fontSize:
-                  "10px",
-
-                color:
-                  "#888",
-              }}
-            >
-              um espaço para acolher
-            </span>
-
-          </div>
-
-        </div>
-
-
-        {/* PERFIL */}
-
-        <button
-          type="button"
-          onClick={() =>
-            irPara("perfil")
-          }
+        <p
           style={{
-            width:
-              "42px",
-
-            height:
-              "42px",
-
-            borderRadius:
-              "50%",
-
-            border:
-              "1px solid #ddd6d2",
-
-            background:
-              "#fff",
-
-            cursor:
-              "pointer",
-
-            fontSize:
-              "18px",
-
-            boxShadow:
-              "0 3px 10px rgba(0,0,0,0.05)",
+            margin:
+              "5px 0 0",
+            color:
+              "var(--pulsan-texto-secundario, #777)",
           }}
         >
-          👤
-        </button>
-
-      </header>
-
+          Um espaço para ouvir e ser ouvido.
+        </p>
+      </div>
 
       {/* =================================================
           CONTEÚDO
       ================================================= */}
 
-      <section
+      <div
         style={{
-          width:
-            "100%",
-
-          maxWidth:
-            "680px",
-
-          margin:
-            "0 auto",
-
-          padding:
-            "24px 15px",
-
-          boxSizing:
-            "border-box",
+          maxWidth: "700px",
+          margin: "0 auto",
+          padding: "20px 15px",
         }}
       >
 
-        {/* =================================================
-            TÍTULO
-        ================================================= */}
-
-        <div
+        <h2
           style={{
-            marginBottom:
-              "20px",
-
-            padding:
-              "0 5px",
+            color:
+              "var(--pulsan-texto, #173b38)",
           }}
         >
-
-          <h1
-            style={{
-              margin:
-                "0 0 6px",
-
-              fontSize:
-                "29px",
-
-              lineHeight:
-                "1.15",
-
-              fontWeight:
-                "800",
-
-              color:
-                "#173b38",
-            }}
-          >
-            Desabafos 💚
-          </h1>
-
-          <p
-            style={{
-              margin:
-                0,
-
-              color:
-                "#818b88",
-
-              fontSize:
-                "14px",
-
-              lineHeight:
-                "1.5",
-            }}
-          >
-            Um espaço para falar,
-            ouvir e acolher.
-          </p>
-
-        </div>
-
-
-        {/* =================================================
-            AVISO DE ANONIMATO
-        ================================================= */}
-
+          Desabafos
+        </h2>
         <div
+  style={{
+    background: "var(--pulsan-card, #eaf3ff)",
+    border: "1px solid var(--pulsan-borda, #a8c7ff)",
+    borderRadius: "18px",
+    padding: "15px",
+    marginBottom: "18px",
+    color: "var(--pulsan-texto, #1e293b)",
+  }}
+>
+  <strong>
+    💙 Sequência de apoio
+  </strong>
+
+  <p
+    style={{
+      margin: "6px 0 0",
+      color: "var(--pulsan-texto-secundario, #64748b)",
+    }}
+  >
+    Você está há{" "}
+    <strong
+      style={{
+        color: "var(--pulsan-primaria-forte, #3a7dff)",
+      }}
+    >
+      {obterSequenciaApoio()}{" "}
+      dias
+    </strong>{" "}
+    espalhando apoio.
+  </p>
+</div>
+
+        <p
           style={{
-            display:
-              "flex",
-
-            alignItems:
-              "center",
-
-            gap:
-              "10px",
-
-            background:
-              "rgba(255,255,255,0.68)",
-
-            border:
-              "1px solid rgba(220,230,226,0.8)",
-
-            borderRadius:
-              "16px",
-
-            padding:
-              "12px 14px",
-
-            marginBottom:
-              "22px",
-
-            boxShadow:
-              "0 5px 20px rgba(0,0,0,0.03)",
+            color:
+              "var(--pulsan-texto-secundario, #777)",
           }}
         >
+          Aqui você pode apoiar alguém,
+          comentar ou solicitar uma
+          conversa privada.
+        </p>
 
-          <span
+        {/* =================================================
+            CASO NÃO TENHA DESABAFOS
+        ================================================= */}
+
+        {desabafos.length === 0 && (
+          <div
             style={{
-              fontSize:
-                "20px",
+              background:
+                "var(--pulsan-card, #ffffff)",
+              borderRadius: "24px",
+              padding: "40px 20px",
+              textAlign: "center",
+              border:
+                "1px solid var(--pulsan-borda, #e5e5e5)",
             }}
           >
-            🔒
-          </span>
-
-          <div>
-
-            <strong
+            <div
               style={{
-                display:
-                  "block",
-
-                fontSize:
-                  "12px",
-
-                color:
-                  "#365650",
+                fontSize: "45px",
               }}
             >
-              Seu desabafo é anônimo
-            </strong>
+              💚
+            </div>
 
-            <span
-              style={{
-                fontSize:
-                  "11px",
+            <h3>
+              Ainda não existem desabafos.
+            </h3>
 
-                color:
-                  "#8a9390",
-              }}
-            >
-              Compartilhe o que sente
-              sem precisar se identificar.
-            </span>
-
+            <p>
+              Quando alguém publicar,
+              aparecerá aqui.
+            </p>
           </div>
-
-        </div>
-
+        )}
 
         {/* =================================================
-            FEED
+            DESABAFOS
         ================================================= */}
 
-        <section
-          style={{
-            display:
-              "flex",
+        {desabafos.map((item, index) => {
 
-            flexDirection:
-              "column",
+          const apoiadores =
+            Array.isArray(item.apoiadores)
+              ? item.apoiadores
+              : [];
 
-            gap:
-              "24px",
-          }}
-        >
+          const comentarios =
+            Array.isArray(item.comentarios)
+              ? item.comentarios
+              : [];
 
-          {publicacoes.map(
-            (
-              publicacao,
-              index
-            ) => (
+          const jaApoiou =
+            apoiadores.includes(
+              usuarioId
+            );
 
-              <article
-                key={
-                  publicacao.id
-                }
+          const dono =
+            String(
+              item.usuarioId ||
+              item.autorId ||
+              item.donoId ||
+              ""
+            ) ===
+            String(usuarioId);
+
+          return (
+            <div
+              key={
+                item.id ||
+                index
+              }
+              style={{
+                background:
+                  "var(--pulsan-card, #ffffff)",
+                borderRadius: "25px",
+                padding: "20px",
+                marginBottom: "18px",
+                border:
+                  "1px solid var(--pulsan-borda, #e5e5e5)",
+                boxShadow:
+                  "0 5px 20px rgba(0,0,0,0.05)",
+              }}
+            >
+
+              {/* USUÁRIO */}
+
+              <div
                 style={{
-                  width:
-                    "100%",
-
-                  borderRadius:
-                    "28px",
-
-                  padding:
-                    "20px",
-
-                  boxSizing:
-                    "border-box",
-
-                  background:
-                    index % 3 ===
-                    0
-                      ? "linear-gradient(145deg, #fffaf7, #f3e9e4)"
-                      : index % 3 ===
-                        1
-                      ? "linear-gradient(145deg, #f8fcfa, #e6f2ed)"
-                      : "linear-gradient(145deg, #fcf8fd, #eee8f3)",
-
-                  border:
-                    "1px solid rgba(220,212,208,0.75)",
-
-                  boxShadow:
-                    "0 12px 35px rgba(58,48,43,0.09)",
-
-                  overflow:
-                    "hidden",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "12px",
                 }}
               >
 
-                {/* =======================================
-                    USUÁRIO ANÔNIMO
-                ======================================= */}
+                <div
+                  style={{
+                    width: "45px",
+                    height: "45px",
+                    borderRadius: "50%",
+                    background: "#e4f4f2",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    overflow: "hidden",
+                  }}
+                >
+                  {item.fotoUsuario ? (
+                    <img
+                      src={
+                        item.fotoUsuario
+                      }
+                      alt=""
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit:
+                          "cover",
+                      }}
+                    />
+                  ) : (
+                    "👤"
+                  )}
+                </div>
 
                 <div
                   style={{
-                    display:
-                      "flex",
-
-                    alignItems:
-                      "center",
-
-                    justifyContent:
-                      "space-between",
-
-                    marginBottom:
-                      "14px",
+                    flex: 1,
                   }}
                 >
+                  <strong>
+                    {item.nomeUsuario ||
+                      "Usuário anônimo"}
+                  </strong>
+
+                  <div
+                    style={{
+                      fontSize: "11px",
+                      color: "#888",
+                    }}
+                  >
+                    Compartilhou no Pulsan
+                  </div>
+                </div>
+
+                <button
+                  onClick={() =>
+                    denunciar(item)
+                  }
+                  style={{
+                    border: "none",
+                    background:
+                      "transparent",
+                    fontSize: "20px",
+                    cursor: "pointer",
+                  }}
+                >
+                  ⋮
+                </button>
+
+              </div>
+
+              {/* PRIORIDADE */}
+
+              <div
+                style={{
+                  display:
+                    "inline-block",
+                  marginTop: "15px",
+                  background:
+                    "#eef7f5",
+                  color:
+                    "#168f92",
+                  borderRadius:
+                    "12px",
+                  padding:
+                    "6px 10px",
+                  fontSize:
+                    "11px",
+                  fontWeight:
+                    "700",
+                }}
+              >
+                {item.prioridade ===
+                  "urgente" ||
+                item.urgencia ===
+                  "grave"
+                  ? "🔴 Precisa de atenção"
+                  : item.prioridade ===
+                      "importante" ||
+                    item.urgencia ===
+                      "intermediario"
+                  ? "🟡 Precisa de apoio"
+                  : "🟢 Aberto para conversa"}
+              </div>
+
+              {/* TEXTO */}
+
+              <p
+                style={{
+                  fontSize: "17px",
+                  lineHeight: "1.6",
+                  fontFamily:
+                    "Georgia, serif",
+                  color:
+                    "var(--pulsan-texto, #40514b)",
+                }}
+              >
+                {item.texto}
+              </p>
+
+              {/* BOTÕES */}
+
+              <div
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: "8px",
+                }}
+              >
+
+                <button
+                  onClick={() =>
+                    apoiar(item.id)
+                  }
+                  style={{
+                    border: "none",
+                    borderRadius:
+                      "14px",
+                    padding:
+                      "10px 14px",
+                    background:
+                      jaApoiou
+                        ? "#d9f3ef"
+                        : "#f1f5f4",
+                    color:
+                      jaApoiou
+                        ? "#159497"
+                        : "#60716f",
+                    fontWeight:
+                      "700",
+                    cursor:
+                      "pointer",
+                  }}
+                >
+                  {jaApoiou
+                    ? "💚 Apoiando"
+                    : "🤍 Apoiar"}
+
+                  {apoiadores.length >
+                    0 &&
+                    ` ${apoiadores.length}`}
+                </button>
+
+                <button
+                  onClick={() =>
+                    setComentariosAbertos(
+                      comentariosAbertos ===
+                        item.id
+                        ? null
+                        : item.id
+                    )
+                  }
+                  style={{
+                    border: "none",
+                    borderRadius:
+                      "14px",
+                    padding:
+                      "10px 14px",
+                    background:
+                      "#f1f5f4",
+                    color:
+                      "#60716f",
+                    fontWeight:
+                      "700",
+                    cursor:
+                      "pointer",
+                  }}
+                >
+                  💬 Comentar
+                  {comentarios.length >
+                    0 &&
+                    ` ${comentarios.length}`}
+                </button>
+
+                {!dono && (
+                  <button
+                    onClick={() =>
+                      solicitarChat(
+                        item
+                      )
+                    }
+                    style={{
+                      border: "none",
+                      borderRadius:
+                        "14px",
+                      padding:
+                        "10px 14px",
+                      background:
+                        "#20adb0",
+                      color:
+                        "#ffffff",
+                      fontWeight:
+                        "700",
+                      cursor:
+                        "pointer",
+                    }}
+                  >
+                    💬 Solicitar chat
+                  </button>
+                )}
+
+              </div>
+
+              {/* =================================================
+                  COMENTÁRIOS
+              ================================================= */}
+
+              {comentariosAbertos ===
+                item.id && (
+                <div
+                  style={{
+                    marginTop:
+                      "15px",
+                    paddingTop:
+                      "15px",
+                    borderTop:
+                      "1px solid #eeeeee",
+                  }}
+                >
+
+                  {comentarios.map(
+                    (coment) => (
+                      <div
+                        key={
+                          coment.id
+                        }
+                        style={{
+                          background:
+                            "var(--pulsan-card, #f5f8f7)",
+                          color:
+                            "var(--pulsan-texto, #173b38)",
+                          borderRadius:
+                            "14px",
+                          padding:
+                            "10px",
+                          marginBottom:
+                            "8px",
+                        }}
+                      >
+                        <strong
+                          style={{
+                            fontSize:
+                              "12px",
+                          }}
+                        >
+                          {coment.nome ||
+                            "Usuário"}
+                        </strong>
+
+                        <div
+                          style={{
+                            marginTop:
+                              "4px",
+                            color:
+                              "var(--pulsan-texto, #173b38)",
+                            fontSize:
+                              "14px",
+                          }}
+                        >
+                          {
+                            coment.texto
+                          }
+                        </div>
+                      </div>
+                    )
+                  )}
 
                   <div
                     style={{
                       display:
                         "flex",
-
-                      alignItems:
-                        "center",
-
-                      gap:
-                        "10px",
+                      gap: "8px",
                     }}
                   >
-
-                    <div
+                    <input
+                      value={
+                        comentario
+                      }
+                      onChange={(
+                        e
+                      ) =>
+                        setComentario(
+                          e.target.value
+                        )
+                      }
+                      placeholder="Escreva um comentário..."
                       style={{
-                        width:
-                          "44px",
-
-                        height:
-                          "44px",
-
-                        borderRadius:
-                          "50%",
-
-                        background:
-                          "rgba(255,255,255,0.75)",
-
-                        display:
-                          "flex",
-
-                        alignItems:
-                          "center",
-
-                        justifyContent:
-                          "center",
-
-                        fontSize:
-                          "20px",
-
+                        flex: 1,
                         border:
-                          "1px solid rgba(220,220,220,0.6)",
-                      }}
-                    >
-                      🔒
-                    </div>
-
-                    <div>
-
-                      <strong
-                        style={{
-                          display:
-                            "block",
-
-                          fontSize:
-                            "14px",
-
-                          color:
-                            "#314541",
-                        }}
-                      >
-                        Anônimo
-                      </strong>
-
-                      <span
-                        style={{
-                          display:
-                            "block",
-
-                          marginTop:
-                            "3px",
-
-                          fontSize:
-                            "10px",
-
-                          color:
-                            "#969e9b",
-                        }}
-                      >
-                        identidade protegida
-                      </span>
-
-                    </div>
-
-                  </div>
-
-                  <span
-                    style={{
-                      color:
-                        "#9ca4a1",
-
-                      fontSize:
-                        "16px",
-                    }}
-                  >
-                    •••
-                  </span>
-
-                </div>
-
-
-                {/* =======================================
-                    TEXTO DO DESABAFO
-                ======================================= */}
-
-                <div
-                  style={{
-                    padding:
-                      "15px 5px 20px",
-                  }}
-                >
-
-                  <p
-                    style={{
-                      margin:
-                        0,
-
-                      fontFamily:
-                        "Georgia, 'Times New Roman', serif",
-
-                      fontSize:
-                        "clamp(20px, 4vw, 28px)",
-
-                      lineHeight:
-                        "1.42",
-
-                      fontWeight:
-                        "600",
-
-                      color:
-                        "#30403e",
-
-                      letterSpacing:
-                        "0.05px",
-                    }}
-                  >
-                    “{publicacao.texto}”
-                  </p>
-
-                </div>
-
-
-                {/* =======================================
-                    FRASE
-                ======================================= */}
-
-                <div
-                  style={{
-                    textAlign:
-                      "center",
-
-                    marginBottom:
-                      "12px",
-                  }}
-                >
-
-                  <span
-                    style={{
-                      fontSize:
-                        "10px",
-
-                      color:
-                        "#8b9793",
-                    }}
-                  >
-                    💚 Você não precisa
-                    passar por tudo sozinho.
-                  </span>
-
-                </div>
-
-
-                {/* =======================================
-                    CONTADORES
-                ======================================= */}
-
-                <div
-                  style={{
-                    display:
-                      "flex",
-
-                    alignItems:
-                      "center",
-
-                    gap:
-                      "10px",
-
-                    fontSize:
-                      "11px",
-
-                    color:
-                      "#8b918f",
-
-                    marginBottom:
-                      "9px",
-                  }}
-                >
-
-                  <span>
-                    {publicacao.apoios} apoios
-                  </span>
-
-                  <span>
-                    •
-                  </span>
-
-                  <span>
-                    {
-                      publicacao
-                        .comentarios
-                        .length
-                    }{" "}
-                    comentários
-                  </span>
-
-                </div>
-
-
-                {/* =======================================
-                    BOTÕES
-                ======================================= */}
-
-                <div
-                  style={{
-                    display:
-                      "grid",
-
-                    gridTemplateColumns:
-                      "1fr 1fr 1.25fr",
-
-                    gap:
-                      "7px",
-
-                    borderTop:
-                      "1px solid rgba(220,215,211,0.75)",
-
-                    paddingTop:
-                      "11px",
-                  }}
-                >
-
-                  {/* APOIAR */}
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      apoiar(
-                        publicacao.id
-                      )
-                    }
-                    style={{
-                      border:
-                        "none",
-
-                      background:
-                        "transparent",
-
-                      cursor:
-                        "pointer",
-
-                      color:
-                        apoiosDados[
-                          publicacao.id
-                        ]
-                          ? "#20adb0"
-                          : "#657571",
-
-                      fontSize:
-                        "11px",
-
-                      fontWeight:
-                        "700",
-
-                      padding:
-                        "5px",
-                    }}
-                  >
-
-                    <div
-                      style={{
-                        fontSize:
-                          "25px",
-
-                        lineHeight:
-                          "1",
-                      }}
-                    >
-                      {apoiosDados[
-                        publicacao.id
-                      ]
-                        ? "💚"
-                        : "❤️"}
-                    </div>
-
-                    <div
-                      style={{
-                        marginTop:
-                          "5px",
-                      }}
-                    >
-                      {apoiosDados[
-                        publicacao.id
-                      ]
-                        ? "Apoiado"
-                        : "Apoiar"}
-                    </div>
-
-                  </button>
-
-
-                  {/* COMENTAR */}
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      abrirComentarios(
-                        publicacao.id
-                      )
-                    }
-                    style={{
-                      border:
-                        "none",
-
-                      background:
-                        "transparent",
-
-                      cursor:
-                        "pointer",
-
-                      color:
-                        "#657571",
-
-                      fontSize:
-                        "11px",
-
-                      fontWeight:
-                        "700",
-
-                      padding:
-                        "5px",
-                    }}
-                  >
-
-                    <div
-                      style={{
-                        fontSize:
-                          "25px",
-
-                        lineHeight:
-                          "1",
-                      }}
-                    >
-                      💬
-                    </div>
-
-                    <div
-                      style={{
-                        marginTop:
-                          "5px",
-                      }}
-                    >
-                      Comentar
-                    </div>
-
-                  </button>
-
-
-                  {/* SOLICITAR CHAT */}
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      solicitarChat(
-                        publicacao
-                      )
-                    }
-                    style={{
-                      border:
-                        "none",
-
-                      background:
-                        "#20adb0",
-
-                      color:
-                        "#ffffff",
-
-                      borderRadius:
-                        "12px",
-
-                      cursor:
-                        "pointer",
-
-                      fontSize:
-                        "11px",
-
-                      fontWeight:
-                        "700",
-
-                      padding:
-                        "8px 5px",
-
-                      boxShadow:
-                        "0 5px 12px rgba(32,173,176,0.2)",
-                    }}
-                  >
-
-                    <div
-                      style={{
-                        fontSize:
-                          "18px",
-                      }}
-                    >
-                      🤝
-                    </div>
-
-                    Solicitar chat
-
-                  </button>
-
-                </div>
-
-
-                {/* =======================================
-                    COMENTÁRIOS
-                ======================================= */}
-
-                {comentariosAbertos[
-                  publicacao.id
-                ] && (
-
-                  <div
-                    style={{
-                      marginTop:
-                        "17px",
-
-                      paddingTop:
-                        "17px",
-
-                      borderTop:
-                        "1px solid rgba(220,215,211,0.75)",
-                    }}
-                  >
-
-                    <h3
-                      style={{
-                        margin:
-                          "0 0 14px",
-
-                        fontSize:
-                          "17px",
-
-                        color:
-                          "#304a45",
-                      }}
-                    >
-                      💬 Todos os comentários
-                    </h3>
-
-
-                    {publicacao
-                      .comentarios
-                      .length ===
-                      0 ? (
-
-                      <div
-                        style={{
-                          padding:
-                            "15px",
-
-                          textAlign:
-                            "center",
-
-                          color:
-                            "#888",
-
-                          fontSize:
-                            "13px",
-                        }}
-                      >
-                        Ainda não há
-                        comentários.
-                        <br />
-                        Seja a primeira pessoa
-                        a deixar uma palavra
-                        de apoio. 💚
-                      </div>
-
-                    ) : (
-
-                      <div
-                        style={{
-                          display:
-                            "flex",
-
-                          flexDirection:
-                            "column",
-
-                          gap:
-                            "12px",
-                        }}
-                      >
-
-                        {publicacao
-                          .comentarios
-                          .map(
-                            (
-                              comentario
-                            ) => (
-
-                              <div
-                                key={
-                                  comentario.id
-                                }
-                                style={{
-                                  display:
-                                    "flex",
-
-                                  gap:
-                                    "9px",
-
-                                  padding:
-                                    "10px",
-
-                                  background:
-                                    "rgba(255,255,255,0.58)",
-
-                                  borderRadius:
-                                    "13px",
-                                }}
-                              >
-
-                                <div
-                                  style={{
-                                    width:
-                                      "35px",
-
-                                    height:
-                                      "35px",
-
-                                    flexShrink:
-                                      0,
-
-                                    borderRadius:
-                                      "50%",
-
-                                    background:
-                                      "#e7f2ef",
-
-                                    display:
-                                      "flex",
-
-                                    alignItems:
-                                      "center",
-
-                                    justifyContent:
-                                      "center",
-                                  }}
-                                >
-                                  👤
-                                </div>
-
-                                <div>
-
-                                  <strong
-                                    style={{
-                                      display:
-                                        "block",
-
-                                      fontSize:
-                                        "11px",
-
-                                      color:
-                                        "#3e5651",
-                                    }}
-                                  >
-                                    Anônimo
-                                  </strong>
-
-                                  <p
-                                    style={{
-                                      margin:
-                                        "4px 0 0",
-
-                                      fontSize:
-                                        "13px",
-
-                                      lineHeight:
-                                        "1.45",
-
-                                      color:
-                                        "#596460",
-                                    }}
-                                  >
-                                    {
-                                      comentario.texto
-                                    }
-                                  </p>
-
-                                </div>
-
-                              </div>
-
-                            )
-                          )}
-
-                      </div>
-
-                    )}
-
-
-                    {/* CAMPO DE COMENTÁRIO */}
-
-                    <div
-                      style={{
-                        display:
-                          "flex",
-
-                        gap:
-                          "7px",
-
-                        marginTop:
+                          "1px solid #dce5e3",
+                        borderRadius:
                           "14px",
+                        padding:
+                          "11px",
+                        outline:
+                          "none",
                       }}
-                    >
+                    />
 
-                      <input
-                        type="text"
-                        value={
-                          novoComentario[
-                            publicacao.id
-                          ] || ""
-                        }
-                        onChange={(e) =>
-                          alterarComentario(
-                            publicacao.id,
-                            e.target.value
-                          )
-                        }
-                        onKeyDown={(e) => {
-                          if (
-                            e.key ===
-                            "Enter"
-                          ) {
-                            adicionarComentario(
-                              publicacao.id
-                            );
-                          }
-                        }}
-                        placeholder="Escreva uma palavra de apoio..."
-                        style={{
-                          flex:
-                            1,
-
-                          minWidth:
-                            0,
-
-                          border:
-                            "1px solid #dcdedc",
-
-                          borderRadius:
-                            "12px",
-
-                          padding:
-                            "11px 12px",
-
-                          fontSize:
-                            "12px",
-
-                          outline:
-                            "none",
-
-                          background:
-                            "#ffffff",
-                        }}
-                      />
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          adicionarComentario(
-                            publicacao.id
-                          )
-                        }
-                        style={{
-                          width:
-                            "43px",
-
-                          border:
-                            "none",
-
-                          borderRadius:
-                            "12px",
-
-                          background:
-                            "#20adb0",
-
-                          color:
-                            "#ffffff",
-
-                          cursor:
-                            "pointer",
-
-                          fontSize:
-                            "17px",
-                        }}
-                      >
-                        ➤
-                      </button>
-
-                    </div>
-
-                    <small
+                    <button
+                      onClick={() =>
+                        enviarComentario(
+                          item.id
+                        )
+                      }
                       style={{
-                        display:
-                          "block",
-
-                        marginTop:
-                          "8px",
-
+                        border:
+                          "none",
+                        borderRadius:
+                          "14px",
+                        padding:
+                          "0 15px",
+                        background:
+                          "#20adb0",
                         color:
-                          "#999",
-
-                        fontSize:
-                          "9px",
+                          "white",
+                        fontWeight:
+                          "700",
+                        cursor:
+                          "pointer",
                       }}
                     >
-                      🔒 Seu comentário também
-                      será anônimo.
-                    </small>
-
+                      Enviar
+                    </button>
                   </div>
 
-                )}
+                </div>
+              )}
 
-              </article>
+            </div>
+          );
+        })}
 
-            )
-          )}
-
-        </section>
-
-
-        {/* =================================================
-            PRIVACIDADE
-        ================================================= */}
-
-        <div
-          style={{
-            marginTop:
-              "24px",
-
-            padding:
-              "16px",
-
-            borderRadius:
-              "17px",
-
-            background:
-              "rgba(240,250,248,0.78)",
-
-            border:
-              "1px solid #dceeea",
-          }}
-        >
-
-          <strong
-            style={{
-              fontSize:
-                "13px",
-            }}
-          >
-            🔒 Sua privacidade é importante
-          </strong>
-
-          <p
-            style={{
-              margin:
-                "7px 0 0",
-
-              color:
-                "#777",
-
-              fontSize:
-                "11px",
-
-              lineHeight:
-                "1.5",
-            }}
-          >
-            Quem publica um desabafo
-            permanece anônimo. Ao solicitar
-            uma conversa, somente a pessoa
-            que receberá a solicitação verá
-            seu nome e sua foto antes de
-            decidir se aceita.
-          </p>
-
-        </div>
-
-      </section>
-
+      </div>
 
       {/* =================================================
-          BOTÃO FLUTUANTE — DESABAFAR
+          BOTÃO DESABAFAR
       ================================================= */}
 
       <button
-        type="button"
         onClick={() =>
           irPara("desabafar")
         }
-        aria-label="Desabafar"
         style={{
-          position:
-            "fixed",
-
-          right:
-            "22px",
-
-          bottom:
-            "94px",
-
-          width:
-            "132px",
-
-          height:
-            "132px",
-
-          borderRadius:
-            "50%",
-
-          border:
-            "none",
-
-          background:
-            "linear-gradient(145deg, #7ab968, #4e984e)",
-
-          color:
-            "#ffffff",
-
-          cursor:
-            "pointer",
-
-          display:
-            "flex",
-
-          flexDirection:
-            "column",
-
-          alignItems:
-            "center",
-
-          justifyContent:
-            "center",
-
-          gap:
-            "4px",
-
+          position: "fixed",
+          right: "20px",
+          bottom: "90px",
+          width: "62px",
+          height: "62px",
+          borderRadius: "50%",
+          border: "none",
+          background: "#20adb0",
+          color: "white",
+          fontSize: "26px",
+          cursor: "pointer",
           boxShadow:
-            "0 12px 30px rgba(45,90,48,0.35)",
-
-          zIndex:
-            500,
-
-          transition:
-            "transform 0.2s ease",
-        }}
-
-        onMouseEnter={(e) => {
-          e.currentTarget.style.transform =
-            "scale(1.05)";
-        }}
-
-        onMouseLeave={(e) => {
-          e.currentTarget.style.transform =
-            "scale(1)";
+            "0 8px 25px rgba(0,0,0,0.2)",
+          zIndex: 100,
         }}
       >
-
-        {/* =================================================
-            PENA
-        ================================================= */}
-
-        <svg
-          width="46"
-          height="46"
-          viewBox="0 0 64 64"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-
-          <path
-            d="
-              M51 8
-              C36 9 22 17 15 30
-              C10 39 13 48 19 53
-              C25 58 34 57 41 49
-              C50 39 53 24 51 8Z
-            "
-            fill="white"
-          />
-
-          <path
-            d="
-              M15 54
-              C23 42 32 31 47 17
-            "
-            stroke="#5A9E59"
-            strokeWidth="3"
-            strokeLinecap="round"
-          />
-
-          <path
-            d="
-              M25 41
-              L17 37
-            "
-            stroke="#5A9E59"
-            strokeWidth="2"
-            strokeLinecap="round"
-          />
-
-          <path
-            d="
-              M31 34
-              L23 28
-            "
-            stroke="#5A9E59"
-            strokeWidth="2"
-            strokeLinecap="round"
-          />
-
-          <path
-            d="
-              M37 27
-              L31 20
-            "
-            stroke="#5A9E59"
-            strokeWidth="2"
-            strokeLinecap="round"
-          />
-
-        </svg>
-
-
-        {/* TEXTO */}
-
-        <span
-          style={{
-            fontSize:
-              "16px",
-
-            fontWeight:
-              "700",
-
-            letterSpacing:
-              "0.1px",
-          }}
-        >
-          Desabafar
-        </span>
-
+        ✎
       </button>
 
-    </main>
+    </div>
   );
 }
 

@@ -1,124 +1,388 @@
-import React, { useState } from "react";
+import React, {
+  useEffect,
+  useState,
+} from "react";
+
+import "../tema.css";
 
 function Solicitacoes({ irPara }) {
+
   // =====================================================
-  // USUÁRIO LOGADO
+  // ABA
+  // =====================================================
+
+  const [aba, setAba] =
+    useState("solicitacoes");
+
+  // =====================================================
+  // USUÁRIO ATUAL
   // =====================================================
 
   const nomeUsuario =
-    localStorage.getItem("pulsanNome") ||
-    "Você";
+    localStorage.getItem(
+      "pulsanNome"
+    ) || "Você";
 
   const fotoUsuario =
-    localStorage.getItem("pulsanFoto") ||
-    "";
+    localStorage.getItem(
+      "pulsanFoto"
+    ) || "";
 
+  const usuarioLogado =
+    JSON.parse(
+      localStorage.getItem(
+        "usuarioLogado"
+      ) || "null"
+    ) || {};
 
-  // =====================================================
-  // SOLICITAÇÕES RECEBIDAS
-  // =====================================================
-
-  const [solicitacoes, setSolicitacoes] =
-    useState(() => {
-      const salvas =
-        JSON.parse(
-          localStorage.getItem(
-            "pulsanSolicitacoesChat"
-          ) || "[]"
-        );
-
-      return salvas.filter(
-        (item) =>
-          item.status === "pendente"
-      );
-    });
-
+  const meuId =
+    usuarioLogado.id ||
+    usuarioLogado.email ||
+    localStorage.getItem(
+      "pulsanEmail"
+    ) ||
+    nomeUsuario;
 
   // =====================================================
-  // MENSAGENS / CONVERSAS RECENTES
+  // ESTADOS
   // =====================================================
 
-  const [conversas, setConversas] =
-    useState(() => {
-      return JSON.parse(
-        localStorage.getItem(
-          "pulsanConversas"
-        ) || "[]"
-      );
-    });
+  const [
+    solicitacoes,
+    setSolicitacoes,
+  ] = useState([]);
 
+  const [
+    conversas,
+    setConversas,
+  ] = useState([]);
 
   // =====================================================
-  // ATUALIZAR DADOS
+  // CARREGAR DADOS
   // =====================================================
 
-  function atualizarDados() {
-    const novasSolicitacoes =
+  function carregarDados() {
+
+    const todasSolicitacoes =
       JSON.parse(
         localStorage.getItem(
           "pulsanSolicitacoesChat"
         ) || "[]"
       );
 
+    // ===================================================
+    // SOLICITAÇÕES PENDENTES
+    // ===================================================
+
+    const pendentes =
+      todasSolicitacoes.filter(
+        (item) => {
+
+          if (
+            item.status !==
+            "pendente"
+          ) {
+            return false;
+          }
+
+          /*
+           * Se a solicitação possui destinatário,
+           * mostramos somente para ele.
+           *
+           * Solicitações antigas sem destinatarioId
+           * continuam aparecendo para permitir o teste
+           * do protótipo.
+           */
+
+          if (
+            item.destinatarioId
+          ) {
+            return (
+              String(
+                item.destinatarioId
+              ) ===
+              String(meuId)
+            );
+          }
+
+          return true;
+        }
+      );
+
     setSolicitacoes(
-      novasSolicitacoes.filter(
-        (item) =>
-          item.status === "pendente"
-      )
+      pendentes
     );
 
+    // ===================================================
+    // CONVERSAS
+    // ===================================================
 
-    const novasConversas =
+    const conversasSalvas =
       JSON.parse(
         localStorage.getItem(
           "pulsanConversas"
         ) || "[]"
       );
 
+    const minhasConversas =
+      conversasSalvas.filter(
+        (conversa) => {
+
+          if (
+            conversa.usuarioAId ||
+            conversa.usuarioBId
+          ) {
+
+            return (
+              String(
+                conversa.usuarioAId
+              ) === String(meuId) ||
+              String(
+                conversa.usuarioBId
+              ) === String(meuId)
+            );
+          }
+
+          return true;
+        }
+      );
+
     setConversas(
-      novasConversas
+      minhasConversas
     );
   }
 
+  // =====================================================
+  // ATUALIZAÇÃO
+  // =====================================================
+
+  useEffect(() => {
+
+    carregarDados();
+
+    function atualizar() {
+      carregarDados();
+    }
+
+    window.addEventListener(
+      "storage",
+      atualizar
+    );
+
+    window.addEventListener(
+      "focus",
+      atualizar
+    );
+
+    const intervalo =
+      setInterval(
+        atualizar,
+        2000
+      );
+
+    return () => {
+
+      window.removeEventListener(
+        "storage",
+        atualizar
+      );
+
+      window.removeEventListener(
+        "focus",
+        atualizar
+      );
+
+      clearInterval(
+        intervalo
+      );
+    };
+
+  }, [meuId]);
 
   // =====================================================
-  // ACEITAR SOLICITAÇÃO
+  // ACEITAR
   // =====================================================
 
   function aceitarSolicitacao(
     solicitacao
   ) {
+
     const confirmar =
       window.confirm(
-        "Deseja aceitar esta solicitação de conversa?\n\n" +
-        "A pessoa que está oferecendo ajuda verá seu nome, foto e selo.\n\n" +
-        "Você continuará anônimo para ela."
+        `Deseja aceitar a solicitação de ${
+          solicitacao.nomeSolicitante ||
+          "esta pessoa"
+        }?\n\nO chat privado será aberto.`
       );
 
     if (!confirmar) {
       return;
     }
 
+    // ===================================================
+    // TODAS AS SOLICITAÇÕES
+    // ===================================================
 
-    // =================================================
-    // DEFINIR PAPEL
-    //
-    // Quem recebe a solicitação é quem publicou
-    // o desabafo.
-    //
-    // Portanto:
-    // ajudado = anônimo
-    // =================================================
+    const todas =
+      JSON.parse(
+        localStorage.getItem(
+          "pulsanSolicitacoesChat"
+        ) || "[]"
+      );
+
+    const atualizadas =
+      todas.map(
+        (item) => {
+
+          if (
+            item.id ===
+            solicitacao.id
+          ) {
+
+            return {
+              ...item,
+
+              status:
+                "aceita",
+
+              aceitaEm:
+                new Date().toISOString(),
+            };
+          }
+
+          return item;
+        }
+      );
 
     localStorage.setItem(
-      "pulsanPapelConversa",
-      "ajudado"
+      "pulsanSolicitacoesChat",
+      JSON.stringify(
+        atualizadas
+      )
     );
 
+    // ===================================================
+    // CRIAR CONVERSA
+    // ===================================================
 
-    // =================================================
-    // DADOS DO AJUDANTE
-    // =================================================
+    const conversasAtuais =
+      JSON.parse(
+        localStorage.getItem(
+          "pulsanConversas"
+        ) || "[]"
+      );
+
+    const conversaExistente =
+      conversasAtuais.find(
+        (item) =>
+          item.solicitacaoId ===
+          solicitacao.id
+      );
+
+    let conversa;
+
+    if (
+      conversaExistente
+    ) {
+
+      conversa =
+        conversaExistente;
+
+    } else {
+
+      conversa = {
+
+        id:
+          "conversa-" +
+          Date.now(),
+
+        solicitacaoId:
+          solicitacao.id,
+
+        publicacaoId:
+          solicitacao.publicacaoId,
+
+        textoDesabafo:
+          solicitacao.textoDesabafo ||
+          solicitacao.texto ||
+          "",
+
+        usuarioAId:
+          solicitacao.solicitanteId,
+
+        usuarioBId:
+          solicitacao.destinatarioId ||
+          meuId,
+
+        nome:
+          solicitacao.nomeSolicitante ||
+          "Usuário",
+
+        foto:
+          solicitacao.fotoSolicitante ||
+          "",
+
+        mediaAvaliacoes:
+          solicitacao.mediaAvaliacoes ||
+          "Novo",
+
+        quantidadeAvaliacoes:
+          solicitacao.quantidadeAvaliacoes ||
+          0,
+
+        seloApoiador:
+          solicitacao.seloApoiador ===
+          true,
+
+        seloPsicologo:
+          solicitacao.seloPsicologo ===
+          true,
+
+        categoria:
+          solicitacao.categoria ||
+          "Conversa privada",
+
+        ultimaMensagem:
+          "Conversa iniciada.",
+
+        hora:
+          "Agora",
+
+        mensagens: [],
+
+        status:
+          "ativa",
+
+        criadaEm:
+          new Date().toISOString(),
+      };
+
+      conversasAtuais.unshift(
+        conversa
+      );
+
+      localStorage.setItem(
+        "pulsanConversas",
+        JSON.stringify(
+          conversasAtuais
+        )
+      );
+    }
+
+    // ===================================================
+    // SALVAR CONVERSA ATUAL
+    // ===================================================
+
+    localStorage.setItem(
+      "pulsanConversaAtual",
+      JSON.stringify(
+        conversa
+      )
+    );
+
+    // ===================================================
+    // DADOS DA OUTRA PESSOA
+    // ===================================================
 
     localStorage.setItem(
       "pulsanNomeOutraPessoa",
@@ -133,274 +397,108 @@ function Solicitacoes({ irPara }) {
     );
 
     localStorage.setItem(
-      "pulsanTipoOutraPessoa",
-      solicitacao.tipoSolicitante ||
+      "pulsanMediaOutraPessoa",
+      solicitacao.mediaAvaliacoes ||
+        "Novo"
+    );
+
+    localStorage.setItem(
+      "pulsanAvaliacoesOutraPessoa",
+      String(
+        solicitacao.quantidadeAvaliacoes ||
+        0
+      )
+    );
+
+    localStorage.setItem(
+      "pulsanPapelConversa",
+      "ajudante"
+    );
+
+    localStorage.setItem(
+      "pulsanDesabafoConversa",
+      solicitacao.textoDesabafo ||
+        solicitacao.texto ||
         ""
     );
 
     localStorage.setItem(
-      "pulsanSeloOutraPessoa",
-      solicitacao.seloSolicitante ||
-        ""
-    );
-
-
-    // =================================================
-    // O USUÁRIO QUE PUBLICOU CONTINUA ANÔNIMO
-    // =================================================
-
-    localStorage.setItem(
-      "pulsanNomeUsuarioConversa",
-      "Anônimo"
+      "pulsanIdDesabafoConversa",
+      String(solicitacao.publicacaoId || "")
     );
 
     localStorage.setItem(
-      "pulsanFotoUsuarioConversa",
-      ""
+      "pulsanSeloApoiadorOutraPessoa",
+      String(solicitacao.seloApoiador === true)
     );
-
-
-    // =================================================
-    // ID DA CONVERSA
-    // =================================================
-
-    const conversaId =
-      `conversa_${solicitacao.id}`;
-
 
     localStorage.setItem(
-      "pulsanConversaAtual",
-      conversaId
+      "pulsanSeloPsicologoOutraPessoa",
+      String(solicitacao.seloPsicologo === true)
     );
 
-
-    // =================================================
-    // GUARDAR SOLICITAÇÃO ATUAL
-    // =================================================
-
-    const solicitacaoAtual = {
-      ...solicitacao,
-
-      conversaId:
-        conversaId,
-    };
-
-
-    localStorage.setItem(
-      "pulsanSolicitacaoAtual",
-      JSON.stringify(
-        solicitacaoAtual
-      )
-    );
-
-
-    // =================================================
-    // ATUALIZAR STATUS DA SOLICITAÇÃO
-    // =================================================
-
-    const todasSolicitacoes =
-      JSON.parse(
-        localStorage.getItem(
-          "pulsanSolicitacoesChat"
-        ) || "[]"
-      );
-
-
-    const solicitacoesAtualizadas =
-      todasSolicitacoes.map(
-        (item) => {
-
-          if (
-            item.id !==
-            solicitacao.id
-          ) {
-            return item;
-          }
-
-          return {
-            ...item,
-
-            status:
-              "aceita",
-
-            conversaId:
-              conversaId,
-
-            aceitaEm:
-              new Date().toLocaleString(
-                "pt-BR"
-              ),
-          };
-        }
-      );
-
-
-    localStorage.setItem(
-      "pulsanSolicitacoesChat",
-      JSON.stringify(
-        solicitacoesAtualizadas
-      )
-    );
-
-
-    // =================================================
-    // CRIAR CONVERSA
-    // =================================================
-
-    const conversasSalvas =
-      JSON.parse(
-        localStorage.getItem(
-          "pulsanConversas"
-        ) || "[]"
-      );
-
-
-    const conversaExistente =
-      conversasSalvas.find(
-        (item) =>
-          item.id ===
-          solicitacao.id
-      );
-
-
-    const novaConversa =
-      conversaExistente || {
-        id:
-          solicitacao.id,
-
-        conversaId:
-          conversaId,
-
-        nome:
-          solicitacao.nomeSolicitante ||
-          "Usuário",
-
-        foto:
-          solicitacao.fotoSolicitante ||
-          "",
-
-        tipo:
-          solicitacao.tipoSolicitante ||
-          "",
-
-        selo:
-          solicitacao.seloSolicitante ||
-          "",
-
-        ultimaMensagem:
-          "Conversa iniciada. 💚",
-
-        hora:
-          "Agora",
-
-        papel:
-          "ajudado",
-
-        publicacaoId:
-          solicitacao.publicacaoId,
-
-        anonimato:
-          true,
-      };
-
-
-    const conversasAtualizadas = [
-      novaConversa,
-
-      ...conversasSalvas.filter(
-        (item) =>
-          item.id !==
-          novaConversa.id
-      ),
-    ];
-
-
-    localStorage.setItem(
-      "pulsanConversas",
-      JSON.stringify(
-        conversasAtualizadas
-      )
-    );
-
-
-    // =================================================
+    // ===================================================
     // ATUALIZAR TELA
-    // =================================================
+    // ===================================================
 
-    setSolicitacoes(
-      solicitacoesAtualizadas.filter(
-        (item) =>
-          item.status ===
-          "pendente"
-      )
-    );
+    carregarDados();
 
-
-    setConversas(
-      conversasAtualizadas
-    );
-
-
-    // =================================================
-    // IR PARA O CHAT
-    // =================================================
+    // ===================================================
+    // ABRIR CHAT
+    // ===================================================
 
     irPara(
       "conversa"
     );
   }
 
-
   // =====================================================
-  // RECUSAR SOLICITAÇÃO
+  // REJEITAR
   // =====================================================
 
-  function recusarSolicitacao(
+  function rejeitarSolicitacao(
     solicitacao
   ) {
+
     const confirmar =
       window.confirm(
-        "Deseja recusar esta solicitação?"
+        "Deseja rejeitar esta solicitação?"
       );
 
     if (!confirmar) {
       return;
     }
 
-
-    const todasSolicitacoes =
+    const todas =
       JSON.parse(
         localStorage.getItem(
           "pulsanSolicitacoesChat"
         ) || "[]"
       );
 
-
     const atualizadas =
-      todasSolicitacoes.map(
+      todas.map(
         (item) => {
 
           if (
-            item.id !==
+            item.id ===
             solicitacao.id
           ) {
-            return item;
+
+            return {
+              ...item,
+
+              status:
+                "recusada",
+
+              recusadaEm:
+                new Date().toISOString(),
+            };
           }
 
-          return {
-            ...item,
-
-            status:
-              "recusada",
-
-            recusadaEm:
-              new Date().toLocaleString(
-                "pt-BR"
-              ),
-          };
+          return item;
         }
       );
-
 
     localStorage.setItem(
       "pulsanSolicitacoesChat",
@@ -409,16 +507,8 @@ function Solicitacoes({ irPara }) {
       )
     );
 
-
-    setSolicitacoes(
-      atualizadas.filter(
-        (item) =>
-          item.status ===
-          "pendente"
-      )
-    );
+    carregarDados();
   }
-
 
   // =====================================================
   // ABRIR CONVERSA
@@ -427,25 +517,13 @@ function Solicitacoes({ irPara }) {
   function abrirConversa(
     conversa
   ) {
-    const conversaId =
-      conversa.conversaId ||
-      `conversa_${conversa.id}`;
-
-
-    // =================================================
-    // PAPEL
-    // =================================================
 
     localStorage.setItem(
-      "pulsanPapelConversa",
-      conversa.papel ||
-        "ajudado"
+      "pulsanConversaAtual",
+      JSON.stringify(
+        conversa
+      )
     );
-
-
-    // =================================================
-    // OUTRA PESSOA
-    // =================================================
 
     localStorage.setItem(
       "pulsanNomeOutraPessoa",
@@ -460,73 +538,147 @@ function Solicitacoes({ irPara }) {
     );
 
     localStorage.setItem(
-      "pulsanTipoOutraPessoa",
-      conversa.tipo ||
+      "pulsanMediaOutraPessoa",
+      conversa.mediaAvaliacoes ||
+        "Novo"
+    );
+
+    localStorage.setItem(
+      "pulsanAvaliacoesOutraPessoa",
+      String(
+        conversa.quantidadeAvaliacoes ||
+        0
+      )
+    );
+
+    localStorage.setItem(
+      "pulsanPapelConversa",
+      String(conversa.usuarioAId) === String(meuId)
+        ? "ajudado"
+        : "ajudante"
+    );
+
+    localStorage.setItem(
+      "pulsanDesabafoConversa",
+      conversa.textoDesabafo ||
+        conversa.texto ||
         ""
     );
 
     localStorage.setItem(
-      "pulsanSeloOutraPessoa",
-      conversa.selo ||
-        ""
+      "pulsanIdDesabafoConversa",
+      String(conversa.publicacaoId || "")
     );
-
-
-    // =================================================
-    // CONVERSA ATUAL
-    // =================================================
 
     localStorage.setItem(
-      "pulsanConversaAtual",
-      conversaId
+      "pulsanSeloApoiadorOutraPessoa",
+      String(conversa.seloApoiador === true)
     );
 
-
-    // =================================================
-    // ABRIR CHAT
-    // =================================================
+    localStorage.setItem(
+      "pulsanSeloPsicologoOutraPessoa",
+      String(conversa.seloPsicologo === true)
+    );
 
     irPara(
       "conversa"
     );
   }
 
-
   // =====================================================
-  // VOLTAR AO AMBIENTE
+  // AVALIAÇÃO
   // =====================================================
 
-  function voltarInicio() {
-    irPara(
-      "ambiente"
-    );
+  function estrelas(
+    valor
+  ) {
+
+    const nota =
+      Number(valor) || 0;
+
+    let resultado = "";
+
+    for (
+      let i = 1;
+      i <= 5;
+      i++
+    ) {
+
+      resultado +=
+        i <= Math.round(nota)
+          ? "★"
+          : "☆";
+    }
+
+    return resultado;
   }
 
+  // =====================================================
+  // URGÊNCIA
+  // =====================================================
+
+  function obterUrgencia(
+    urgencia
+  ) {
+
+    if (
+      urgencia ===
+      "urgente"
+    ) {
+
+      return {
+        cor: "#c62828",
+        fundo: "#fff0f0",
+        texto: "Urgente",
+        icone: "🔴",
+      };
+    }
+
+    if (
+      urgencia ===
+      "importante"
+    ) {
+
+      return {
+        cor: "#a87500",
+        fundo: "#fff8df",
+        texto:
+          "Precisa de atenção",
+        icone: "🟡",
+      };
+    }
+
+    return {
+      cor: "#29804d",
+      fundo: "#effaf2",
+      texto:
+        "Pode conversar",
+      icone: "🟢",
+    };
+  }
 
   // =====================================================
   // RENDER
   // =====================================================
 
   return (
-    <main
+
+    <div
       style={{
         minHeight:
           "100vh",
 
         background:
-          "linear-gradient(180deg, #fffdf9 0%, #f2faf7 100%)",
+          "var(--pulsan-fundo, #fffdf9)",
 
         color:
-          "#173b38",
+          "var(--pulsan-texto, #173b38)",
 
         fontFamily:
           "Arial, Helvetica, sans-serif",
 
         paddingBottom:
-          "95px",
-
-        boxSizing:
-          "border-box",
+          "100px",
       }}
     >
 
@@ -536,26 +688,11 @@ function Solicitacoes({ irPara }) {
 
       <header
         style={{
-          position:
-            "sticky",
-
-          top:
-            0,
-
-          zIndex:
-            100,
-
           background:
-            "rgba(255,255,255,0.97)",
-
-          backdropFilter:
-            "blur(10px)",
-
-          borderBottom:
-            "1px solid #e6e6e6",
+            "linear-gradient(135deg, #f6d7c8, #f9e6dc)",
 
           padding:
-            "12px 18px",
+            "18px 35px",
 
           display:
             "flex",
@@ -566,58 +703,10 @@ function Solicitacoes({ irPara }) {
           justifyContent:
             "space-between",
 
-          boxSizing:
-            "border-box",
+          borderBottom:
+            "1px solid #eadbd4",
         }}
       >
-
-        {/* VOLTAR */}
-
-        <button
-          type="button"
-          onClick={
-            voltarInicio
-          }
-          style={{
-            width:
-              "42px",
-
-            height:
-              "42px",
-
-            border:
-              "none",
-
-            borderRadius:
-              "50%",
-
-            background:
-              "#f1f5f3",
-
-            color:
-              "#36534c",
-
-            fontSize:
-              "23px",
-
-            cursor:
-              "pointer",
-
-            display:
-              "flex",
-
-            alignItems:
-              "center",
-
-            justifyContent:
-              "center",
-          }}
-        >
-          ←
-        </button>
-
-
-        {/* LOGO */}
 
         <div
           style={{
@@ -628,7 +717,7 @@ function Solicitacoes({ irPara }) {
               "center",
 
             gap:
-              "8px",
+              "14px",
           }}
         >
 
@@ -637,10 +726,10 @@ function Solicitacoes({ irPara }) {
             alt="Logo Pulsan"
             style={{
               width:
-                "40px",
+                "48px",
 
               height:
-                "40px",
+                "48px",
 
               objectFit:
                 "contain",
@@ -655,7 +744,7 @@ function Solicitacoes({ irPara }) {
                   "block",
 
                 fontSize:
-                  "18px",
+                  "21px",
 
                 letterSpacing:
                   "4px",
@@ -666,17 +755,11 @@ function Solicitacoes({ irPara }) {
 
             <span
               style={{
-                display:
-                  "block",
-
-                textAlign:
-                  "center",
-
                 fontSize:
-                  "9px",
+                  "13px",
 
                 color:
-                  "#999",
+                  "var(--pulsan-texto-secundario, #777)",
               }}
             >
               Conversas
@@ -686,22 +769,17 @@ function Solicitacoes({ irPara }) {
 
         </div>
 
-
-        {/* PERFIL */}
-
         <button
           type="button"
           onClick={() =>
-            irPara(
-              "perfil"
-            )
+            irPara("perfil")
           }
           style={{
             width:
-              "42px",
+              "44px",
 
             height:
-              "42px",
+              "44px",
 
             border:
               "none",
@@ -713,22 +791,31 @@ function Solicitacoes({ irPara }) {
               "hidden",
 
             background:
-              "#eef5f2",
-
-            padding:
-              0,
+              "var(--pulsan-card, #fff)",
 
             cursor:
               "pointer",
+
+            padding: 0,
+
+            display:
+              "flex",
+
+            alignItems:
+              "center",
+
+            justifyContent:
+              "center",
+
+            fontSize:
+              "20px",
           }}
         >
 
           {fotoUsuario ? (
 
             <img
-              src={
-                fotoUsuario
-              }
+              src={fotoUsuario}
               alt="Perfil"
               style={{
                 width:
@@ -743,286 +830,964 @@ function Solicitacoes({ irPara }) {
             />
 
           ) : (
-
             "👤"
-
           )}
 
         </button>
 
       </header>
 
-
       {/* =================================================
           CONTEÚDO
       ================================================= */}
 
-      <section
+      <main
         style={{
-          width:
-            "100%",
-
           maxWidth:
-            "850px",
+            "900px",
 
           margin:
             "0 auto",
 
           padding:
-            "28px 18px",
-
-          boxSizing:
-            "border-box",
+            "35px 25px",
         }}
       >
 
-        {/* TÍTULO */}
+        <h1
+          style={{
+            margin:
+              "0 0 8px",
+
+            fontSize:
+              "30px",
+          }}
+        >
+          Conversas 💬
+        </h1>
+
+        <p
+          style={{
+            margin:
+              "0 0 25px",
+
+            color:
+              "var(--pulsan-texto-secundario, #777)",
+
+            lineHeight:
+              "1.5",
+          }}
+        >
+          Aqui você pode decidir com quem
+          deseja conversar de forma privada.
+        </p>
+
+        {/* =================================================
+            ABAS
+        ================================================= */}
 
         <div
           style={{
+            background:
+              "var(--pulsan-card, #fff)",
+
+            border:
+              "1px solid var(--pulsan-borda, #e5e5e5)",
+
+            borderRadius:
+              "16px",
+
+            padding:
+              "6px",
+
+            display:
+              "grid",
+
+            gridTemplateColumns:
+              "1fr 1fr",
+
+            gap:
+              "6px",
+
             marginBottom:
               "25px",
           }}
         >
 
-          <h1
+          <button
+            type="button"
+            onClick={() =>
+              setAba(
+                "solicitacoes"
+              )
+            }
             style={{
-              margin:
-                0,
+              border:
+                "none",
 
-              fontSize:
-                "30px",
+              borderRadius:
+                "12px",
 
-              lineHeight:
-                "1.15",
-
-              fontWeight:
-                "800",
-            }}
-          >
-            Conversas 💬
-          </h1>
-
-
-          <p
-            style={{
-              margin:
-                "8px 0 0",
-
-              color:
-                "#777",
-
-              fontSize:
+              padding:
                 "13px",
 
-              lineHeight:
-                "1.5",
+              background:
+                aba ===
+                "solicitacoes"
+                  ? "var(--pulsan-primaria, #20adb0)"
+                  : "transparent",
+
+              color:
+                aba ===
+                "solicitacoes"
+                  ? "#fff"
+                  : "var(--pulsan-texto-secundario, #777)",
+
+              fontWeight:
+                "700",
+
+              cursor:
+                "pointer",
             }}
           >
-            Veja suas solicitações
-            recebidas e continue suas
-            conversas recentes.
-          </p>
-
-        </div>
-
-
-        {/* =================================================
-            SOLICITAÇÕES RECEBIDAS
-        ================================================= */}
-
-        <section
-          style={{
-            marginBottom:
-              "32px",
-          }}
-        >
-
-          <div
-            style={{
-              display:
-                "flex",
-
-              alignItems:
-                "center",
-
-              justifyContent:
-                "space-between",
-
-              marginBottom:
-                "14px",
-            }}
-          >
-
-            <h2
-              style={{
-                margin:
-                  0,
-
-                fontSize:
-                  "20px",
-              }}
-            >
-              📩 Solicitações recebidas
-            </h2>
-
+            📩 Solicitações
 
             {solicitacoes.length >
               0 && (
 
               <span
                 style={{
+                  marginLeft:
+                    "7px",
+
                   background:
-                    "#20adb0",
+                    "#fff",
 
                   color:
-                    "#ffffff",
+                    "#20adb0",
 
                   borderRadius:
                     "20px",
 
                   padding:
-                    "5px 9px",
+                    "2px 7px",
 
                   fontSize:
-                    "10px",
-
-                  fontWeight:
-                    "800",
+                    "11px",
                 }}
               >
-                {
-                  solicitacoes.length
-                }
+                {solicitacoes.length}
               </span>
 
             )}
 
-          </div>
+          </button>
 
+          <button
+            type="button"
+            onClick={() =>
+              setAba(
+                "recentes"
+              )
+            }
+            style={{
+              border:
+                "none",
 
-          {solicitacoes.length ===
-          0 ? (
+              borderRadius:
+                "12px",
 
-            <div
-              style={{
-                background:
-                  "#ffffff",
+              padding:
+                "13px",
 
-                border:
-                  "1px solid #e5e5e5",
+              background:
+                aba ===
+                "recentes"
+                  ? "var(--pulsan-primaria, #20adb0)"
+                  : "transparent",
 
-                borderRadius:
-                  "20px",
+              color:
+                aba ===
+                "recentes"
+                  ? "#fff"
+                  : "var(--pulsan-texto-secundario, #777)",
 
-                padding:
-                  "28px 20px",
+              fontWeight:
+                "700",
 
-                textAlign:
-                  "center",
+              cursor:
+                "pointer",
+            }}
+          >
+            💬 Recentes
 
-                boxShadow:
-                  "0 4px 15px rgba(0,0,0,0.03)",
-              }}
-            >
+            {conversas.length >
+              0 && (
 
-              <div
+              <span
                 style={{
-                  fontSize:
-                    "34px",
+                  marginLeft:
+                    "7px",
 
-                  marginBottom:
-                    "8px",
-                }}
-              >
-                💚
-              </div>
-
-
-              <strong
-                style={{
-                  display:
-                    "block",
-
-                  fontSize:
-                    "15px",
-
-                  marginBottom:
-                    "5px",
-                }}
-              >
-                Nenhuma solicitação recebida
-              </strong>
-
-
-              <p
-                style={{
-                  margin:
-                    0,
+                  background:
+                    "#fff",
 
                   color:
-                    "#888",
+                    "#20adb0",
+
+                  borderRadius:
+                    "20px",
+
+                  padding:
+                    "2px 7px",
 
                   fontSize:
                     "11px",
-
-                  lineHeight:
-                    "1.5",
                 }}
               >
-                Quando alguém quiser
-                oferecer ajuda, a
-                solicitação aparecerá aqui.
-              </p>
+                {conversas.length}
+              </span>
 
-            </div>
+            )}
 
-          ) : (
+          </button>
+
+        </div>
+
+        {/* =================================================
+            SOLICITAÇÕES
+        ================================================= */}
+
+        {aba ===
+          "solicitacoes" && (
+
+          <section>
 
             <div
               style={{
                 display:
                   "flex",
 
-                flexDirection:
-                  "column",
+                justifyContent:
+                  "space-between",
 
-                gap:
-                  "14px",
+                alignItems:
+                  "center",
+
+                marginBottom:
+                  "15px",
               }}
             >
 
-              {solicitacoes.map(
-                (
-                  solicitacao
-                ) => (
+              <h2
+                style={{
+                  margin: 0,
 
-                  <article
-                    key={
-                      solicitacao.id
-                    }
-                    style={{
-                      background:
-                        "#ffffff",
+                  fontSize:
+                    "21px",
+                }}
+              >
+                📩 Solicitações de conversa
+              </h2>
 
-                      border:
-                        "1px solid #e3e7e5",
+              <span
+                style={{
+                  fontSize:
+                    "12px",
 
-                      borderRadius:
-                        "20px",
+                  color:
+                    "var(--pulsan-texto-secundario, #777)",
+                }}
+              >
+                {solicitacoes.length}
+                {" pendentes"}
+              </span>
 
-                      padding:
-                        "17px",
+            </div>
 
-                      boxShadow:
-                        "0 5px 18px rgba(0,0,0,0.04)",
-                    }}
-                  >
+            {solicitacoes.length ===
+            0 ? (
 
-                    {/* AJUDANTE */}
+              <div
+                style={{
+                  background:
+                    "var(--pulsan-card, #fff)",
 
-                    <div
+                  border:
+                    "1px solid var(--pulsan-borda, #e5e5e5)",
+
+                  borderRadius:
+                    "22px",
+
+                  padding:
+                    "45px 25px",
+
+                  textAlign:
+                    "center",
+                }}
+              >
+
+                <div
+                  style={{
+                    fontSize:
+                      "45px",
+
+                    marginBottom:
+                      "15px",
+                  }}
+                >
+                  💚
+                </div>
+
+                <h3
+                  style={{
+                    margin:
+                      "0 0 8px",
+                  }}
+                >
+                  Nenhuma solicitação
+                </h3>
+
+                <p
+                  style={{
+                    color:
+                      "var(--pulsan-texto-secundario, #777)",
+
+                    margin:
+                      0,
+                  }}
+                >
+                  Quando alguém solicitar
+                  uma conversa com você,
+                  aparecerá aqui.
+                </p>
+
+              </div>
+
+            ) : (
+
+              <div
+                style={{
+                  display:
+                    "flex",
+
+                  flexDirection:
+                    "column",
+
+                  gap:
+                    "16px",
+                }}
+              >
+
+                {solicitacoes.map(
+                  (solicitacao) => {
+
+                    const urgencia =
+                      obterUrgencia(
+                        solicitacao.urgencia
+                      );
+
+                    const nota =
+                      solicitacao.mediaAvaliacoes ||
+                      "Novo";
+
+                    const quantidade =
+                      solicitacao.quantidadeAvaliacoes ||
+                      0;
+
+                    return (
+
+                      <article
+                        key={
+                          solicitacao.id
+                        }
+                        style={{
+                          background:
+                            "var(--pulsan-card, #fff)",
+
+                          border:
+                            "1px solid var(--pulsan-borda, #e5e5e5)",
+
+                          borderRadius:
+                            "24px",
+
+                          padding:
+                            "22px",
+
+                          boxShadow:
+                            "0 6px 20px rgba(0,0,0,0.05)",
+                        }}
+                      >
+
+                        {/* PERFIL */}
+
+                        <div
+                          style={{
+                            display:
+                              "flex",
+
+                            alignItems:
+                              "center",
+
+                            gap:
+                              "14px",
+                          }}
+                        >
+
+                          <div
+                            style={{
+                              width:
+                                "65px",
+
+                              height:
+                                "65px",
+
+                              borderRadius:
+                                "50%",
+
+                              overflow:
+                                "hidden",
+
+                              background:
+                                "#e8f5f3",
+
+                              display:
+                                "flex",
+
+                              alignItems:
+                                "center",
+
+                              justifyContent:
+                                "center",
+
+                              flexShrink:
+                                0,
+
+                              fontSize:
+                                "28px",
+                            }}
+                          >
+
+                            {solicitacao.fotoSolicitante ? (
+
+                              <img
+                                src={
+                                  solicitacao.fotoSolicitante
+                                }
+                                alt="Foto do solicitante"
+                                style={{
+                                  width:
+                                    "100%",
+
+                                  height:
+                                    "100%",
+
+                                  objectFit:
+                                    "cover",
+                                }}
+                              />
+
+                            ) : (
+                              "👤"
+                            )}
+
+                          </div>
+
+                          <div
+                            style={{
+                              flex:
+                                1,
+                            }}
+                          >
+
+                            <strong
+                              style={{
+                                display:
+                                  "block",
+
+                                fontSize:
+                                  "18px",
+                              }}
+                            >
+                              {solicitacao.nomeSolicitante ||
+                                "Usuário"}
+                            </strong>
+
+                            <div
+                              style={{
+                                marginTop:
+                                  "6px",
+
+                                color:
+                                  "#e7ad32",
+
+                                fontSize:
+                                  "14px",
+                              }}
+                            >
+                              {nota !==
+                              "Novo"
+                                ? estrelas(
+                                    nota
+                                  )
+                                : "☆☆☆☆☆"}
+
+                              <span
+                                style={{
+                                  marginLeft:
+                                    "7px",
+
+                                  color:
+                                    "var(--pulsan-texto, #173b38)",
+                                }}
+                              >
+                                {nota}
+                              </span>
+                            </div>
+
+                            <span
+                              style={{
+                                display:
+                                  "block",
+
+                                marginTop:
+                                  "3px",
+
+                                color:
+                                  "var(--pulsan-texto-secundario, #777)",
+
+                                fontSize:
+                                  "12px",
+                              }}
+                            >
+                              {quantidade}
+                              {" avaliações"}
+                            </span>
+
+                          </div>
+
+                          <span
+                            style={{
+                              background:
+                                urgencia.fundo,
+
+                              color:
+                                urgencia.cor,
+
+                              borderRadius:
+                                "20px",
+
+                              padding:
+                                "6px 9px",
+
+                              fontSize:
+                                "11px",
+
+                              fontWeight:
+                                "700",
+                            }}
+                          >
+                            {urgencia.icone}
+                            {" "}
+                            {urgencia.texto}
+                          </span>
+
+                        </div>
+
+                        {/* SELOS */}
+
+                        <div
+                          style={{
+                            display:
+                              "flex",
+
+                            gap:
+                              "7px",
+
+                            flexWrap:
+                              "wrap",
+
+                            marginTop:
+                              "14px",
+                          }}
+                        >
+
+                          {solicitacao.seloApoiador && (
+
+                            <span
+                              style={{
+                                background:
+                                  "#fff4d6",
+
+                                color:
+                                  "#8a6900",
+
+                                borderRadius:
+                                  "10px",
+
+                                padding:
+                                  "6px 9px",
+
+                                fontSize:
+                                  "11px",
+
+                                fontWeight:
+                                  "700",
+                              }}
+                            >
+                              🏅 Apoiador
+                            </span>
+
+                          )}
+
+                          {solicitacao.seloPsicologo && (
+
+                            <span
+                              style={{
+                                background:
+                                  "#e8f2ff",
+
+                                color:
+                                  "#27628f",
+
+                                borderRadius:
+                                  "10px",
+
+                                padding:
+                                  "6px 9px",
+
+                                fontSize:
+                                  "11px",
+
+                                fontWeight:
+                                  "700",
+                              }}
+                            >
+                              🧠 Psicólogo Parceiro
+                            </span>
+
+                          )}
+
+                        </div>
+
+                        {/* DESABAFO */}
+
+                        <div
+                          style={{
+                            background:
+                              "var(--pulsan-card-secundario, #f7faf9)",
+
+                            borderRadius:
+                              "17px",
+
+                            padding:
+                              "15px",
+
+                            marginTop:
+                              "16px",
+                          }}
+                        >
+
+                          <span
+                            style={{
+                              display:
+                                "block",
+
+                              fontSize:
+                                "10px",
+
+                              fontWeight:
+                                "800",
+
+                              letterSpacing:
+                                "1px",
+
+                              color:
+                                "#20adb0",
+
+                              marginBottom:
+                                "7px",
+                            }}
+                          >
+                            DESABAFO
+                          </span>
+
+                          <p
+                            style={{
+                              margin:
+                                0,
+
+                              fontFamily:
+                                "Georgia, serif",
+
+                              fontSize:
+                                "15px",
+
+                              lineHeight:
+                                "1.55",
+
+                              color:
+                                "var(--pulsan-texto, #40514b)",
+                            }}
+                          >
+                            “
+                            {solicitacao.textoDesabafo ||
+                              solicitacao.motivo ||
+                              "A pessoa deseja conversar com você."}
+                            ”
+                          </p>
+
+                        </div>
+
+                        {/* DATA */}
+
+                        <div
+                          style={{
+                            marginTop:
+                              "12px",
+
+                            color:
+                              "var(--pulsan-texto-secundario, #888)",
+
+                            fontSize:
+                              "11px",
+                          }}
+                        >
+                          🕐{" "}
+                          {solicitacao.data ||
+                            "Agora"}
+                        </div>
+
+                        {/* BOTÕES */}
+
+                        <div
+                          style={{
+                            display:
+                              "grid",
+
+                            gridTemplateColumns:
+                              "1fr 1fr",
+
+                            gap:
+                              "10px",
+
+                            marginTop:
+                              "17px",
+                          }}
+                        >
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              aceitarSolicitacao(
+                                solicitacao
+                              )
+                            }
+                            style={{
+                              border:
+                                "none",
+
+                              borderRadius:
+                                "15px",
+
+                              padding:
+                                "14px",
+
+                              background:
+                                "var(--pulsan-primaria, #20adb0)",
+
+                              color:
+                                "#fff",
+
+                              fontWeight:
+                                "700",
+
+                              cursor:
+                                "pointer",
+
+                              fontSize:
+                                "13px",
+                            }}
+                          >
+                            ✓ Aceitar
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              rejeitarSolicitacao(
+                                solicitacao
+                              )
+                            }
+                            style={{
+                              border:
+                                "1px solid #e0d2d0",
+
+                              borderRadius:
+                                "15px",
+
+                              padding:
+                                "14px",
+
+                              background:
+                                "#fff8f7",
+
+                              color:
+                                "#a34f4a",
+
+                              fontWeight:
+                                "700",
+
+                              cursor:
+                                "pointer",
+
+                              fontSize:
+                                "13px",
+                            }}
+                          >
+                            ✕ Rejeitar
+                          </button>
+
+                        </div>
+
+                      </article>
+
+                    );
+                  }
+                )}
+
+              </div>
+
+            )}
+
+          </section>
+
+        )}
+
+        {/* =================================================
+            CONVERSAS RECENTES
+        ================================================= */}
+
+        {aba ===
+          "recentes" && (
+
+          <section>
+
+            <h2
+              style={{
+                margin:
+                  "0 0 15px",
+
+                fontSize:
+                  "21px",
+              }}
+            >
+              💬 Conversas recentes
+            </h2>
+
+            {conversas.length ===
+            0 ? (
+
+              <div
+                style={{
+                  background:
+                    "var(--pulsan-card, #fff)",
+
+                  border:
+                    "1px solid var(--pulsan-borda, #e5e5e5)",
+
+                  borderRadius:
+                    "22px",
+
+                  padding:
+                    "45px 25px",
+
+                  textAlign:
+                    "center",
+                }}
+              >
+
+                <div
+                  style={{
+                    fontSize:
+                      "42px",
+
+                    marginBottom:
+                      "12px",
+                  }}
+                >
+                  💬
+                </div>
+
+                <h3
+                  style={{
+                    margin:
+                      "0 0 8px",
+                  }}
+                >
+                  Nenhuma conversa ainda
+                </h3>
+
+                <p
+                  style={{
+                    margin:
+                      0,
+
+                    color:
+                      "var(--pulsan-texto-secundario, #777)",
+                  }}
+                >
+                  Depois que uma solicitação
+                  for aceita, a conversa aparecerá
+                  aqui.
+                </p>
+
+              </div>
+
+            ) : (
+
+              <div
+                style={{
+                  display:
+                    "flex",
+
+                  flexDirection:
+                    "column",
+
+                  gap:
+                    "12px",
+                }}
+              >
+
+                {conversas.map(
+                  (conversa) => (
+
+                    <button
+                      key={
+                        conversa.id
+                      }
+                      type="button"
+                      onClick={() =>
+                        abrirConversa(
+                          conversa
+                        )
+                      }
                       style={{
+                        width:
+                          "100%",
+
+                        border:
+                          "1px solid var(--pulsan-borda, #e5e5e5)",
+
+                        background:
+                          "var(--pulsan-card, #fff)",
+
+                        borderRadius:
+                          "20px",
+
+                        padding:
+                          "16px",
+
                         display:
                           "flex",
 
@@ -1030,20 +1795,23 @@ function Solicitacoes({ irPara }) {
                           "center",
 
                         gap:
-                          "11px",
+                          "13px",
 
-                        marginBottom:
-                          "14px",
+                        textAlign:
+                          "left",
+
+                        cursor:
+                          "pointer",
                       }}
                     >
 
                       <div
                         style={{
                           width:
-                            "52px",
+                            "55px",
 
                           height:
-                            "52px",
+                            "55px",
 
                           borderRadius:
                             "50%",
@@ -1051,11 +1819,8 @@ function Solicitacoes({ irPara }) {
                           overflow:
                             "hidden",
 
-                          flexShrink:
-                            0,
-
                           background:
-                            "#eaf5f2",
+                            "#e8f5f3",
 
                           display:
                             "flex",
@@ -1067,15 +1832,18 @@ function Solicitacoes({ irPara }) {
                             "center",
 
                           fontSize:
-                            "22px",
+                            "23px",
+
+                          flexShrink:
+                            0,
                         }}
                       >
 
-                        {solicitacao.fotoSolicitante ? (
+                        {conversa.foto ? (
 
                           <img
                             src={
-                              solicitacao.fotoSolicitante
+                              conversa.foto
                             }
                             alt="Foto"
                             style={{
@@ -1091,13 +1859,10 @@ function Solicitacoes({ irPara }) {
                           />
 
                         ) : (
-
                           "👤"
-
                         )}
 
                       </div>
-
 
                       <div
                         style={{
@@ -1115,15 +1880,33 @@ function Solicitacoes({ irPara }) {
                               "block",
 
                             fontSize:
-                              "15px",
+                              "16px",
                           }}
                         >
-                          {
-                            solicitacao.nomeSolicitante ||
-                            "Usuário"
-                          }
+                          {conversa.nome ||
+                            "Usuário"}
                         </strong>
 
+                        <div
+                          style={{
+                            marginTop:
+                              "4px",
+
+                            color:
+                              "#e7ad32",
+
+                            fontSize:
+                              "12px",
+                          }}
+                        >
+                          ⭐{" "}
+                          {conversa.mediaAvaliacoes ||
+                            "Novo"}
+                          {" • "}
+                          {conversa.quantidadeAvaliacoes ||
+                            0}
+                          {" avaliações"}
+                        </div>
 
                         <span
                           style={{
@@ -1131,719 +1914,59 @@ function Solicitacoes({ irPara }) {
                               "block",
 
                             marginTop:
-                              "3px",
-
-                            color:
-                              "#777",
-
-                            fontSize:
-                              "10px",
-                          }}
-                        >
-                          Está oferecendo ajuda
-                        </span>
-
-
-                        <div
-                          style={{
-                            display:
-                              "flex",
-
-                            gap:
                               "5px",
 
-                            flexWrap:
-                              "wrap",
+                            color:
+                              "var(--pulsan-texto-secundario, #777)",
 
-                            marginTop:
-                              "6px",
+                            fontSize:
+                              "12px",
+
+                            whiteSpace:
+                              "nowrap",
+
+                            overflow:
+                              "hidden",
+
+                            textOverflow:
+                              "ellipsis",
                           }}
                         >
-
-                          {solicitacao.seloSolicitante && (
-
-                            <span
-                              style={{
-                                background:
-                                  "#fff4d7",
-
-                                color:
-                                  "#8b6c00",
-
-                                borderRadius:
-                                  "8px",
-
-                                padding:
-                                  "4px 7px",
-
-                                fontSize:
-                                  "9px",
-
-                                fontWeight:
-                                  "700",
-                              }}
-                            >
-                              ⭐{" "}
-                              {
-                                solicitacao.seloSolicitante
-                              }
-                            </span>
-
-                          )}
-
-
-                          {solicitacao.tipoSolicitante && (
-
-                            <span
-                              style={{
-                                background:
-                                  "#edf5ff",
-
-                                color:
-                                  "#416a8b",
-
-                                borderRadius:
-                                  "8px",
-
-                                padding:
-                                  "4px 7px",
-
-                                fontSize:
-                                  "9px",
-
-                                fontWeight:
-                                  "700",
-                              }}
-                            >
-                              {
-                                solicitacao.tipoSolicitante
-                              }
-                            </span>
-
-                          )}
-
-                        </div>
+                          {conversa.ultimaMensagem ||
+                            "Conversa privada"}
+                        </span>
 
                       </div>
 
-                    </div>
-
-
-                    {/* DESABAFO */}
-
-                    <div
-                      style={{
-                        background:
-                          "#f7faf9",
-
-                        borderRadius:
-                          "14px",
-
-                        padding:
-                          "14px",
-
-                        marginBottom:
-                          "13px",
-                      }}
-                    >
-
                       <span
                         style={{
-                          display:
-                            "block",
-
                           color:
-                            "#20adb0",
+                            "var(--pulsan-primaria, #20adb0)",
 
                           fontSize:
-                            "9px",
-
-                          fontWeight:
-                            "800",
-
-                          letterSpacing:
-                            "1px",
-
-                          marginBottom:
-                            "6px",
+                            "22px",
                         }}
                       >
-                        DESABAFO
+                        →
                       </span>
 
-
-                      <p
-                        style={{
-                          margin:
-                            0,
-
-                          fontFamily:
-                            "Georgia, serif",
-
-                          fontSize:
-                            "15px",
-
-                          lineHeight:
-                            "1.5",
-
-                          color:
-                            "#40514b",
-                        }}
-                      >
-                        “
-                        {
-                          solicitacao.textoDesabafo ||
-                          "A pessoa quer conversar com você."
-                        }
-                        ”
-                      </p>
-
-                    </div>
-
-
-                    <span
-                      style={{
-                        display:
-                          "block",
-
-                        color:
-                          "#999",
-
-                        fontSize:
-                          "9px",
-
-                        marginBottom:
-                          "12px",
-                      }}
-                    >
-                      🕐{" "}
-                      {
-                        solicitacao.data ||
-                        "Agora"
-                      }
-                    </span>
-
-
-                    {/* ACEITAR */}
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        aceitarSolicitacao(
-                          solicitacao
-                        )
-                      }
-                      style={{
-                        width:
-                          "100%",
-
-                        border:
-                          "none",
-
-                        borderRadius:
-                          "11px",
-
-                        padding:
-                          "13px",
-
-                        background:
-                          "#20adb0",
-
-                        color:
-                          "#ffffff",
-
-                        fontWeight:
-                          "800",
-
-                        fontSize:
-                          "13px",
-
-                        cursor:
-                          "pointer",
-                      }}
-                    >
-                      💚 Aceitar e conversar
                     </button>
 
+                  )
+                )}
 
-                    {/* RECUSAR */}
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        recusarSolicitacao(
-                          solicitacao
-                        )
-                      }
-                      style={{
-                        width:
-                          "100%",
-
-                        border:
-                          "none",
-
-                        background:
-                          "transparent",
-
-                        color:
-                          "#a05b56",
-
-                        padding:
-                          "9px",
-
-                        marginTop:
-                          "4px",
-
-                        fontSize:
-                          "11px",
-
-                        fontWeight:
-                          "700",
-
-                        cursor:
-                          "pointer",
-                      }}
-                    >
-                      Recusar
-                    </button>
-
-                  </article>
-
-                )
-              )}
-
-            </div>
-
-          )}
-
-        </section>
-
-
-        {/* =================================================
-            SEPARADOR
-        ================================================= */}
-
-        <div
-          style={{
-            height:
-              "1px",
-
-            background:
-              "#e5e5e5",
-
-            margin:
-              "0 0 30px",
-          }}
-        />
-
-
-        {/* =================================================
-            MENSAGENS RECENTES
-        ================================================= */}
-
-        <section>
-
-          <div
-            style={{
-              display:
-                "flex",
-
-              alignItems:
-                "center",
-
-              justifyContent:
-                "space-between",
-
-              marginBottom:
-                "14px",
-            }}
-          >
-
-            <h2
-              style={{
-                margin:
-                  0,
-
-                fontSize:
-                  "20px",
-              }}
-            >
-              💬 Mensagens recentes
-            </h2>
-
-
-            <button
-              type="button"
-              onClick={
-                atualizarDados
-              }
-              style={{
-                border:
-                  "none",
-
-                background:
-                  "transparent",
-
-                color:
-                  "#20adb0",
-
-                fontSize:
-                  "10px",
-
-                fontWeight:
-                  "700",
-
-                cursor:
-                  "pointer",
-              }}
-            >
-              Atualizar
-            </button>
-
-          </div>
-
-
-          {conversas.length ===
-          0 ? (
-
-            <div
-              style={{
-                background:
-                  "#ffffff",
-
-                border:
-                  "1px solid #e5e5e5",
-
-                borderRadius:
-                  "20px",
-
-                padding:
-                  "30px 20px",
-
-                textAlign:
-                  "center",
-              }}
-            >
-
-              <div
-                style={{
-                  fontSize:
-                    "34px",
-
-                  marginBottom:
-                    "8px",
-                }}
-              >
-                💬
               </div>
 
+            )}
 
-              <strong
-                style={{
-                  display:
-                    "block",
+          </section>
 
-                  fontSize:
-                    "15px",
+        )}
 
-                  marginBottom:
-                    "5px",
-                }}
-              >
-                Nenhuma conversa ainda
-              </strong>
-
-
-              <p
-                style={{
-                  margin:
-                    0,
-
-                  color:
-                    "#888",
-
-                  fontSize:
-                    "11px",
-
-                  lineHeight:
-                    "1.5",
-                }}
-              >
-                Quando uma solicitação
-                for aceita, a conversa
-                aparecerá aqui.
-              </p>
-
-            </div>
-
-          ) : (
-
-            <div
-              style={{
-                display:
-                  "flex",
-
-                flexDirection:
-                  "column",
-
-                gap:
-                  "10px",
-              }}
-            >
-
-              {conversas.map(
-                (
-                  conversa
-                ) => (
-
-                  <button
-                    key={
-                      conversa.id
-                    }
-                    type="button"
-                    onClick={() =>
-                      abrirConversa(
-                        conversa
-                      )
-                    }
-                    style={{
-                      width:
-                        "100%",
-
-                      border:
-                        "1px solid #e4e7e6",
-
-                      background:
-                        "#ffffff",
-
-                      borderRadius:
-                        "17px",
-
-                      padding:
-                        "13px",
-
-                      display:
-                        "flex",
-
-                      alignItems:
-                        "center",
-
-                      gap:
-                        "11px",
-
-                      textAlign:
-                        "left",
-
-                      cursor:
-                        "pointer",
-
-                      boxShadow:
-                        "0 4px 13px rgba(0,0,0,0.03)",
-                    }}
-                  >
-
-                    {/* FOTO */}
-
-                    <div
-                      style={{
-                        width:
-                          "49px",
-
-                        height:
-                          "49px",
-
-                        borderRadius:
-                          "50%",
-
-                        overflow:
-                          "hidden",
-
-                        flexShrink:
-                          0,
-
-                        background:
-                          "#eaf5f2",
-
-                        display:
-                          "flex",
-
-                        alignItems:
-                          "center",
-
-                        justifyContent:
-                          "center",
-
-                        fontSize:
-                          "21px",
-                      }}
-                    >
-
-                      {conversa.foto ? (
-
-                        <img
-                          src={
-                            conversa.foto
-                          }
-                          alt="Foto"
-                          style={{
-                            width:
-                              "100%",
-
-                            height:
-                              "100%",
-
-                            objectFit:
-                              "cover",
-                          }}
-                        />
-
-                      ) : (
-
-                        "👤"
-
-                      )}
-
-                    </div>
-
-
-                    {/* INFORMAÇÕES */}
-
-                    <div
-                      style={{
-                        flex:
-                          1,
-
-                        minWidth:
-                          0,
-                      }}
-                    >
-
-                      <strong
-                        style={{
-                          display:
-                            "block",
-
-                          fontSize:
-                            "14px",
-
-                          marginBottom:
-                            "4px",
-                        }}
-                      >
-                        {
-                          conversa.nome ||
-                          "Usuário"
-                        }
-                      </strong>
-
-
-                      <span
-                        style={{
-                          display:
-                            "block",
-
-                          color:
-                            "#20adb0",
-
-                          fontSize:
-                            "9px",
-
-                          fontWeight:
-                            "700",
-
-                          marginBottom:
-                            "4px",
-                        }}
-                      >
-                        {
-                          conversa.categoria ||
-                          "Conversa privada"
-                        }
-                      </span>
-
-
-                      <span
-                        style={{
-                          display:
-                            "block",
-
-                          color:
-                            "#888",
-
-                          fontSize:
-                            "11px",
-
-                          whiteSpace:
-                            "nowrap",
-
-                          overflow:
-                            "hidden",
-
-                          textOverflow:
-                            "ellipsis",
-                        }}
-                      >
-                        {
-                          conversa.ultimaMensagem ||
-                          "Conversa iniciada. 💚"
-                        }
-                      </span>
-
-                    </div>
-
-
-                    {/* HORÁRIO */}
-
-                    <div
-                      style={{
-                        alignSelf:
-                          "flex-start",
-
-                        color:
-                          "#999",
-
-                        fontSize:
-                          "9px",
-
-                        whiteSpace:
-                          "nowrap",
-                      }}
-                    >
-                      {
-                        conversa.hora ||
-                        "Agora"
-                      }
-                    </div>
-
-
-                    <span
-                      style={{
-                        color:
-                          "#20adb0",
-
-                        fontSize:
-                          "20px",
-                      }}
-                    >
-                      →
-                    </span>
-
-                  </button>
-
-                )
-              )}
-
-            </div>
-
-          )}
-
-        </section>
-
-      </section>
-
+      </main>
 
       {/* =================================================
-          MENU INFERIOR
+          MENU
       ================================================= */}
 
       <nav
@@ -1851,42 +1974,77 @@ function Solicitacoes({ irPara }) {
           position:
             "fixed",
 
+          bottom:
+            0,
+
           left:
             0,
 
           right:
             0,
 
-          bottom:
-            0,
-
           height:
-            "70px",
+            "75px",
 
           background:
-            "#ffffff",
+            "var(--pulsan-card, #fff)",
 
           borderTop:
-            "1px solid #e6e6e6",
+            "1px solid var(--pulsan-borda, #e5e5e5)",
 
           display:
             "flex",
 
+          justifyContent:
+            "center",
+
           alignItems:
             "center",
 
-          justifyContent:
-            "space-around",
-
-          zIndex:
-            200,
+          gap:
+            "90px",
 
           boxShadow:
-            "0 -4px 15px rgba(0,0,0,0.04)",
+            "0 -4px 15px rgba(0,0,0,0.05)",
+
+          zIndex:
+            999,
         }}
       >
 
-        {/* INÍCIO */}
+        <button
+          type="button"
+          style={{
+            border:
+              "none",
+
+            background:
+              "transparent",
+
+            color:
+              "var(--pulsan-primaria, #20adb0)",
+
+            fontWeight:
+              "700",
+
+            fontSize:
+              "13px",
+
+            cursor:
+              "default",
+          }}
+        >
+          <div
+            style={{
+              fontSize:
+                "24px",
+            }}
+          >
+            💬
+          </div>
+
+          Conversas
+        </button>
 
         <button
           type="button"
@@ -1903,19 +2061,19 @@ function Solicitacoes({ irPara }) {
               "transparent",
 
             color:
-              "#777",
+              "var(--pulsan-texto-secundario, #777)",
+
+            fontSize:
+              "13px",
 
             cursor:
               "pointer",
-
-            fontSize:
-              "10px",
           }}
         >
           <div
             style={{
               fontSize:
-                "21px",
+                "24px",
             }}
           >
             🏠
@@ -1923,84 +2081,6 @@ function Solicitacoes({ irPara }) {
 
           Início
         </button>
-
-
-        {/* CONVERSAS */}
-
-        <button
-          type="button"
-          style={{
-            border:
-              "none",
-
-            background:
-              "transparent",
-
-            color:
-              "#20adb0",
-
-            fontWeight:
-              "800",
-
-            cursor:
-              "default",
-
-            fontSize:
-              "10px",
-          }}
-        >
-          <div
-            style={{
-              fontSize:
-                "21px",
-            }}
-          >
-            💬
-          </div>
-
-          Conversas
-        </button>
-
-
-        {/* AJUDAR - DECORATIVO */}
-
-        <button
-          type="button"
-          disabled
-          style={{
-            border:
-              "none",
-
-            background:
-              "transparent",
-
-            color:
-              "#aaa",
-
-            cursor:
-              "default",
-
-            fontSize:
-              "10px",
-
-            opacity:
-              0.7,
-          }}
-        >
-          <div
-            style={{
-              fontSize:
-                "21px",
-            }}
-          >
-            💚
-          </div>
-
-          Ajudar
-        </button>
-
-
-        {/* PERFIL */}
 
         <button
           type="button"
@@ -2017,19 +2097,19 @@ function Solicitacoes({ irPara }) {
               "transparent",
 
             color:
-              "#777",
+              "var(--pulsan-texto-secundario, #777)",
+
+            fontSize:
+              "13px",
 
             cursor:
               "pointer",
-
-            fontSize:
-              "10px",
           }}
         >
           <div
             style={{
               fontSize:
-                "21px",
+                "24px",
             }}
           >
             👤
@@ -2040,7 +2120,7 @@ function Solicitacoes({ irPara }) {
 
       </nav>
 
-    </main>
+    </div>
   );
 }
 
