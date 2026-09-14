@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { supabase } from "../lib/supabase";
 
 function Conversa({ irPara }) {
   let conversaAtual = {};
@@ -98,11 +99,25 @@ function Conversa({ irPara }) {
   // =====================================================
 
   useEffect(() => {
-    localStorage.setItem(
-      chaveMensagens,
-      JSON.stringify(mensagens)
-    );
-  }, [mensagens]);
+    async function carregarMensagens() {
+      if (!conversaAtual.id || conversaAtual.id === "conversa") return;
+      const { data, error } = await supabase
+        .from("mensagens_conversa")
+        .select("*")
+        .eq("conversa_id", conversaAtual.id)
+        .order("criada_em", { ascending: true });
+      if (!error && data) {
+        setMensagens(data.map((item) => ({
+          id: item.id,
+          autor: item.remetente_id === (usuario.id || usuario.email) ? "eu" : "outra",
+          usuarioId: item.remetente_id,
+          texto: item.mensagem,
+          hora: new Date(item.criada_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+        })));
+      }
+    }
+    carregarMensagens();
+  }, [conversaId]);
 
   // =====================================================
   // SCROLL AUTOMÁTICO
@@ -215,23 +230,34 @@ function Conversa({ irPara }) {
       return;
     }
 
-    const novaMensagem = {
-      id: Date.now(),
-      autor: "eu",
-      usuarioId: usuario.id || usuario.email || "",
-      texto: texto,
-      hora: new Date().toLocaleTimeString("pt-BR", {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-    };
-
-    setMensagens((anteriores) => [
-      ...anteriores,
-      novaMensagem,
-    ]);
-
-    setMensagem("");
+    async function salvarMensagem() {
+      const { data: authData } = await supabase.auth.getUser();
+      const remetenteId = authData?.user?.id;
+      if (!remetenteId || !conversaAtual.id || conversaAtual.id === "conversa") {
+        alert("Não foi possível identificar a conversa.");
+        return;
+      }
+      const { data, error } = await supabase.from("mensagens_conversa").insert({
+        conversa_id: conversaAtual.id,
+        remetente_id: remetenteId,
+        mensagem: texto,
+      }).select().single();
+      if (error) {
+        console.error(error);
+        alert("Não foi possível enviar a mensagem.");
+        return;
+      }
+      const novaMensagem = {
+        id: data.id,
+        autor: "eu",
+        usuarioId: remetenteId,
+        texto: data.mensagem,
+        hora: new Date(data.criada_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+      };
+      setMensagens((anteriores) => [...anteriores, novaMensagem]);
+      setMensagem("");
+    }
+    salvarMensagem();
 
     setTimeout(() => {
       textareaRef.current?.focus();

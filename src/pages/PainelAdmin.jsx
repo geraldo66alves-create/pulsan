@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { supabase } from "../lib/supabase";
 
 function PainelAdmin({ irPara, tema, alterarTema }) {
   const [dados, setDados] = useState({
@@ -52,58 +53,36 @@ function PainelAdmin({ irPara, tema, alterarTema }) {
     }
   }
 
-  function carregarDados() {
+  async function carregarDados() {
     try {
-      const contas = lerLocalStorage("pulsanContas");
+      const { data: perfis, error: erroPerfis } = await supabase
+        .from("perfis")
+        .select("*");
+      if (erroPerfis) throw erroPerfis;
 
-      const psicologos = contas.filter(
-        (usuario) => usuario.tipo_usuario === "psicologo"
-      );
+      const contas = perfis || [];
+      const psicologos = contas.filter((u) => u.tipo_usuario === "psicologo");
+      const pendentes = psicologos.filter((u) => u.verificacao_psicologo === "pendente");
+      const aprovados = psicologos.filter((u) => u.verificacao_psicologo === "aprovado");
+      const recusados = psicologos.filter((u) => u.verificacao_psicologo === "recusado");
+      const colaboradores = contas.filter((u) => u.tipo_usuario === "colaborador");
+      const alunos = contas.filter((u) => u.tipo_usuario === "aluno");
 
-      const pendentes = psicologos.filter(
-        (usuario) => usuario.verificacao_psicologo === "pendente"
-      );
+      const [{ data: posts }, { data: chats }, { data: denuncias }] = await Promise.all([
+        supabase.from("posts_ambiente").select("*").order("criado_em", { ascending: false }),
+        supabase.from("conversas").select("*"),
+        supabase.from("denuncias").select("*").order("criado_em", { ascending: false }),
+      ]);
 
-      const aprovados = psicologos.filter(
-        (usuario) => usuario.verificacao_psicologo === "aprovado"
-      );
-
-      const recusados = psicologos.filter(
-        (usuario) => usuario.verificacao_psicologo === "recusado"
-      );
-
-      const colaboradores = contas.filter(
-        (usuario) => usuario.tipo_usuario === "colaborador"
-      );
-
-      const alunos = contas.filter(
-        (usuario) => usuario.tipo_usuario === "aluno"
-      );
-
-      const alertas = lerLocalStorage("pulsanAlertas");
       const escolasSalvas = lerLocalStorage("pulsanEscolas");
       const empresasSalvas = lerLocalStorage("pulsanEmpresas");
-      const moderacoesSalvas = lerLocalStorage("pulsanModeracoes");
-      const conversasSalvas = lerLocalStorage("pulsanConversas");
+      const moderacoesSalvas = [...(denuncias || []), ...(posts || []).filter((p) => p.alerta || p.moderado)];
 
       setUsuarios(contas);
       setEscolas(escolasSalvas);
       setEmpresas(empresasSalvas);
       setModeracoes(moderacoesSalvas);
-      setConversas(conversasSalvas);
-
-      try {
-        const configSalva = JSON.parse(
-          localStorage.getItem("pulsanConfiguracoesAdmin") || "null"
-        );
-
-        if (configSalva) {
-          setConfiguracoes((atual) => ({
-            ...atual,
-            ...configSalva,
-          }));
-        }
-      } catch {}
+      setConversas(chats || []);
 
       setDados({
         usuarios: contas.length,
@@ -113,11 +92,11 @@ function PainelAdmin({ irPara, tema, alterarTema }) {
         recusados: recusados.length,
         colaboradores: colaboradores.length,
         alunos: alunos.length,
-        alertas: alertas.length,
+        alertas: (posts || []).filter((p) => p.alerta || p.urgencia === "grave" || p.urgencia === "urgente").length,
         escolas: escolasSalvas.length,
         empresas: empresasSalvas.length,
         moderacoes: moderacoesSalvas.length,
-        conversas: conversasSalvas.length,
+        conversas: (chats || []).length,
       });
     } catch (erro) {
       console.error("Erro ao carregar dados administrativos:", erro);
