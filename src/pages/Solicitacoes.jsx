@@ -3,8 +3,9 @@ import React, {
   useState,
 } from "react";
 
-import "../tema.css";
+import { supabase } from "../lib/supabase";
 
+import "../tema.css";
 function Solicitacoes({ irPara }) {
 
   // =====================================================
@@ -61,97 +62,160 @@ function Solicitacoes({ irPara }) {
   // CARREGAR DADOS
   // =====================================================
 
-  function carregarDados() {
+ async function carregarDados() {
+  const {
+    data: usuarioAuth,
+    error: erroUsuario,
+  } = await supabase.auth.getUser();
 
-    const todasSolicitacoes =
-      JSON.parse(
-        localStorage.getItem(
-          "pulsanSolicitacoesChat"
-        ) || "[]"
-      );
+  if (
+    erroUsuario ||
+    !usuarioAuth?.user
+  ) {
+    setSolicitacoes([]);
+    setConversas([]);
+    return;
+  }
 
-    // ===================================================
-    // SOLICITAÇÕES PENDENTES
-    // ===================================================
+  const usuarioId =
+    usuarioAuth.user.id;
 
-    const pendentes =
-      todasSolicitacoes.filter(
-        (item) => {
+  const {
+    data: solicitacoesBanco,
+    error: erroSolicitacoes,
+  } = await supabase
+    .from("solicitacoes_chat")
+    .select("*")
+    .eq("destinatario_id", usuarioId)
+    .eq("status", "pendente")
+    .order("criado_em", {
+      ascending: false,
+    });
 
-          if (
-            item.status !==
-            "pendente"
-          ) {
-            return false;
-          }
-
-          /*
-           * Se a solicitação possui destinatário,
-           * mostramos somente para ele.
-           *
-           * Solicitações antigas sem destinatarioId
-           * continuam aparecendo para permitir o teste
-           * do protótipo.
-           */
-
-          if (
-            item.destinatarioId
-          ) {
-            return (
-              String(
-                item.destinatarioId
-              ) ===
-              String(meuId)
-            );
-          }
-
-          return true;
-        }
-      );
-
-    setSolicitacoes(
-      pendentes
-    );
-
-    // ===================================================
-    // CONVERSAS
-    // ===================================================
-
-    const conversasSalvas =
-      JSON.parse(
-        localStorage.getItem(
-          "pulsanConversas"
-        ) || "[]"
-      );
-
-    const minhasConversas =
-      conversasSalvas.filter(
-        (conversa) => {
-
-          if (
-            conversa.usuarioAId ||
-            conversa.usuarioBId
-          ) {
-
-            return (
-              String(
-                conversa.usuarioAId
-              ) === String(meuId) ||
-              String(
-                conversa.usuarioBId
-              ) === String(meuId)
-            );
-          }
-
-          return true;
-        }
-      );
-
-    setConversas(
-      minhasConversas
+  if (erroSolicitacoes) {
+    console.error(
+      "Erro ao carregar solicitações:",
+      erroSolicitacoes
     );
   }
 
+  const solicitacoesFormatadas =
+    (solicitacoesBanco || []).map(
+      (item) => ({
+        ...item,
+
+        solicitanteId:
+          item.solicitante_id,
+
+        destinatarioId:
+          item.destinatario_id,
+
+        publicacaoId:
+          item.desabafo_id,
+
+        nomeSolicitante:
+          "Usuário",
+
+        textoDesabafo:
+          "A pessoa deseja conversar com você.",
+
+        data:
+          item.criado_em
+            ? new Date(
+                item.criado_em
+              ).toLocaleString("pt-BR")
+            : "Agora",
+
+        urgencia:
+          "normal",
+
+        mediaAvaliacoes:
+          "Novo",
+
+        quantidadeAvaliacoes:
+          0,
+
+        seloApoiador:
+          false,
+
+        seloPsicologo:
+          false,
+      })
+    );
+
+  setSolicitacoes(
+    solicitacoesFormatadas
+  );
+
+  const {
+    data: conversasBanco,
+    error: erroConversas,
+  } = await supabase
+    .from("conversas")
+    .select("*")
+    .or(
+      `solicitante_id.eq.${usuarioId},destinatario_id.eq.${usuarioId}`
+    )
+    .in("status", [
+      "ativa",
+      "aceita",
+    ])
+    .order("iniciada_em", {
+      ascending: false,
+    });
+
+  if (erroConversas) {
+    console.error(
+      "Erro ao carregar conversas:",
+      erroConversas
+    );
+  }
+
+  const conversasFormatadas =
+    (conversasBanco || []).map(
+      (item) => ({
+        ...item,
+
+        usuarioAId:
+          item.solicitante_id,
+
+        usuarioBId:
+          item.destinatario_id,
+
+        solicitacaoId:
+          item.solicitacao_id,
+
+        nome:
+          "Usuário",
+
+        foto:
+          "",
+
+        mediaAvaliacoes:
+          "Novo",
+
+        quantidadeAvaliacoes:
+          0,
+
+        ultimaMensagem:
+          "Conversa privada",
+
+        hora:
+          item.iniciada_em
+            ? new Date(
+                item.iniciada_em
+              ).toLocaleString("pt-BR")
+            : "Agora",
+
+        status:
+          item.status,
+      })
+    );
+
+  setConversas(
+    conversasFormatadas
+  );
+}
   // =====================================================
   // ATUALIZAÇÃO
   // =====================================================
@@ -203,254 +267,158 @@ function Solicitacoes({ irPara }) {
   // ACEITAR
   // =====================================================
 
-  function aceitarSolicitacao(
-    solicitacao
-  ) {
-
-    const confirmar =
-      window.confirm(
-        `Deseja aceitar a solicitação de ${
-          solicitacao.nomeSolicitante ||
-          "esta pessoa"
-        }?\n\nO chat privado será aberto.`
-      );
-
-    if (!confirmar) {
-      return;
-    }
-
-    // ===================================================
-    // TODAS AS SOLICITAÇÕES
-    // ===================================================
-
-    const todas =
-      JSON.parse(
-        localStorage.getItem(
-          "pulsanSolicitacoesChat"
-        ) || "[]"
-      );
-
-    const atualizadas =
-      todas.map(
-        (item) => {
-
-          if (
-            item.id ===
-            solicitacao.id
-          ) {
-
-            return {
-              ...item,
-
-              status:
-                "aceita",
-
-              aceitaEm:
-                new Date().toISOString(),
-            };
-          }
-
-          return item;
-        }
-      );
-
-    localStorage.setItem(
-      "pulsanSolicitacoesChat",
-      JSON.stringify(
-        atualizadas
-      )
+ async function aceitarSolicitacao(
+  solicitacao
+) {
+  const confirmar =
+    window.confirm(
+      `Deseja aceitar a solicitação de ${
+        solicitacao.nomeSolicitante ||
+        "esta pessoa"
+      }?\n\nO chat privado será aberto.`
     );
 
-    // ===================================================
-    // CRIAR CONVERSA
-    // ===================================================
+  if (!confirmar) {
+    return;
+  }
 
-    const conversasAtuais =
-      JSON.parse(
-        localStorage.getItem(
-          "pulsanConversas"
-        ) || "[]"
-      );
+  const {
+    data: usuarioAuth,
+    error: erroUsuario,
+  } = await supabase.auth.getUser();
 
-    const conversaExistente =
-      conversasAtuais.find(
-        (item) =>
-          item.solicitacaoId ===
-          solicitacao.id
-      );
+  if (
+    erroUsuario ||
+    !usuarioAuth?.user
+  ) {
+    alert("Faça login novamente.");
+    return;
+  }
 
-    let conversa;
+  const meuUsuarioId =
+    usuarioAuth.user.id;
 
-    if (
-      conversaExistente
-    ) {
+  const {
+    error: erroAtualizacao,
+  } = await supabase
+    .from("solicitacoes_chat")
+    .update({
+      status: "aceita",
+      atualizado_em:
+        new Date().toISOString(),
+    })
+    .eq("id", solicitacao.id)
+    .eq(
+      "destinatario_id",
+      meuUsuarioId
+    );
 
-      conversa =
-        conversaExistente;
+  if (erroAtualizacao) {
+    console.error(
+      erroAtualizacao
+    );
 
-    } else {
+    alert(
+      "Não foi possível aceitar a solicitação."
+    );
 
-      conversa = {
+    return;
+  }
 
-        id:
-          "conversa-" +
-          Date.now(),
+  const {
+    data: conversaExistente,
+    error: erroBusca,
+  } = await supabase
+    .from("conversas")
+    .select("*")
+    .eq(
+      "solicitacao_id",
+      solicitacao.id
+    )
+    .maybeSingle();
 
-        solicitacaoId:
-          solicitacao.id,
+  if (erroBusca) {
+    console.error(erroBusca);
+  }
 
-        publicacaoId:
-          solicitacao.publicacaoId,
+  let conversa =
+    conversaExistente;
 
-        textoDesabafo:
-          solicitacao.textoDesabafo ||
-          solicitacao.texto ||
-          "",
-
-        usuarioAId:
+  if (!conversa) {
+    const {
+      data: novaConversa,
+      error: erroConversa,
+    } = await supabase
+      .from("conversas")
+      .insert({
+        solicitante_id:
+          solicitacao.solicitante_id ||
           solicitacao.solicitanteId,
 
-        usuarioBId:
-          solicitacao.destinatarioId ||
-          meuId,
+        destinatario_id:
+          solicitacao.destinatario_id ||
+          solicitacao.destinatarioId,
 
-        nome:
-          solicitacao.nomeSolicitante ||
-          "Usuário",
-
-        foto:
-          solicitacao.fotoSolicitante ||
-          "",
-
-        mediaAvaliacoes:
-          solicitacao.mediaAvaliacoes ||
-          "Novo",
-
-        quantidadeAvaliacoes:
-          solicitacao.quantidadeAvaliacoes ||
-          0,
-
-        seloApoiador:
-          solicitacao.seloApoiador ===
-          true,
-
-        seloPsicologo:
-          solicitacao.seloPsicologo ===
-          true,
-
-        categoria:
-          solicitacao.categoria ||
-          "Conversa privada",
-
-        ultimaMensagem:
-          "Conversa iniciada.",
-
-        hora:
-          "Agora",
-
-        mensagens: [],
+        solicitacao_id:
+          solicitacao.id,
 
         status:
           "ativa",
 
-        criadaEm:
+        iniciada_em:
           new Date().toISOString(),
-      };
+      })
+      .select()
+      .single();
 
-      conversasAtuais.unshift(
-        conversa
+    if (erroConversa) {
+      console.error(
+        erroConversa
       );
 
-      localStorage.setItem(
-        "pulsanConversas",
-        JSON.stringify(
-          conversasAtuais
-        )
+      alert(
+        "Solicitação aceita, mas não foi possível abrir a conversa."
       );
+
+      return;
     }
 
-    // ===================================================
-    // SALVAR CONVERSA ATUAL
-    // ===================================================
-
-    localStorage.setItem(
-      "pulsanConversaAtual",
-      JSON.stringify(
-        conversa
-      )
-    );
-
-    // ===================================================
-    // DADOS DA OUTRA PESSOA
-    // ===================================================
-
-    localStorage.setItem(
-      "pulsanNomeOutraPessoa",
-      solicitacao.nomeSolicitante ||
-        "Usuário"
-    );
-
-    localStorage.setItem(
-      "pulsanFotoOutraPessoa",
-      solicitacao.fotoSolicitante ||
-        ""
-    );
-
-    localStorage.setItem(
-      "pulsanMediaOutraPessoa",
-      solicitacao.mediaAvaliacoes ||
-        "Novo"
-    );
-
-    localStorage.setItem(
-      "pulsanAvaliacoesOutraPessoa",
-      String(
-        solicitacao.quantidadeAvaliacoes ||
-        0
-      )
-    );
-
-    localStorage.setItem(
-      "pulsanPapelConversa",
-      "ajudante"
-    );
-
-    localStorage.setItem(
-      "pulsanDesabafoConversa",
-      solicitacao.textoDesabafo ||
-        solicitacao.texto ||
-        ""
-    );
-
-    localStorage.setItem(
-      "pulsanIdDesabafoConversa",
-      String(solicitacao.publicacaoId || "")
-    );
-
-    localStorage.setItem(
-      "pulsanSeloApoiadorOutraPessoa",
-      String(solicitacao.seloApoiador === true)
-    );
-
-    localStorage.setItem(
-      "pulsanSeloPsicologoOutraPessoa",
-      String(solicitacao.seloPsicologo === true)
-    );
-
-    // ===================================================
-    // ATUALIZAR TELA
-    // ===================================================
-
-    carregarDados();
-
-    // ===================================================
-    // ABRIR CHAT
-    // ===================================================
-
-    irPara(
-      "conversa"
-    );
+    conversa =
+      novaConversa;
   }
+
+  localStorage.setItem(
+    "pulsanConversaAtual",
+    JSON.stringify(conversa)
+  );
+
+  localStorage.setItem(
+    "pulsanPapelConversa",
+    "ajudante"
+  );
+
+  localStorage.setItem(
+    "pulsanNomeOutraPessoa",
+    solicitacao.nomeSolicitante ||
+      "Usuário"
+  );
+
+  localStorage.setItem(
+    "pulsanFotoOutraPessoa",
+    solicitacao.fotoSolicitante ||
+      ""
+  );
+
+  localStorage.setItem(
+    "pulsanDesabafoConversa",
+    solicitacao.textoDesabafo ||
+      ""
+  );
+
+  await carregarDados();
+
+  irPara("conversa");
+}
 
   // =====================================================
   // REJEITAR
@@ -553,7 +521,10 @@ function Solicitacoes({ irPara }) {
 
     localStorage.setItem(
       "pulsanPapelConversa",
-      String(conversa.usuarioAId) === String(meuId)
+     String(
+  conversa.solicitante_id ||
+  conversa.usuarioAId
+) === String(meuId)
         ? "ajudado"
         : "ajudante"
     );
