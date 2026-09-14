@@ -1,56 +1,49 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
-function Ambiente({ irPara }) {useEffect(() => {
-  async function testarSupabase() {
-    const { data, error } = await supabase
-      .from("perfis")
-      .select("*")
-      .limit(1);
 
-    console.log("Teste Supabase:", { data, error });
-  }
-
-  testarSupabase();
-}, []);
-  const [desabafos, setDesabafos] = useState(() => {
-    try {
-      const dados = localStorage.getItem("pulsanPublicacoes");
-
-      if (!dados) {
-        return [];
-      }
-
-      const lista = JSON.parse(dados);
-
-      return Array.isArray(lista) ? lista : [];
-    } catch (erro) {
-      console.log("Erro ao carregar desabafos:", erro);
-      return [];
-    }
-  });
+function Ambiente({ irPara }) {
+  const [desabafos, setDesabafos] = useState([]);
+  const [carregandoDesabafos, setCarregandoDesabafos] =
+    useState(true);
 
   const [comentariosAbertos, setComentariosAbertos] =
     useState(null);
 
-  const [comentario, setComentario] =
-    useState("");
+  const [comentario, setComentario] = useState("");
+  const [enviandoComentario, setEnviandoComentario] =
+    useState(false);
 
   // =====================================================
   // USUÁRIO
   // =====================================================
 
-  let usuario = {};
+  const [usuario, setUsuario] = useState({});
 
-  try {
-    usuario =
-      JSON.parse(
-        localStorage.getItem("usuarioLogado") ||
-        localStorage.getItem("pulsanUsuarioAtual") ||
-        "{}"
-      ) || {};
-  } catch (erro) {
-    usuario = {};
-  }
+  useEffect(() => {
+    async function carregarUsuario() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (user) {
+        setUsuario(user);
+      } else {
+        try {
+          const usuarioLocal = JSON.parse(
+            localStorage.getItem("usuarioLogado") ||
+              localStorage.getItem("pulsanUsuarioAtual") ||
+              "{}"
+          );
+
+          setUsuario(usuarioLocal || {});
+        } catch (erro) {
+          setUsuario({});
+        }
+      }
+    }
+
+    carregarUsuario();
+  }, []);
 
   const usuarioId =
     usuario.id ||
@@ -60,17 +53,119 @@ function Ambiente({ irPara }) {useEffect(() => {
   const nomeUsuario =
     usuario.nome ||
     usuario.name ||
+    usuario.user_metadata?.nome ||
     "Usuário";
+
+  function usuarioAuthId() {
+    return usuario.id || null;
+  }
+
+  // =====================================================
+  // CARREGAR DESABAFOS E COMENTÁRIOS
+  // =====================================================
+
+  useEffect(() => {
+    carregarDesabafos();
+  }, []);
+
+  async function carregarDesabafos() {
+    setCarregandoDesabafos(true);
+
+    const { data, error } = await supabase
+      .from("posts_ambiente")
+      .select("*")
+      .eq("ativo", true)
+      .order("criado_em", {
+        ascending: false,
+      });
+
+    if (error) {
+      console.error(
+        "Erro ao carregar desabafos:",
+        error
+      );
+
+      setCarregandoDesabafos(false);
+      return;
+    }
+
+    const postsComComentarios = await Promise.all(
+      (data || []).map(async (post) => {
+        const {
+          data: comentariosBanco,
+          error: erroComentarios,
+        } = await supabase
+          .from("comentarios_ambiente")
+          .select("*")
+          .eq("post_id", post.id)
+          .eq("ativo", true)
+          .order("criado_em", {
+            ascending: true,
+          });
+
+        if (erroComentarios) {
+          console.error(
+            "Erro ao carregar comentários:",
+            erroComentarios
+          );
+        }
+
+        return {
+          ...post,
+
+          usuarioId: post.usuario_id,
+
+          nomeUsuario:
+            post.nome_usuario ||
+            "Usuário anônimo",
+
+          fotoUsuario:
+            post.foto_usuario || "",
+
+          texto: post.texto,
+
+          apoiadores: Array.isArray(post.apoiadores)
+            ? post.apoiadores
+            : [],
+
+          comentarios: (comentariosBanco || []).map(
+            (comentarioBanco) => ({
+              id: comentarioBanco.id,
+              usuarioId:
+                comentarioBanco.usuario_id,
+              nome: "Anônimo",
+              texto: comentarioBanco.texto,
+              data: comentarioBanco.criado_em,
+            })
+          ),
+        };
+      })
+    );
+
+    setDesabafos(postsComComentarios);
+    setCarregandoDesabafos(false);
+  }
 
   // =====================================================
   // SEQUÊNCIA DE APOIO
   // =====================================================
 
   function registrarApoioDiario() {
-    const hoje = new Date().toISOString().split("T")[0];
-    const salvo = JSON.parse(
-      localStorage.getItem("pulsanSequenciaApoio") || "{}"
-    );
+    const hoje = new Date()
+      .toISOString()
+      .split("T")[0];
+
+    let salvo = {};
+
+    try {
+      salvo = JSON.parse(
+        localStorage.getItem(
+          "pulsanSequenciaApoio"
+        ) || "{}"
+      );
+    } catch (erro) {
+      salvo = {};
+    }
 
     if (salvo.ultimoDia === hoje) {
       return;
@@ -78,7 +173,10 @@ function Ambiente({ irPara }) {useEffect(() => {
 
     const ontem = new Date();
     ontem.setDate(ontem.getDate() - 1);
-    const dataOntem = ontem.toISOString().split("T")[0];
+
+    const dataOntem = ontem
+      .toISOString()
+      .split("T")[0];
 
     const sequencia =
       salvo.ultimoDia === dataOntem
@@ -87,129 +185,173 @@ function Ambiente({ irPara }) {useEffect(() => {
 
     localStorage.setItem(
       "pulsanSequenciaApoio",
-      JSON.stringify({ sequencia, ultimoDia: hoje })
+      JSON.stringify({
+        sequencia,
+        ultimoDia: hoje,
+      })
     );
   }
 
-  // =====================================================
-  // SALVAR DESABAFOS
-  // =====================================================
+  function obterSequenciaApoio() {
+    try {
+      const dados = JSON.parse(
+        localStorage.getItem(
+          "pulsanSequenciaApoio"
+        ) || "{}"
+      );
 
-  function salvar(lista) {
-    setDesabafos(lista);
-
-    localStorage.setItem(
-      "pulsanPublicacoes",
-      JSON.stringify(lista)
-    );
+      return Number(dados.sequencia) || 0;
+    } catch (erro) {
+      return 0;
+    }
   }
 
   // =====================================================
   // APOIAR
   // =====================================================
 
-  function apoiar(id) {
+  async function apoiar(id) {
     registrarApoioDiario();
-    const lista = desabafos.map((item) => {
-      if (item.id !== id) {
-        return item;
-      }
 
-      const apoiadores =
-        Array.isArray(item.apoiadores)
-          ? item.apoiadores
-          : [];
+    const post = desabafos.find(
+      (item) => item.id === id
+    );
 
-      const jaApoiou =
-        apoiadores.includes(usuarioId);
+    if (!post) {
+      return;
+    }
 
-      return {
-        ...item,
+    const apoiadores = Array.isArray(
+      post.apoiadores
+    )
+      ? post.apoiadores
+      : [];
 
-        apoiadores: jaApoiou
-          ? apoiadores.filter(
-              (idApoiador) =>
-                idApoiador !== usuarioId
-            )
-          : [
-              ...apoiadores,
-              usuarioId,
-            ],
-      };
-    });
+    const identificadorUsuario = String(
+      usuarioId
+    );
 
-    salvar(lista);
-    // SEQUÊNCIA DIÁRIA DE APOIO
-const hoje = new Date().toISOString().split("T")[0];
+    const jaApoiou = apoiadores.includes(
+      identificadorUsuario
+    );
 
-const sequenciaSalva = JSON.parse(
-  localStorage.getItem("pulsanSequenciaApoio") || "{}"
-);
+    const novosApoiadores = jaApoiou
+      ? apoiadores.filter(
+          (idApoiador) =>
+            idApoiador !== identificadorUsuario
+        )
+      : [
+          ...apoiadores,
+          identificadorUsuario,
+        ];
 
-if (sequenciaSalva.ultimoDia !== hoje) {
-  const ontem = new Date();
-  ontem.setDate(ontem.getDate() - 1);
+    const { error } = await supabase
+      .from("posts_ambiente")
+      .update({
+        apoiadores: novosApoiadores,
+      })
+      .eq("id", id);
 
-  const dataOntem = ontem.toISOString().split("T")[0];
+    if (error) {
+      console.error(
+        "Erro ao registrar apoio:",
+        error
+      );
 
-  const novaSequencia =
-    sequenciaSalva.ultimoDia === dataOntem
-      ? (sequenciaSalva.sequencia || 0) + 1
-      : 1;
+      alert(
+        "Não foi possível registrar o apoio."
+      );
 
-  localStorage.setItem(
-    "pulsanSequenciaApoio",
-    JSON.stringify({
-      sequencia: novaSequencia,
-      ultimoDia: hoje,
-    })
-  );
-}
+      return;
+    }
+
+    setDesabafos((listaAtual) =>
+      listaAtual.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              apoiadores: novosApoiadores,
+            }
+          : item
+      )
+    );
   }
 
   // =====================================================
   // COMENTAR
   // =====================================================
 
-  function enviarComentario(id) {
+  async function enviarComentario(id) {
     if (!comentario.trim()) {
       return;
     }
 
-    const lista = desabafos.map((item) => {
-      if (item.id !== id) {
-        return item;
-      }
+    const idUsuario = usuarioAuthId();
 
-      const comentarios =
-        Array.isArray(item.comentarios)
-          ? item.comentarios
-          : [];
+    if (!idUsuario) {
+      alert(
+        "Entre na sua conta para comentar."
+      );
 
-      return {
-        ...item,
+      return;
+    }
 
-        comentarios: [
-          ...comentarios,
+    setEnviandoComentario(true);
 
-          {
-            id: `comentario-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    const textoComentario =
+      comentario.trim();
 
-            usuarioId: String(usuarioId),
+    const { data, error } = await supabase
+      .from("comentarios_ambiente")
+      .insert({
+        post_id: id,
+        usuario_id: idUsuario,
+        texto: textoComentario,
+      })
+      .select()
+      .single();
 
-            nome: "Anônimo",
+    if (error) {
+      console.error(
+        "Erro ao enviar comentário:",
+        error
+      );
 
-            texto: comentario.trim(),
+      alert(
+        "Não foi possível enviar o comentário."
+      );
 
-            data: new Date().toISOString(),
-          },
-        ],
-      };
-    });
+      setEnviandoComentario(false);
+      return;
+    }
 
-    salvar(lista);
+    setDesabafos((listaAtual) =>
+      listaAtual.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              comentarios: [
+                ...(Array.isArray(
+                  item.comentarios
+                )
+                  ? item.comentarios
+                  : []),
+                {
+                  id: data.id,
+                  usuarioId:
+                    data.usuario_id,
+                  nome: "Anônimo",
+                  texto: data.texto,
+                  data: data.criado_em,
+                },
+              ],
+            }
+          : item
+      )
+    );
 
     setComentario("");
+    setEnviandoComentario(false);
   }
 
   // =====================================================
@@ -223,7 +365,6 @@ if (sequenciaSalva.ultimoDia !== hoje) {
       item.donoId ||
       "";
 
-    // Não solicitar chat do próprio desabafo
     if (
       String(donoId) ===
       String(usuarioId)
@@ -235,10 +376,9 @@ if (sequenciaSalva.ultimoDia !== hoje) {
       return;
     }
 
-    const confirmar =
-      window.confirm(
-        "Deseja solicitar um chat privado com esta pessoa?"
-      );
+    const confirmar = window.confirm(
+      "Deseja solicitar um chat privado com esta pessoa?"
+    );
 
     if (!confirmar) {
       return;
@@ -247,12 +387,11 @@ if (sequenciaSalva.ultimoDia !== hoje) {
     let solicitacoes = [];
 
     try {
-      solicitacoes =
-        JSON.parse(
-          localStorage.getItem(
-            "pulsanSolicitacoesChat"
-          ) || "[]"
-        );
+      solicitacoes = JSON.parse(
+        localStorage.getItem(
+          "pulsanSolicitacoesChat"
+        ) || "[]"
+      );
 
       if (!Array.isArray(solicitacoes)) {
         solicitacoes = [];
@@ -261,19 +400,15 @@ if (sequenciaSalva.ultimoDia !== hoje) {
       solicitacoes = [];
     }
 
-    // Verificar solicitação repetida
-    const existente =
-      solicitacoes.find(
-        (solicitacao) =>
-          solicitacao.publicacaoId ===
-            item.id &&
-          String(
-            solicitacao.solicitanteId
-          ) ===
-            String(usuarioId) &&
-          solicitacao.status ===
-            "pendente"
-      );
+    const existente = solicitacoes.find(
+      (solicitacao) =>
+        solicitacao.publicacaoId ===
+          item.id &&
+        String(
+          solicitacao.solicitanteId
+        ) === String(usuarioId) &&
+        solicitacao.status === "pendente"
+    );
 
     if (existente) {
       alert(
@@ -299,19 +434,19 @@ if (sequenciaSalva.ultimoDia !== hoje) {
         "solicitacao-" +
         Date.now(),
 
-      publicacaoId:
-        item.id,
+      publicacaoId: item.id,
 
-      solicitanteId:
-        String(usuarioId),
+      solicitanteId: String(
+        usuarioId
+      ),
 
-      // Campos principais usados pela tela de Solicitações
-      nomeSolicitante:
-        nomeUsuario,
+      nomeSolicitante: nomeUsuario,
 
       fotoSolicitante:
         usuario.foto ||
-        localStorage.getItem("pulsanFoto") ||
+        localStorage.getItem(
+          "pulsanFoto"
+        ) ||
         "",
 
       mediaAvaliacoes,
@@ -324,17 +459,16 @@ if (sequenciaSalva.ultimoDia !== hoje) {
       seloPsicologo:
         usuario.seloPsicologo === true,
 
-      // Mantidos para compatibilidade com versões anteriores
-      solicitanteNome:
-        nomeUsuario,
+      solicitanteNome: nomeUsuario,
 
       solicitanteFoto:
         usuario.foto ||
-        localStorage.getItem("pulsanFoto") ||
+        localStorage.getItem(
+          "pulsanFoto"
+        ) ||
         "",
 
-      destinatarioId:
-        String(donoId),
+      destinatarioId: String(donoId),
 
       destinatarioNome:
         item.nomeUsuario ||
@@ -344,12 +478,10 @@ if (sequenciaSalva.ultimoDia !== hoje) {
         item.fotoUsuario ||
         "",
 
-      // Desabafo completo que originou a solicitação
       textoDesabafo:
         item.texto || "",
 
-      texto:
-        item.texto || "",
+      texto: item.texto || "",
 
       categoria:
         item.categoria ||
@@ -361,11 +493,9 @@ if (sequenciaSalva.ultimoDia !== hoje) {
         item.prioridade ||
         "normal",
 
-      status:
-        "pendente",
+      status: "pendente",
 
-      data:
-        new Date().toISOString(),
+      data: new Date().toISOString(),
     };
 
     solicitacoes.push(
@@ -374,9 +504,7 @@ if (sequenciaSalva.ultimoDia !== hoje) {
 
     localStorage.setItem(
       "pulsanSolicitacoesChat",
-      JSON.stringify(
-        solicitacoes
-      )
+      JSON.stringify(solicitacoes)
     );
 
     alert(
@@ -389,10 +517,9 @@ if (sequenciaSalva.ultimoDia !== hoje) {
   // =====================================================
 
   function denunciar(item) {
-    const motivo =
-      window.prompt(
-        "Digite o motivo da denúncia:"
-      );
+    const motivo = window.prompt(
+      "Digite o motivo da denúncia:"
+    );
 
     if (!motivo) {
       return;
@@ -401,12 +528,11 @@ if (sequenciaSalva.ultimoDia !== hoje) {
     let denuncias = [];
 
     try {
-      denuncias =
-        JSON.parse(
-          localStorage.getItem(
-            "pulsanDenuncias"
-          ) || "[]"
-        );
+      denuncias = JSON.parse(
+        localStorage.getItem(
+          "pulsanDenuncias"
+        ) || "[]"
+      );
 
       if (!Array.isArray(denuncias)) {
         denuncias = [];
@@ -418,39 +544,23 @@ if (sequenciaSalva.ultimoDia !== hoje) {
     denuncias.push({
       id: Date.now(),
 
-      publicacaoId:
-        item.id,
+      publicacaoId: item.id,
 
-      motivo: motivo,
+      motivo,
 
-      usuarioId:
-        usuarioId,
+      usuarioId,
 
-      data:
-        new Date().toISOString(),
+      data: new Date().toISOString(),
     });
 
     localStorage.setItem(
       "pulsanDenuncias",
-      JSON.stringify(
-        denuncias
-      )
+      JSON.stringify(denuncias)
     );
 
     alert(
       "Denúncia enviada. Obrigado por ajudar a manter o Pulsan seguro."
     );
-  }
-
-  function obterSequenciaApoio() {
-    try {
-      const dados = JSON.parse(
-        localStorage.getItem("pulsanSequenciaApoio") || "{}"
-      );
-      return Number(dados.sequencia) || 0;
-    } catch (erro) {
-      return 0;
-    }
   }
 
   // =====================================================
@@ -466,11 +576,6 @@ if (sequenciaSalva.ultimoDia !== hoje) {
         paddingBottom: "110px",
       }}
     >
-
-      {/* =================================================
-          CABEÇALHO
-      ================================================= */}
-
       <div
         style={{
           background:
@@ -492,8 +597,7 @@ if (sequenciaSalva.ultimoDia !== hoje) {
 
         <p
           style={{
-            margin:
-              "5px 0 0",
+            margin: "5px 0 0",
             color:
               "var(--pulsan-texto-secundario, #777)",
           }}
@@ -502,10 +606,6 @@ if (sequenciaSalva.ultimoDia !== hoje) {
         </p>
       </div>
 
-      {/* =================================================
-          CONTEÚDO
-      ================================================= */}
-
       <div
         style={{
           maxWidth: "700px",
@@ -513,7 +613,6 @@ if (sequenciaSalva.ultimoDia !== hoje) {
           padding: "20px 15px",
         }}
       >
-
         <h2
           style={{
             color:
@@ -522,38 +621,43 @@ if (sequenciaSalva.ultimoDia !== hoje) {
         >
           Desabafos
         </h2>
-        <div
-  style={{
-    background: "var(--pulsan-card, #eaf3ff)",
-    border: "1px solid var(--pulsan-borda, #a8c7ff)",
-    borderRadius: "18px",
-    padding: "15px",
-    marginBottom: "18px",
-    color: "var(--pulsan-texto, #1e293b)",
-  }}
->
-  <strong>
-    💙 Sequência de apoio
-  </strong>
 
-  <p
-    style={{
-      margin: "6px 0 0",
-      color: "var(--pulsan-texto-secundario, #64748b)",
-    }}
-  >
-    Você está há{" "}
-    <strong
-      style={{
-        color: "var(--pulsan-primaria-forte, #3a7dff)",
-      }}
-    >
-      {obterSequenciaApoio()}{" "}
-      dias
-    </strong>{" "}
-    espalhando apoio.
-  </p>
-</div>
+        <div
+          style={{
+            background:
+              "var(--pulsan-card, #eaf3ff)",
+            border:
+              "1px solid var(--pulsan-borda, #a8c7ff)",
+            borderRadius: "18px",
+            padding: "15px",
+            marginBottom: "18px",
+            color:
+              "var(--pulsan-texto, #1e293b)",
+          }}
+        >
+          <strong>
+            💙 Sequência de apoio
+          </strong>
+
+          <p
+            style={{
+              margin: "6px 0 0",
+              color:
+                "var(--pulsan-texto-secundario, #64748b)",
+            }}
+          >
+            Você está há{" "}
+            <strong
+              style={{
+                color:
+                  "var(--pulsan-primaria-forte, #3a7dff)",
+              }}
+            >
+              {obterSequenciaApoio()} dias
+            </strong>{" "}
+            espalhando apoio.
+          </p>
+        </div>
 
         <p
           style={{
@@ -566,77 +670,77 @@ if (sequenciaSalva.ultimoDia !== hoje) {
           conversa privada.
         </p>
 
-        {/* =================================================
-            CASO NÃO TENHA DESABAFOS
-        ================================================= */}
-
-        {desabafos.length === 0 && (
+        {carregandoDesabafos && (
           <div
             style={{
-              background:
-                "var(--pulsan-card, #ffffff)",
-              borderRadius: "24px",
-              padding: "40px 20px",
               textAlign: "center",
-              border:
-                "1px solid var(--pulsan-borda, #e5e5e5)",
+              padding: "30px",
             }}
           >
-            <div
-              style={{
-                fontSize: "45px",
-              }}
-            >
-              💚
-            </div>
-
-            <h3>
-              Ainda não existem desabafos.
-            </h3>
-
-            <p>
-              Quando alguém publicar,
-              aparecerá aqui.
-            </p>
+            Carregando desabafos...
           </div>
         )}
 
-        {/* =================================================
-            DESABAFOS
-        ================================================= */}
+        {!carregandoDesabafos &&
+          desabafos.length === 0 && (
+            <div
+              style={{
+                background:
+                  "var(--pulsan-card, #ffffff)",
+                borderRadius: "24px",
+                padding: "40px 20px",
+                textAlign: "center",
+                border:
+                  "1px solid var(--pulsan-borda, #e5e5e5)",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: "45px",
+                }}
+              >
+                💚
+              </div>
+
+              <h3>
+                Ainda não existem desabafos.
+              </h3>
+
+              <p>
+                Quando alguém publicar,
+                aparecerá aqui.
+              </p>
+            </div>
+          )}
 
         {desabafos.map((item, index) => {
+          const apoiadores = Array.isArray(
+            item.apoiadores
+          )
+            ? item.apoiadores
+            : [];
 
-          const apoiadores =
-            Array.isArray(item.apoiadores)
-              ? item.apoiadores
-              : [];
+          const comentarios = Array.isArray(
+            item.comentarios
+          )
+            ? item.comentarios
+            : [];
 
-          const comentarios =
-            Array.isArray(item.comentarios)
-              ? item.comentarios
-              : [];
-
-          const jaApoiou =
-            apoiadores.includes(
-              usuarioId
-            );
+          const jaApoiou = apoiadores.includes(
+            String(usuarioId)
+          );
 
           const dono =
             String(
               item.usuarioId ||
-              item.autorId ||
-              item.donoId ||
-              ""
-            ) ===
-            String(usuarioId);
+                item.autorId ||
+                item.donoId ||
+                ""
+            ) === String(usuarioId);
 
           return (
             <div
-              key={
-                item.id ||
-                index
-              }
+              key={item.id || index}
               style={{
                 background:
                   "var(--pulsan-card, #ffffff)",
@@ -649,9 +753,6 @@ if (sequenciaSalva.ultimoDia !== hoje) {
                   "0 5px 20px rgba(0,0,0,0.05)",
               }}
             >
-
-              {/* USUÁRIO */}
-
               <div
                 style={{
                   display: "flex",
@@ -659,7 +760,6 @@ if (sequenciaSalva.ultimoDia !== hoje) {
                   gap: "12px",
                 }}
               >
-
                 <div
                   style={{
                     width: "45px",
@@ -674,15 +774,12 @@ if (sequenciaSalva.ultimoDia !== hoje) {
                 >
                   {item.fotoUsuario ? (
                     <img
-                      src={
-                        item.fotoUsuario
-                      }
+                      src={item.fotoUsuario}
                       alt=""
                       style={{
                         width: "100%",
                         height: "100%",
-                        objectFit:
-                          "cover",
+                        objectFit: "cover",
                       }}
                     />
                   ) : (
@@ -716,67 +813,47 @@ if (sequenciaSalva.ultimoDia !== hoje) {
                   }
                   style={{
                     border: "none",
-                    background:
-                      "transparent",
+                    background: "transparent",
                     fontSize: "20px",
                     cursor: "pointer",
                   }}
                 >
                   ⋮
                 </button>
-
               </div>
-
-              {/* PRIORIDADE */}
 
               <div
                 style={{
-                  display:
-                    "inline-block",
+                  display: "inline-block",
                   marginTop: "15px",
-                  background:
-                    "#eef7f5",
-                  color:
-                    "#168f92",
-                  borderRadius:
-                    "12px",
-                  padding:
-                    "6px 10px",
-                  fontSize:
-                    "11px",
-                  fontWeight:
-                    "700",
+                  background: "#eef7f5",
+                  color: "#168f92",
+                  borderRadius: "12px",
+                  padding: "6px 10px",
+                  fontSize: "11px",
+                  fontWeight: "700",
                 }}
               >
-                {item.prioridade ===
-                  "urgente" ||
-                item.urgencia ===
-                  "grave"
+                {item.prioridade === "urgente" ||
+                item.urgencia === "grave"
                   ? "🔴 Precisa de atenção"
-                  : item.prioridade ===
-                      "importante" ||
-                    item.urgencia ===
-                      "intermediario"
+                  : item.prioridade === "importante" ||
+                    item.urgencia === "intermediario"
                   ? "🟡 Precisa de apoio"
                   : "🟢 Aberto para conversa"}
               </div>
-
-              {/* TEXTO */}
 
               <p
                 style={{
                   fontSize: "17px",
                   lineHeight: "1.6",
-                  fontFamily:
-                    "Georgia, serif",
+                  fontFamily: "Georgia, serif",
                   color:
                     "var(--pulsan-texto, #40514b)",
                 }}
               >
                 {item.texto}
               </p>
-
-              {/* BOTÕES */}
 
               <div
                 style={{
@@ -785,235 +862,168 @@ if (sequenciaSalva.ultimoDia !== hoje) {
                   gap: "8px",
                 }}
               >
-
                 <button
                   onClick={() =>
                     apoiar(item.id)
                   }
                   style={{
                     border: "none",
-                    borderRadius:
-                      "14px",
-                    padding:
-                      "10px 14px",
-                    background:
-                      jaApoiou
-                        ? "#d9f3ef"
-                        : "#f1f5f4",
-                    color:
-                      jaApoiou
-                        ? "#159497"
-                        : "#60716f",
-                    fontWeight:
-                      "700",
-                    cursor:
-                      "pointer",
+                    borderRadius: "14px",
+                    padding: "10px 14px",
+                    background: jaApoiou
+                      ? "#d9f3ef"
+                      : "#f1f5f4",
+                    color: jaApoiou
+                      ? "#159497"
+                      : "#60716f",
+                    fontWeight: "700",
+                    cursor: "pointer",
                   }}
                 >
                   {jaApoiou
                     ? "💚 Apoiando"
                     : "🤍 Apoiar"}
 
-                  {apoiadores.length >
-                    0 &&
+                  {apoiadores.length > 0 &&
                     ` ${apoiadores.length}`}
                 </button>
 
                 <button
                   onClick={() =>
                     setComentariosAbertos(
-                      comentariosAbertos ===
-                        item.id
+                      comentariosAbertos === item.id
                         ? null
                         : item.id
                     )
                   }
                   style={{
                     border: "none",
-                    borderRadius:
-                      "14px",
-                    padding:
-                      "10px 14px",
-                    background:
-                      "#f1f5f4",
-                    color:
-                      "#60716f",
-                    fontWeight:
-                      "700",
-                    cursor:
-                      "pointer",
+                    borderRadius: "14px",
+                    padding: "10px 14px",
+                    background: "#f1f5f4",
+                    color: "#60716f",
+                    fontWeight: "700",
+                    cursor: "pointer",
                   }}
                 >
                   💬 Comentar
-                  {comentarios.length >
-                    0 &&
+
+                  {comentarios.length > 0 &&
                     ` ${comentarios.length}`}
                 </button>
 
                 {!dono && (
                   <button
                     onClick={() =>
-                      solicitarChat(
-                        item
-                      )
+                      solicitarChat(item)
                     }
                     style={{
                       border: "none",
-                      borderRadius:
-                        "14px",
-                      padding:
-                        "10px 14px",
-                      background:
-                        "#20adb0",
-                      color:
-                        "#ffffff",
-                      fontWeight:
-                        "700",
-                      cursor:
-                        "pointer",
+                      borderRadius: "14px",
+                      padding: "10px 14px",
+                      background: "#20adb0",
+                      color: "#ffffff",
+                      fontWeight: "700",
+                      cursor: "pointer",
                     }}
                   >
                     💬 Solicitar chat
                   </button>
                 )}
-
               </div>
 
-              {/* =================================================
-                  COMENTÁRIOS
-              ================================================= */}
-
-              {comentariosAbertos ===
-                item.id && (
+              {comentariosAbertos === item.id && (
                 <div
                   style={{
-                    marginTop:
-                      "15px",
-                    paddingTop:
-                      "15px",
+                    marginTop: "15px",
+                    paddingTop: "15px",
                     borderTop:
                       "1px solid #eeeeee",
                   }}
                 >
-
-                  {comentarios.map(
-                    (coment) => (
-                      <div
-                        key={
-                          coment.id
-                        }
+                  {comentarios.map((coment) => (
+                    <div
+                      key={coment.id}
+                      style={{
+                        background:
+                          "var(--pulsan-card, #f5f8f7)",
+                        color:
+                          "var(--pulsan-texto, #173b38)",
+                        borderRadius: "14px",
+                        padding: "10px",
+                        marginBottom: "8px",
+                      }}
+                    >
+                      <strong
                         style={{
-                          background:
-                            "var(--pulsan-card, #f5f8f7)",
-                          color:
-                            "var(--pulsan-texto, #173b38)",
-                          borderRadius:
-                            "14px",
-                          padding:
-                            "10px",
-                          marginBottom:
-                            "8px",
+                          fontSize: "12px",
                         }}
                       >
-                        <strong
-                          style={{
-                            fontSize:
-                              "12px",
-                          }}
-                        >
-                          {coment.nome ||
-                            "Usuário"}
-                        </strong>
+                        {coment.nome || "Usuário"}
+                      </strong>
 
-                        <div
-                          style={{
-                            marginTop:
-                              "4px",
-                            color:
-                              "var(--pulsan-texto, #173b38)",
-                            fontSize:
-                              "14px",
-                          }}
-                        >
-                          {
-                            coment.texto
-                          }
-                        </div>
+                      <div
+                        style={{
+                          marginTop: "4px",
+                          color:
+                            "var(--pulsan-texto, #173b38)",
+                          fontSize: "14px",
+                        }}
+                      >
+                        {coment.texto}
                       </div>
-                    )
-                  )}
+                    </div>
+                  ))}
 
                   <div
                     style={{
-                      display:
-                        "flex",
+                      display: "flex",
                       gap: "8px",
                     }}
                   >
                     <input
-                      value={
-                        comentario
-                      }
-                      onChange={(
-                        e
-                      ) =>
-                        setComentario(
-                          e.target.value
-                        )
+                      value={comentario}
+                      onChange={(e) =>
+                        setComentario(e.target.value)
                       }
                       placeholder="Escreva um comentário..."
+                      disabled={enviandoComentario}
                       style={{
                         flex: 1,
                         border:
                           "1px solid #dce5e3",
-                        borderRadius:
-                          "14px",
-                        padding:
-                          "11px",
-                        outline:
-                          "none",
+                        borderRadius: "14px",
+                        padding: "11px",
+                        outline: "none",
                       }}
                     />
 
                     <button
                       onClick={() =>
-                        enviarComentario(
-                          item.id
-                        )
+                        enviarComentario(item.id)
                       }
+                      disabled={enviandoComentario}
                       style={{
-                        border:
-                          "none",
-                        borderRadius:
-                          "14px",
-                        padding:
-                          "0 15px",
-                        background:
-                          "#20adb0",
-                        color:
-                          "white",
-                        fontWeight:
-                          "700",
-                        cursor:
-                          "pointer",
+                        border: "none",
+                        borderRadius: "14px",
+                        padding: "0 15px",
+                        background: "#20adb0",
+                        color: "white",
+                        fontWeight: "700",
+                        cursor: "pointer",
                       }}
                     >
-                      Enviar
+                      {enviandoComentario
+                        ? "Enviando..."
+                        : "Enviar"}
                     </button>
                   </div>
-
                 </div>
               )}
-
             </div>
           );
         })}
-
       </div>
-
-      {/* =================================================
-          BOTÃO DESABAFAR
-      ================================================= */}
 
       <button
         onClick={() =>
@@ -1038,7 +1048,6 @@ if (sequenciaSalva.ultimoDia !== hoje) {
       >
         ✎
       </button>
-
     </div>
   );
 }

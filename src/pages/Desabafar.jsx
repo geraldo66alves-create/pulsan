@@ -1,6 +1,6 @@
 import React, { useState } from "react";
+import { supabase } from "../lib/supabase";function Desabafar({ irPara }) {
 
-function Desabafar({ irPara }) {
   const [texto, setTexto] = useState("");
   const [analisando, setAnalisando] = useState(false);
 
@@ -563,29 +563,90 @@ function Desabafar({ irPara }) {
       // NOVA PUBLICAÇÃO
       // =================================
 
-      const novaPublicacao = {
-        id: Date.now(),
+    // =====================================
+// USUÁRIO AUTENTICADO
+// =====================================
 
-        texto: conteudo,
+const {
+  data: usuarioAutenticado,
+  error: erroUsuario,
+} = await supabase.auth.getUser();
 
-        autor: "Anônimo",
+if (
+  erroUsuario ||
+  !usuarioAutenticado?.user
+) {
+  alert("Faça login para publicar seu desabafo.");
+  return;
+}
 
-        hora: "Agora",
+const usuarioId =
+  usuarioAutenticado.user.id;
 
-        ambiente: ambiente,
 
-        classificacao:
-          classificacao,
+// =====================================
+// SALVAR NO SUPABASE
+// =====================================
 
-        alerta:
-          alerta,
+const {
+  data: publicacaoBanco,
+  error: erroBanco,
+} = await supabase
+  .from("posts_ambiente")
+  .insert({
+    usuario_id: usuarioId,
+    texto: conteudo,
+    ambiente: ambiente,
+    classificacao: classificacao,
+    alerta: alerta,
+    nome_usuario: "Anônimo",
+    prioridade: classificacao,
+    categoria: ambiente,
+    sentimento: null,
+    urgencia: classificacao,
+  })
+  .select()
+  .single();
 
-        apoios: 0,
+if (erroBanco) {
+  console.error(
+    "Erro ao salvar desabafo no Supabase:",
+    erroBanco
+  );
 
-        apoiado: false,
+  alert(
+    "Não foi possível publicar agora. Tente novamente."
+  );
 
-        comentarios: [],
-      };
+  return;
+}
+
+
+// =====================================
+// NOVA PUBLICAÇÃO LOCAL
+// =====================================
+
+const novaPublicacao = {
+  id: publicacaoBanco.id,
+
+  texto: conteudo,
+
+  autor: "Anônimo",
+
+  hora: "Agora",
+
+  ambiente: ambiente,
+
+  classificacao: classificacao,
+
+  alerta: alerta,
+
+  apoios: 0,
+
+  apoiado: false,
+
+  comentarios: [],
+};
 
 
       // =================================
