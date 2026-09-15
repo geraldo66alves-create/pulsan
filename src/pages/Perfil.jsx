@@ -1146,6 +1146,27 @@ function Perfil({
 
         </section>
 
+        <button
+          type="button"
+          onClick={() => irPara("acessibilidade")}
+          style={{
+            width: "100%",
+            marginTop: "25px",
+            padding: botoesGrandes ? "16px 20px" : "13px 18px",
+            borderRadius: "16px",
+            border: `1px solid ${cores.borda}`,
+            background: cores.card,
+            color: cores.texto,
+            cursor: "pointer",
+            fontWeight: "700",
+            fontSize: textoGrande ? "17px" : "15px",
+            textAlign: "left",
+          }}
+          aria-label="Abrir página de acessibilidade"
+        >
+          ♿ Acessibilidade
+          <span style={{ float: "right", color: cores.destaque }}>›</span>
+        </button>
 
         {/* =====================================
             ACESSIBILIDADE

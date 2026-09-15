@@ -15,6 +15,7 @@ import Solicitacoes from "./pages/Solicitacoes";
 import SolicitarAjuda from "./pages/SolicitarAjuda";
 import Avaliacao from "./pages/Avaliacao";
 import Perfil from "./pages/Perfil";
+import Acessibilidade from "./pages/Acessibilidade";
 import Premios from "./pages/Premios";
 import RecuperarSenha from "./pages/RecuperarSenha";
 import RedefinirSenha from "./pages/RedefinirSenha";
@@ -177,6 +178,81 @@ function MenuInferior({ pagina, irPara }) {
   );
 }
 
+
+// =====================================================
+// COMANDO DE VOZ GLOBAL
+// =====================================================
+
+function ComandoVozGlobal({ irPara, tema, alterarTema, acessibilidade, alterarAcessibilidade }) {
+  const [ouvindo, setOuvindo] = useState(false);
+  const reconhecimentoRef = React.useRef(null);
+  const toquesRef = React.useRef([]);
+
+  function falar(texto) {
+    if (!acessibilidade.voz || !("speechSynthesis" in window)) return;
+    window.speechSynthesis.cancel();
+    const fala = new SpeechSynthesisUtterance(texto);
+    fala.lang = "pt-BR";
+    fala.rate = 0.95;
+    window.speechSynthesis.speak(fala);
+  }
+
+  function executarComando(frase) {
+    const texto = frase.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const comandos = [
+      { termos: ["inicio", "tela inicial", "pagina inicial"], pagina: "ambiente", resposta: "Abrindo o início." },
+      { termos: ["perfil", "meu perfil"], pagina: "perfil", resposta: "Abrindo seu perfil." },
+      { termos: ["acessibilidade"], pagina: "acessibilidade", resposta: "Abrindo acessibilidade." },
+      { termos: ["reflexao"], pagina: "reflexao", resposta: "Abrindo reflexão." },
+      { termos: ["conversas", "mensagens"], pagina: "solicitacoes", resposta: "Abrindo conversas." },
+      { termos: ["desabafar"], pagina: "desabafar", resposta: "Abrindo desabafar." },
+    ];
+    const destino = comandos.find((c) => c.termos.some((t) => texto.includes(t)));
+    if (destino) { irPara(destino.pagina); falar(destino.resposta); return; }
+    if (texto.includes("modo escuro") || texto.includes("modo noturno")) { alterarTema("escuro"); falar("Modo escuro ativado."); return; }
+    if (texto.includes("modo claro")) { alterarTema("claro"); falar("Modo claro ativado."); return; }
+    if (texto.includes("alto contraste")) { alterarAcessibilidade("altoContraste", true); falar("Alto contraste ativado."); return; }
+    if (texto.includes("texto maior") || texto.includes("aumentar texto")) { alterarAcessibilidade("textoMaior", true); falar("Texto maior ativado."); return; }
+    if (texto.includes("botoes maiores")) { alterarAcessibilidade("botoesMaiores", true); falar("Botões maiores ativados."); return; }
+    if (texto.includes("reduzir animacoes")) { alterarAcessibilidade("reduzirAnimacoes", true); falar("Redução de animações ativada."); return; }
+    if (texto.includes("ler pagina") || texto.includes("ler tela")) { falar(document.querySelector("main")?.innerText || document.body.innerText); return; }
+    if (texto.includes("parar leitura") || texto.includes("silencio")) { window.speechSynthesis.cancel(); return; }
+    falar("Não reconheci esse comando.");
+  }
+
+  function iniciar() {
+    const Reconhecimento = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!Reconhecimento || ouvindo) return;
+    const rec = new Reconhecimento();
+    rec.lang = "pt-BR";
+    rec.interimResults = false;
+    rec.maxAlternatives = 1;
+    rec.onstart = () => setOuvindo(true);
+    rec.onresult = (e) => executarComando(e.results[0][0].transcript);
+    rec.onend = () => setOuvindo(false);
+    rec.onerror = () => setOuvindo(false);
+    reconhecimentoRef.current = rec;
+    rec.start();
+  }
+
+  useEffect(() => {
+    if (!acessibilidade.voz) return;
+    function detectarTresToques() {
+      const agora = Date.now();
+      toquesRef.current = [...toquesRef.current.filter((t) => agora - t < 700), agora];
+      if (toquesRef.current.length >= 3) {
+        toquesRef.current = [];
+        iniciar();
+      }
+    }
+    document.addEventListener("click", detectarTresToques);
+    return () => document.removeEventListener("click", detectarTresToques);
+  }, [acessibilidade.voz, ouvindo]);
+
+  useEffect(() => () => reconhecimentoRef.current?.stop(), []);
+  return null;
+}
+
 // =====================================================
 // APP
 // =====================================================
@@ -235,6 +311,9 @@ function App() {
       textoMaior: false,
       botoesMaiores: false,
       reduzirAnimacoes: false,
+      voz: false,
+      daltonismo: "normal",
+      libras: false,
     };
   });
 
@@ -568,6 +647,18 @@ function App() {
     );
   }
 
+  if (pagina === "acessibilidade") {
+    conteudo = (
+      <Acessibilidade
+        irPara={irPara}
+        tema={tema}
+        alterarTema={alterarTema}
+        acessibilidade={acessibilidade}
+        alterarAcessibilidade={alterarAcessibilidade}
+      />
+    );
+  }
+
   if (pagina === "premios") {
     conteudo = (
       <Premios
@@ -636,6 +727,8 @@ function App() {
       >
         {conteudo}
       </div>
+
+      <ComandoVozGlobal irPara={irPara} tema={tema} alterarTema={alterarTema} acessibilidade={acessibilidade} alterarAcessibilidade={alterarAcessibilidade} />
 
       {!usuarioEhEquipePulsan() && (
         <MenuInferior

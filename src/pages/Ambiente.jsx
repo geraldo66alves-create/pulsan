@@ -358,158 +358,76 @@ function Ambiente({ irPara }) {
   // SOLICITAR CHAT
   // =====================================================
 
-  function solicitarChat(item) {
-    const donoId =
-      item.usuarioId ||
-      item.autorId ||
-      item.donoId ||
-      "";
-
-    if (
-      String(donoId) ===
-      String(usuarioId)
-    ) {
-      alert(
-        "Esse desabafo pertence a você."
-      );
-
-      return;
-    }
-
-    const confirmar = window.confirm(
-      "Deseja solicitar um chat privado com esta pessoa?"
-    );
-
-    if (!confirmar) {
-      return;
-    }
-
-    let solicitacoes = [];
-
+  async function solicitarChat(desabafo) {
     try {
-      solicitacoes = JSON.parse(
-        localStorage.getItem(
-          "pulsanSolicitacoesChat"
-        ) || "[]"
-      );
+      const { data: { user }, error: erroUsuario } =
+        await supabase.auth.getUser();
 
-      if (!Array.isArray(solicitacoes)) {
-        solicitacoes = [];
+      if (erroUsuario || !user) {
+        alert("Faça login para solicitar uma conversa.");
+        return;
       }
+
+      const destinatarioId =
+        desabafo.usuario_id ||
+        desabafo.usuarioId ||
+        desabafo.autor_id ||
+        desabafo.destinatario_id;
+
+      if (!destinatarioId) {
+        alert("Não foi possível identificar a pessoa deste desabafo.");
+        return;
+      }
+
+      if (String(user.id) === String(destinatarioId)) {
+        alert("Você não pode solicitar conversa consigo mesmo.");
+        return;
+      }
+
+      const { data: existente, error: erroBusca } = await supabase
+        .from("solicitacoes_chat")
+        .select("id, status")
+        .eq("solicitante_id", user.id)
+        .eq("destinatario_id", destinatarioId)
+        .in("status", ["pendente", "aceita"])
+        .maybeSingle();
+
+      if (erroBusca) {
+        console.error("Erro ao verificar solicitação:", erroBusca);
+        alert("Não foi possível verificar a solicitação.");
+        return;
+      }
+
+      if (existente) {
+        alert(
+          existente.status === "aceita"
+            ? "Você já possui uma conversa com essa pessoa."
+            : "Você já enviou uma solicitação para essa pessoa."
+        );
+        return;
+      }
+
+      const { error: erroInsercao } = await supabase
+        .from("solicitacoes_chat")
+        .insert({
+          solicitante_id: user.id,
+          destinatario_id: destinatarioId,
+          desabafo_id: desabafo.id,
+          mensagem: "Gostaria de conversar em particular com você.",
+          status: "pendente",
+        });
+
+      if (erroInsercao) {
+        console.error("Erro ao criar solicitação:", erroInsercao);
+        alert("Não foi possível enviar a solicitação. Tente novamente.");
+        return;
+      }
+
+      alert("Solicitação de chat enviada!");
     } catch (erro) {
-      solicitacoes = [];
+      console.error("Erro ao solicitar conversa:", erro);
+      alert("Ocorreu um erro ao solicitar a conversa.");
     }
-
-    const existente = solicitacoes.find(
-      (solicitacao) =>
-        solicitacao.publicacaoId ===
-          item.id &&
-        String(
-          solicitacao.solicitanteId
-        ) === String(usuarioId) &&
-        solicitacao.status === "pendente"
-    );
-
-    if (existente) {
-      alert(
-        "Você já solicitou esse chat."
-      );
-
-      return;
-    }
-
-    const mediaAvaliacoes =
-      usuario.mediaAvaliacoes ??
-      usuario.avaliacao ??
-      usuario.nota ??
-      "Novo";
-
-    const quantidadeAvaliacoes =
-      usuario.quantidadeAvaliacoes ??
-      usuario.totalAvaliacoes ??
-      0;
-
-    const novaSolicitacao = {
-      id:
-        "solicitacao-" +
-        Date.now(),
-
-      publicacaoId: item.id,
-
-      solicitanteId: String(
-        usuarioId
-      ),
-
-      nomeSolicitante: nomeUsuario,
-
-      fotoSolicitante:
-        usuario.foto ||
-        localStorage.getItem(
-          "pulsanFoto"
-        ) ||
-        "",
-
-      mediaAvaliacoes,
-
-      quantidadeAvaliacoes,
-
-      seloApoiador:
-        usuario.seloApoiador === true,
-
-      seloPsicologo:
-        usuario.seloPsicologo === true,
-
-      solicitanteNome: nomeUsuario,
-
-      solicitanteFoto:
-        usuario.foto ||
-        localStorage.getItem(
-          "pulsanFoto"
-        ) ||
-        "",
-
-      destinatarioId: String(donoId),
-
-      destinatarioNome:
-        item.nomeUsuario ||
-        "Usuário",
-
-      destinatarioFoto:
-        item.fotoUsuario ||
-        "",
-
-      textoDesabafo:
-        item.texto || "",
-
-      texto: item.texto || "",
-
-      categoria:
-        item.categoria ||
-        item.sentimento ||
-        "Conversa privada",
-
-      urgencia:
-        item.urgencia ||
-        item.prioridade ||
-        "normal",
-
-      status: "pendente",
-
-      data: new Date().toISOString(),
-    };
-
-    solicitacoes.push(
-      novaSolicitacao
-    );
-
-    localStorage.setItem(
-      "pulsanSolicitacoesChat",
-      JSON.stringify(solicitacoes)
-    );
-
-    alert(
-      "Solicitação enviada com sucesso! 💚"
-    );
   }
 
   // =====================================================
