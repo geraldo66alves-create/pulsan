@@ -99,24 +99,55 @@ function Conversa({ irPara }) {
   // =====================================================
 
   useEffect(() => {
+    let ativo = true;
+
     async function carregarMensagens() {
       if (!conversaAtual.id || conversaAtual.id === "conversa") return;
-      const { data, error } = await supabase
-        .from("mensagens_conversa")
-        .select("*")
-        .eq("conversa_id", conversaAtual.id)
-        .order("criada_em", { ascending: true });
-      if (!error && data) {
-        setMensagens(data.map((item) => ({
-          id: item.id,
-          autor: item.remetente_id === (usuario.id || usuario.email) ? "eu" : "outra",
-          usuarioId: item.remetente_id,
-          texto: item.mensagem,
-          hora: new Date(item.criada_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
-        })));
+
+      try {
+        const { data, error } = await supabase
+          .from("mensagens_conversa")
+          .select("*")
+          .eq("conversa_id", conversaAtual.id)
+          .order("criada_em", { ascending: true });
+
+        if (!ativo) return;
+
+        if (!error && Array.isArray(data)) {
+          setMensagens(
+            data.map((item) => ({
+              id: item.id,
+              autor:
+                String(item.remetente_id || "") ===
+                String(usuario.id || usuario.email || "")
+                  ? "eu"
+                  : "outra",
+              usuarioId: item.remetente_id || "",
+              texto: item.mensagem || "",
+              hora: item.criada_em
+                ? new Date(item.criada_em).toLocaleTimeString("pt-BR", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
+                : new Date().toLocaleTimeString("pt-BR", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  }),
+            }))
+          );
+        } else {
+          console.warn("Não foi possível carregar as mensagens do banco. Mantendo mensagens locais.", error);
+        }
+      } catch (error) {
+        console.error("Erro ao carregar mensagens da conversa:", error);
       }
     }
+
     carregarMensagens();
+
+    return () => {
+      ativo = false;
+    };
   }, [conversaId]);
 
   // =====================================================
@@ -430,6 +461,33 @@ function Conversa({ irPara }) {
   // =====================================================
   // INTERFACE
   // =====================================================
+
+  if (!conversaAtual.id || conversaAtual.id === "conversa") {
+    return (
+      <div className="pulsan-conversa-page">
+        <header className="pulsan-conversa-header">
+          <button
+            type="button"
+            className="pulsan-voltar-btn"
+            onClick={voltar}
+            aria-label="Voltar"
+          >
+            ←
+          </button>
+          <div>
+            <strong>Conversa</strong>
+            <div>Não foi possível identificar esta conversa.</div>
+          </div>
+        </header>
+        <main className="pulsan-conversa-conteudo" style={{ padding: "30px 20px" }}>
+          <section className="pulsan-desabafo-relacionado">
+            <strong>Conversa não encontrada</strong>
+            <p>Volte para Conversas e abra novamente a conversa aceita.</p>
+          </section>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="pulsan-conversa-page">

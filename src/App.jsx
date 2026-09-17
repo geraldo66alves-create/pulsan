@@ -10,7 +10,7 @@ import Cadastro from "./pages/Cadastro";
 import Ambiente from "./pages/Ambiente";
 import Desabafar from "./pages/Desabafar";
 import Reflexao from "./pages/Reflexao";
-import Conversa from "./pages/Conversa";
+import Conversas from "./pages/Conversa";
 import Solicitacoes from "./pages/Solicitacoes";
 import SolicitarAjuda from "./pages/SolicitarAjuda";
 import Avaliacao from "./pages/Avaliacao";
@@ -586,17 +586,17 @@ function App() {
     );
   }
 
-  if (pagina === "solicitacoes") {
-    conteudo = (
-      <Solicitacoes
-        irPara={irPara}
-        tema={tema}
-        alterarTema={alterarTema}
-        acessibilidade={acessibilidade}
-        alterarAcessibilidade={alterarAcessibilidade}
-      />
-    );
-  }
+ if (pagina === "solicitacoes") {
+  conteudo = (
+    <Conversas
+      irPara={irPara}
+      tema={tema}
+      alterarTema={alterarTema}
+      acessibilidade={acessibilidade}
+      alterarAcessibilidade={alterarAcessibilidade}
+    />
+  );
+}
 
   if (pagina === "conversa") {
     conteudo = (

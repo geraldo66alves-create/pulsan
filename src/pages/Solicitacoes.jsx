@@ -114,7 +114,16 @@ function Solicitacoes({ irPara }) {
           item.desabafo_id,
 
         nomeSolicitante:
+          item.nome_solicitante ||
+          item.nomeSolicitante ||
+          item.nome ||
           "Usuário",
+
+        fotoSolicitante:
+          item.foto_solicitante ||
+          item.fotoSolicitante ||
+          item.foto ||
+          "",
 
         textoDesabafo:
           "A pessoa deseja conversar com você.",
@@ -130,15 +139,25 @@ function Solicitacoes({ irPara }) {
           "normal",
 
         mediaAvaliacoes:
+          item.media_avaliacoes ??
+          item.mediaAvaliacoes ??
+          item.avaliacao ??
           "Novo",
 
         quantidadeAvaliacoes:
+          item.quantidade_avaliacoes ??
+          item.quantidadeAvaliacoes ??
+          item.total_avaliacoes ??
           0,
 
         seloApoiador:
+          item.selo_apoiador ??
+          item.seloApoiador ??
           false,
 
         seloPsicologo:
+          item.selo_psicologo ??
+          item.seloPsicologo ??
           false,
       })
     );

@@ -9,9 +9,72 @@ function Ambiente({ irPara }) {
   const [comentariosAbertos, setComentariosAbertos] =
     useState(null);
 
+  const [aba, setAba] = useState("feed");
+
   const [comentario, setComentario] = useState("");
   const [enviandoComentario, setEnviandoComentario] =
     useState(false);
+
+  const [notificacoes, setNotificacoes] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("pulsanNotificacoes") || "[]");
+    } catch (erro) {
+      return [];
+    }
+  });
+
+  async function deletarDesabafo(id) {
+    const confirmar = window.confirm("Deseja realmente deletar este desabafo?");
+    if (!confirmar) return;
+
+    const { error } = await supabase
+      .from("posts_ambiente")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      console.error("Erro ao deletar desabafo:", error);
+      alert("Não foi possível deletar o desabafo.");
+      return;
+    }
+
+    setDesabafos((atual) => atual.filter((item) => item.id !== id));
+  }
+
+  async function denunciarDesabafo(desabafo) {
+    const motivo = window.prompt(
+      "Escolha o motivo da denúncia:\n1 - Ofensa ou discurso de ódio\n2 - Bullying ou assédio\n3 - Conteúdo inadequado\n4 - Ameaça ou risco\n5 - Outro",
+      "1"
+    );
+
+    if (!motivo) return;
+
+    const descricao = window.prompt(
+      "Se quiser, explique melhor a denúncia (opcional):"
+    );
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      alert("Faça login para denunciar.");
+      return;
+    }
+
+    const { error } = await supabase.from("denuncias").insert([{
+      usuario_id: user.id,
+      desabafo_id: desabafo.id,
+      motivo,
+      descricao: descricao || null,
+      status: "pendente"
+    }]);
+
+    if (error) {
+      console.error("Erro ao denunciar desabafo:", error);
+      alert("Não foi possível enviar a denúncia.");
+      return;
+    }
+
+    alert("Denúncia enviada. Obrigado por ajudar a manter o ambiente seguro.");
+  }
 
   // =====================================================
   // USUÁRIO
@@ -146,6 +209,33 @@ function Ambiente({ irPara }) {
     setCarregandoDesabafos(false);
   }
 
+  useEffect(() => {
+    localStorage.setItem("pulsanNotificacoes", JSON.stringify(notificacoes));
+  }, [notificacoes]);
+
+  function notificarNovoComentario(post, textoComentario) {
+    const souDono = String(post.usuario_id || post.usuarioId) === String(usuarioId);
+    if (!souDono) return;
+
+    const novaNotificacao = {
+      id: Date.now(),
+      tipo: "comentario",
+      mensagem: "Alguém comentou no seu desabafo.",
+      texto: textoComentario,
+      postId: post.id,
+      data: new Date().toISOString(),
+      lida: false,
+    };
+
+    setNotificacoes((lista) => [novaNotificacao, ...lista]);
+
+    if ("Notification" in window && Notification.permission === "granted") {
+      new Notification("Novo comentário no Pulsan", {
+        body: "Alguém comentou no seu desabafo.",
+      });
+    }
+  }
+
   // =====================================================
   // SEQUÊNCIA DE APOIO
   // =====================================================
@@ -203,6 +293,26 @@ function Ambiente({ irPara }) {
       return Number(dados.sequencia) || 0;
     } catch (erro) {
       return 0;
+    }
+  }
+
+  async function compartilharSequenciaApoio() {
+    const dias = obterSequenciaApoio();
+    const mensagem = `Já estou há ${dias} dias espalhando apoio no Pulsan 💙. Você também pode fazer a diferença!`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "Minha sequência de apoio no Pulsan",
+          text: mensagem,
+          url: window.location.href,
+        });
+      } catch (erro) {
+        if (erro.name !== "AbortError") console.error(erro);
+      }
+    } else {
+      await navigator.clipboard.writeText(mensagem);
+      alert("Mensagem copiada. Você pode compartilhar nas suas redes sociais.");
     }
   }
 
@@ -352,83 +462,121 @@ function Ambiente({ irPara }) {
 
     setComentario("");
     setEnviandoComentario(false);
+
+    notificarNovoComentario(
+      desabafos.find((item) => item.id === id) || {},
+      textoComentario
+    );
   }
 
   // =====================================================
   // SOLICITAR CHAT
   // =====================================================
 
-  async function solicitarChat(desabafo) {
-    try {
-      const { data: { user }, error: erroUsuario } =
-        await supabase.auth.getUser();
+ async function solicitarChat(desabafo) {
+  try {
+    const {
+      data: { user },
+      error: erroUsuario,
+    } = await supabase.auth.getUser();
 
-      if (erroUsuario || !user) {
-        alert("Faça login para solicitar uma conversa.");
-        return;
-      }
-
-      const destinatarioId =
-        desabafo.usuario_id ||
-        desabafo.usuarioId ||
-        desabafo.autor_id ||
-        desabafo.destinatario_id;
-
-      if (!destinatarioId) {
-        alert("Não foi possível identificar a pessoa deste desabafo.");
-        return;
-      }
-
-      if (String(user.id) === String(destinatarioId)) {
-        alert("Você não pode solicitar conversa consigo mesmo.");
-        return;
-      }
-
-      const { data: existente, error: erroBusca } = await supabase
-        .from("solicitacoes_chat")
-        .select("id, status")
-        .eq("solicitante_id", user.id)
-        .eq("destinatario_id", destinatarioId)
-        .in("status", ["pendente", "aceita"])
-        .maybeSingle();
-
-      if (erroBusca) {
-        console.error("Erro ao verificar solicitação:", erroBusca);
-        alert("Não foi possível verificar a solicitação.");
-        return;
-      }
-
-      if (existente) {
-        alert(
-          existente.status === "aceita"
-            ? "Você já possui uma conversa com essa pessoa."
-            : "Você já enviou uma solicitação para essa pessoa."
-        );
-        return;
-      }
-
-      const { error: erroInsercao } = await supabase
-        .from("solicitacoes_chat")
-        .insert({
-          solicitante_id: user.id,
-          destinatario_id: destinatarioId,
-          desabafo_id: desabafo.id,
-          mensagem: "Gostaria de conversar em particular com você.",
-          status: "pendente",
-        });
-
-      if (erroInsercao) {
-        console.error("Erro ao criar solicitação:", erroInsercao);
-        alert("Não foi possível enviar a solicitação. Tente novamente.");
-        return;
-      }
-
-      alert("Solicitação de chat enviada!");
-    } catch (erro) {
-      console.error("Erro ao solicitar conversa:", erro);
-      alert("Ocorreu um erro ao solicitar a conversa.");
+    if (erroUsuario || !user) {
+      alert("Faça login para solicitar uma conversa.");
+      return;
     }
+
+    const destinatarioId =
+      desabafo.usuario_id ||
+      desabafo.usuarioId ||
+      desabafo.autor_id ||
+      desabafo.destinatario_id;
+
+    if (!destinatarioId) {
+      alert("Não foi possível identificar a pessoa deste desabafo.");
+      return;
+    }
+
+    if (String(user.id) === String(destinatarioId)) {
+      alert("Você não pode solicitar conversa consigo mesmo.");
+      return;
+    }
+
+    const { data: existente, error: erroBusca } = await supabase
+      .from("solicitacoes_chat")
+      .select("id, status")
+      .eq("solicitante_id", user.id)
+      .eq("destinatario_id", destinatarioId)
+      .in("status", ["pendente", "aceita"])
+      .maybeSingle();
+
+    if (erroBusca) {
+      console.error(
+        "Erro ao verificar solicitação:",
+        erroBusca
+      );
+
+      alert(
+        `Erro ao verificar solicitação:\n\n${
+          erroBusca.message ||
+          "Verifique a configuração do Supabase."
+        }`
+      );
+
+      return;
+    }
+
+    if (existente) {
+      alert(
+        existente.status === "aceita"
+          ? "Você já possui uma conversa com essa pessoa."
+          : "Você já enviou uma solicitação para essa pessoa."
+      );
+
+      return;
+    }
+
+    console.log("Usuário logado:", user.id);
+    console.log("Destinatário:", destinatarioId);
+    console.log("Desabafo:", desabafo);
+
+    const { error: erroInsercao } = await supabase
+      .from("solicitacoes_chat")
+      .insert({
+        solicitante_id: user.id,
+        destinatario_id: destinatarioId,
+        status: "pendente",
+      });
+
+    if (erroInsercao) {
+      console.error(
+        "Erro detalhado ao criar solicitação:",
+        JSON.stringify(erroInsercao, null, 2)
+      );
+
+      alert(
+        `Não foi possível enviar a solicitação.\n\n${
+          erroInsercao.message ||
+          "Verifique a tabela solicitacoes_chat e as políticas RLS."
+        }`
+      );
+
+      return;
+    }
+
+    alert("Solicitação de chat enviada!");
+  } catch (erro) {
+    console.error(
+      "Erro inesperado ao solicitar conversa:",
+      erro
+    );
+
+    alert(
+      `Ocorreu um erro ao solicitar a conversa.\n\n${
+        erro.message || "Erro desconhecido."
+      }`
+    );
   }
+}
 
   // =====================================================
   // DENUNCIAR
@@ -485,6 +633,14 @@ function Ambiente({ irPara }) {
   // TELA
   // =====================================================
 
+  const meusDesabafos = desabafos.filter(
+    (item) => String(item.usuarioId || item.usuario_id || item.autor_id || "") === String(usuarioId)
+  );
+
+  const listaExibicao = aba === "meus" ? meusDesabafos : desabafos.filter(
+    (item) => String(item.usuarioId || item.usuario_id || item.autor_id || "") !== String(usuarioId)
+  );
+
   return (
     <div
       style={{
@@ -540,6 +696,46 @@ function Ambiente({ irPara }) {
           Desabafos
         </h2>
 
+        {notificacoes.some((item) => !item.lida) && (
+          <div
+            onClick={() => setNotificacoes((lista) => lista.map((item) => ({ ...item, lida: true })))}
+            style={{
+              background: "#eaf3ff",
+              border: "1px solid #a8c7ff",
+              borderRadius: "15px",
+              padding: "12px 15px",
+              marginBottom: "15px",
+              cursor: "pointer",
+              color: "#0f2d5b",
+            }}
+          >
+            🔔 Você tem {notificacoes.filter((item) => !item.lida).length} novo(s) comentário(s) no seu desabafo.
+          </div>
+        )}
+
+        <div style={{ display: "flex", gap: "8px", marginBottom: "18px" }}>
+          <button
+            onClick={() => setAba("feed")}
+            style={{
+              flex: 1, padding: "12px", border: "none", borderRadius: "14px",
+              background: aba === "feed" ? "#20adb0" : "#eef3f2",
+              color: aba === "feed" ? "#fff" : "#60716f", fontWeight: "700", cursor: "pointer"
+            }}
+          >
+            Feed da comunidade
+          </button>
+          <button
+            onClick={() => setAba("meus")}
+            style={{
+              flex: 1, padding: "12px", border: "none", borderRadius: "14px",
+              background: aba === "meus" ? "#20adb0" : "#eef3f2",
+              color: aba === "meus" ? "#fff" : "#60716f", fontWeight: "700", cursor: "pointer"
+            }}
+          >
+            Meus desabafos
+          </button>
+        </div>
+
         <div
           style={{
             background:
@@ -575,6 +771,24 @@ function Ambiente({ irPara }) {
             </strong>{" "}
             espalhando apoio.
           </p>
+
+          {[7, 14, 30].includes(obterSequenciaApoio()) && (
+            <button
+              onClick={compartilharSequenciaApoio}
+              style={{
+                marginTop: "12px",
+                border: "none",
+                borderRadius: "12px",
+                padding: "9px 12px",
+                background: "#3a7dff",
+                color: "#fff",
+                fontWeight: "700",
+                cursor: "pointer",
+              }}
+            >
+              📣 Compartilhar minha sequência
+            </button>
+          )}
         </div>
 
         <p
@@ -631,7 +845,7 @@ function Ambiente({ irPara }) {
             </div>
           )}
 
-        {desabafos.map((item, index) => {
+        {listaExibicao.map((item, index) => {
           const apoiadores = Array.isArray(
             item.apoiadores
           )
@@ -725,19 +939,39 @@ function Ambiente({ irPara }) {
                   </div>
                 </div>
 
-                <button
-                  onClick={() =>
-                    denunciar(item)
-                  }
-                  style={{
-                    border: "none",
-                    background: "transparent",
-                    fontSize: "20px",
-                    cursor: "pointer",
-                  }}
-                >
-                  ⋮
-                </button>
+                {aba === "meus" && dono && (
+                  <button
+                    onClick={() => deletarDesabafo(item.id)}
+                    title="Deletar desabafo"
+                    aria-label="Deletar desabafo"
+                    style={{
+                      border: "none",
+                      background: "transparent",
+                      fontSize: "18px",
+                      cursor: "pointer",
+                    }}
+                  >
+                    🗑️
+                  </button>
+                )}
+
+                {!dono && (
+                  <button
+                    onClick={() => denunciarDesabafo(item)}
+                    title="Denunciar desabafo"
+                    aria-label="Denunciar desabafo"
+                    style={{
+                      border: "none",
+                      background: "transparent",
+                      color: "#d9534f",
+                      fontSize: "13px",
+                      fontWeight: "700",
+                      cursor: "pointer",
+                    }}
+                  >
+                    🚩 Denunciar
+                  </button>
+                )}
               </div>
 
               <div
@@ -829,6 +1063,7 @@ function Ambiente({ irPara }) {
                   {comentarios.length > 0 &&
                     ` ${comentarios.length}`}
                 </button>
+
 
                 {!dono && (
                   <button
@@ -943,29 +1178,56 @@ function Ambiente({ irPara }) {
         })}
       </div>
 
-      <button
-        onClick={() =>
-          irPara("desabafar")
-        }
+      <div
         style={{
           position: "fixed",
           right: "20px",
           bottom: "90px",
-          width: "62px",
-          height: "62px",
-          borderRadius: "50%",
-          border: "none",
-          background: "#20adb0",
-          color: "white",
-          fontSize: "26px",
-          cursor: "pointer",
-          boxShadow:
-            "0 8px 25px rgba(0,0,0,0.2)",
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
           zIndex: 100,
         }}
       >
-        ✎
-      </button>
+        <button
+          onClick={() => setAba(aba === "meus" ? "feed" : "meus")}
+          title="Meus desabafos"
+          aria-label="Meus desabafos"
+          style={{
+            width: "34px",
+            height: "34px",
+            borderRadius: "50%",
+            border: "none",
+            background: "var(--pulsan-card, #ffffff)",
+            color: "var(--pulsan-texto, #173b38)",
+            fontSize: "20px",
+            lineHeight: 1,
+            cursor: "pointer",
+            boxShadow: "0 4px 14px rgba(0,0,0,0.16)",
+          }}
+        >
+          ⋯
+        </button>
+
+        <button
+          onClick={() => irPara("desabafar")}
+          title="Desabafar"
+          aria-label="Desabafar"
+          style={{
+            width: "62px",
+            height: "62px",
+            borderRadius: "50%",
+            border: "none",
+            background: "#20adb0",
+            color: "white",
+            fontSize: "26px",
+            cursor: "pointer",
+            boxShadow: "0 8px 25px rgba(0,0,0,0.2)",
+          }}
+        >
+          ✎
+        </button>
+      </div>
     </div>
   );
 }
