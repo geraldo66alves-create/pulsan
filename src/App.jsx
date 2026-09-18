@@ -16,9 +16,276 @@ import SolicitarAjuda from "./pages/SolicitarAjuda";
 import Avaliacao from "./pages/Avaliacao";
 import Perfil from "./pages/Perfil";
 import Acessibilidade from "./pages/Acessibilidade";
+import AcessibilidadeInicial from "./pages/AcessibilidadeInicial";
 import Premios from "./pages/Premios";
 import RecuperarSenha from "./pages/RecuperarSenha";
 import RedefinirSenha from "./pages/RedefinirSenha";
+
+
+/* =====================================================
+   TEMA GLOBAL PULSAN — CONTRASTE DOS CARDS
+   O modo é alterado pelo Perfil e controlado pelo App.
+===================================================== */
+const estiloTemaGlobal = `
+  :root {
+    --pulsan-bg: #EAF3FF;
+    --pulsan-card: #FFFFFF;
+    --pulsan-card-secundario: #F7FAFF;
+    --pulsan-texto: #0F2D5B;
+    --pulsan-texto-secundario: #5F7695;
+    --pulsan-borda: #A8C7FF;
+    --pulsan-primaria: #3A7DFF;
+  }
+
+  html[data-theme="escuro"] {
+    --pulsan-bg: #081B35;
+    --pulsan-card: #0F2D5B;
+    --pulsan-card-secundario: #15365F;
+    --pulsan-texto: #FFFFFF;
+    --pulsan-texto-secundario: #C2D2E8;
+    --pulsan-borda: #416DA4;
+    --pulsan-primaria: #6EA0FF;
+  }
+
+  html[data-theme="escuro"] body {
+    background: #081B35 !important;
+    color: #FFFFFF;
+  }
+
+  /* Cards e superfícies que usam as variáveis do Pulsan */
+  html[data-theme="escuro"] .pulsan-app [style*="background: white"],
+  html[data-theme="escuro"] .pulsan-app [style*="background: #fff"],
+  html[data-theme="escuro"] .pulsan-app [style*="background:#fff"],
+  html[data-theme="escuro"] .pulsan-app [style*="background: rgb(255, 255, 255)"] {
+    background: #0F2D5B !important;
+    color: #FFFFFF !important;
+  }
+
+  /* Aumenta a separação visual dos cards no escuro */
+  html[data-theme="escuro"] .pulsan-app .ambiente-card,
+  html[data-theme="escuro"] .pulsan-app .ambiente-post,
+  html[data-theme="escuro"] .pulsan-app .ambiente-hero-card {
+    background: #0F2D5B !important;
+    border-color: #416DA4 !important;
+    box-shadow: 0 8px 24px rgba(0,0,0,.28) !important;
+  }
+
+  html[data-theme="escuro"] .pulsan-app .ambiente-card-soft {
+    background: #15365F !important;
+  }
+
+  html[data-theme="escuro"] .pulsan-app input,
+  html[data-theme="escuro"] .pulsan-app textarea,
+  html[data-theme="escuro"] .pulsan-app select {
+    background: #15365F !important;
+    color: #FFFFFF !important;
+    border-color: #416DA4 !important;
+  }
+
+  html[data-theme="escuro"] .pulsan-app input::placeholder,
+  html[data-theme="escuro"] .pulsan-app textarea::placeholder {
+    color: #B8C9DF !important;
+  }
+
+  html[data-theme="escuro"] .pulsan-app button {
+    color: inherit;
+  }
+
+  html[data-theme="escuro"] .pulsan-app .pulsan-menu-inferior {
+    background: #0F2D5B !important;
+    border-top-color: #416DA4 !important;
+    box-shadow: 0 -8px 25px rgba(0,0,0,.32) !important;
+  }
+
+  /* =====================================================
+     ACESSIBILIDADE GLOBAL — PULSAN
+     As opções abaixo funcionam em TODAS as páginas que
+     ficam dentro de .pulsan-app.
+  ===================================================== */
+
+  /* ALTO CONTRASTE */
+  html[data-contraste="alto"] .pulsan-app {
+    --pulsan-bg: #000000 !important;
+    --pulsan-card: #111111 !important;
+    --pulsan-card-secundario: #1A1A1A !important;
+    --pulsan-texto: #FFFFFF !important;
+    --pulsan-texto-secundario: #FFFFFF !important;
+    --pulsan-borda: #FFFFFF !important;
+    --pulsan-primaria: #FFFF00 !important;
+  }
+
+  html[data-contraste="alto"] .pulsan-app,
+  html[data-contraste="alto"] .pulsan-app * {
+    border-color: #FFFFFF !important;
+  }
+
+  html[data-contraste="alto"] .pulsan-app {
+    background: #000000 !important;
+    color: #FFFFFF !important;
+  }
+
+  html[data-contraste="alto"] .pulsan-app button,
+  html[data-contraste="alto"] .pulsan-app a {
+    color: #FFFF00 !important;
+  }
+
+  html[data-contraste="alto"] .pulsan-app input,
+  html[data-contraste="alto"] .pulsan-app textarea,
+  html[data-contraste="alto"] .pulsan-app select {
+    background: #000000 !important;
+    color: #FFFFFF !important;
+    border: 2px solid #FFFFFF !important;
+  }
+
+  html[data-contraste="alto"] .pulsan-app input::placeholder,
+  html[data-contraste="alto"] .pulsan-app textarea::placeholder {
+    color: #FFFFFF !important;
+    opacity: 1 !important;
+  }
+
+  html[data-contraste="alto"] .pulsan-app [style*="background"],
+  html[data-contraste="alto"] .pulsan-app [style*="backgroundColor"] {
+    color: #FFFFFF !important;
+  }
+
+  /* TEXTO MAIOR */
+  html[data-texto-grande="true"] .pulsan-app {
+    font-size: 18px;
+  }
+
+  html[data-texto-grande="true"] .pulsan-app p,
+  html[data-texto-grande="true"] .pulsan-app span,
+  html[data-texto-grande="true"] .pulsan-app label,
+  html[data-texto-grande="true"] .pulsan-app li,
+  html[data-texto-grande="true"] .pulsan-app input,
+  html[data-texto-grande="true"] .pulsan-app textarea,
+  html[data-texto-grande="true"] .pulsan-app select,
+  html[data-texto-grande="true"] .pulsan-app button {
+    font-size: 1.08em !important;
+  }
+
+  html[data-texto-grande="true"] .pulsan-app h1 {
+    font-size: clamp(2rem, 5vw, 3.4rem) !important;
+  }
+
+  html[data-texto-grande="true"] .pulsan-app h2 {
+    font-size: clamp(1.65rem, 4vw, 2.5rem) !important;
+  }
+
+  html[data-texto-grande="true"] .pulsan-app h3 {
+    font-size: clamp(1.35rem, 3vw, 2rem) !important;
+  }
+
+  /* BOTÕES E ÁREAS DE TOQUE MAIORES */
+  html[data-botoes-grandes="true"] .pulsan-app button,
+  html[data-botoes-grandes="true"] .pulsan-app a[role="button"],
+  html[data-botoes-grandes="true"] .pulsan-app input[type="button"],
+  html[data-botoes-grandes="true"] .pulsan-app input[type="submit"] {
+    min-height: 52px !important;
+    min-width: 48px;
+    padding: 12px 18px !important;
+  }
+
+  html[data-botoes-grandes="true"] .pulsan-app input,
+  html[data-botoes-grandes="true"] .pulsan-app textarea,
+  html[data-botoes-grandes="true"] .pulsan-app select {
+    min-height: 52px !important;
+  }
+
+  /* REDUZIR ANIMAÇÕES */
+  html[data-reduzir-animacoes="true"] .pulsan-app *,
+  html[data-reduzir-animacoes="true"] .pulsan-app *::before,
+  html[data-reduzir-animacoes="true"] .pulsan-app *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* FOCO VISÍVEL PARA TECLADO */
+  .pulsan-app button:focus-visible,
+  .pulsan-app a:focus-visible,
+  .pulsan-app input:focus-visible,
+  .pulsan-app textarea:focus-visible,
+  .pulsan-app select:focus-visible {
+    outline: 3px solid #3A7DFF !important;
+    outline-offset: 3px !important;
+  }
+
+  html[data-contraste="alto"] .pulsan-app button:focus-visible,
+  html[data-contraste="alto"] .pulsan-app a:focus-visible,
+  html[data-contraste="alto"] .pulsan-app input:focus-visible,
+  html[data-contraste="alto"] .pulsan-app textarea:focus-visible,
+  html[data-contraste="alto"] .pulsan-app select:focus-visible {
+    outline-color: #FFFF00 !important;
+  }
+
+  /* DALTONISMO
+     A opção é aplicada como filtro global sem alterar
+     permanentemente as cores originais do Pulsan. */
+  html[data-daltonismo="protanopia"] .pulsan-app {
+    filter: url("#pulsan-protanopia");
+  }
+
+  html[data-daltonismo="deuteranopia"] .pulsan-app {
+    filter: url("#pulsan-deuteranopia");
+  }
+
+  html[data-daltonismo="tritanopia"] .pulsan-app {
+    filter: url("#pulsan-tritanopia");
+  }
+
+  /* Evita que o filtro seja aplicado ao próprio SVG de acessibilidade. */
+  #pulsan-filtros-acessibilidade {
+    position: absolute;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+  }
+`;
+
+if (typeof document !== "undefined" && !document.getElementById("pulsan-tema-global")) {
+  const styleTema = document.createElement("style");
+  styleTema.id = "pulsan-tema-global";
+  styleTema.textContent = estiloTemaGlobal;
+  document.head.appendChild(styleTema);
+}
+
+/* Filtros de daltonismo usados pela acessibilidade global. */
+if (typeof document !== "undefined" && !document.getElementById("pulsan-filtros-acessibilidade")) {
+  const svgFiltros = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svgFiltros.id = "pulsan-filtros-acessibilidade";
+  svgFiltros.setAttribute("aria-hidden", "true");
+  svgFiltros.innerHTML = `
+    <filter id="pulsan-protanopia">
+      <feColorMatrix type="matrix"
+        values="
+          0.567 0.433 0     0 0
+          0.558 0.442 0     0 0
+          0     0.242 0.758 0 0
+          0     0     0     1 0" />
+    </filter>
+
+    <filter id="pulsan-deuteranopia">
+      <feColorMatrix type="matrix"
+        values="
+          0.625 0.375 0     0 0
+          0.700 0.300 0     0 0
+          0     0.300 0.700 0 0
+          0     0     0     1 0" />
+    </filter>
+
+    <filter id="pulsan-tritanopia">
+      <feColorMatrix type="matrix"
+        values="
+          0.950 0.050 0     0 0
+          0     0.433 0.567 0 0
+          0     0.475 0.525 0 0
+          0     0     0     1 0" />
+    </filter>
+  `;
+  document.body.appendChild(svgFiltros);
+}
 
 // =====================================================
 // MENU INFERIOR
@@ -340,6 +607,16 @@ function App() {
       acessibilidade.reduzirAnimacoes ? "true" : "false"
     );
 
+    html.setAttribute(
+      "data-daltonismo",
+      acessibilidade.daltonismo || "normal"
+    );
+
+    html.setAttribute(
+      "data-libras",
+      acessibilidade.libras ? "true" : "false"
+    );
+
     localStorage.setItem(
       "pulsanAcessibilidade",
       JSON.stringify(acessibilidade)
@@ -482,6 +759,31 @@ function App() {
         ? "auto"
         : "smooth",
     });
+  }
+
+  // =====================================================
+  // PRIMEIRO ACESSO — CONFIGURAÇÃO DE ACESSIBILIDADE
+  // =====================================================
+
+  if (pagina === "acessibilidade-inicial") {
+    return (
+      <div
+        className={`pulsan-app tema-${tema} ${acessibilidade.altoContraste ? "acessibilidade-alto-contraste" : ""} ${acessibilidade.textoMaior ? "acessibilidade-texto-maior" : ""} ${acessibilidade.botoesMaiores ? "acessibilidade-botoes-maiores" : ""} ${acessibilidade.reduzirAnimacoes ? "acessibilidade-reduzir-animacoes" : ""} ${acessibilidade.daltonismo && acessibilidade.daltonismo !== "normal" ? `acessibilidade-${acessibilidade.daltonismo}` : ""} ${acessibilidade.libras ? "acessibilidade-libras" : ""}`}
+        style={{
+          minHeight: "100vh",
+          width: "100%",
+          background: "var(--pulsan-bg, #fff)",
+          color: "var(--pulsan-texto, #0F2D5B)",
+        }}
+      >
+        <AcessibilidadeInicial
+          irPara={irPara}
+          tema={tema}
+          acessibilidade={acessibilidade}
+          alterarAcessibilidade={alterarAcessibilidade}
+        />
+      </div>
+    );
   }
 
   // =====================================================
@@ -714,7 +1016,7 @@ function App() {
   return (
     <>
       <div
-        className={`pulsan-app ${acessibilidade.altoContraste ? "acessibilidade-alto-contraste" : ""} ${acessibilidade.textoMaior ? "acessibilidade-texto-maior" : ""} ${acessibilidade.botoesMaiores ? "acessibilidade-botoes-maiores" : ""} ${acessibilidade.reduzirAnimacoes ? "acessibilidade-reduzir-animacoes" : ""}`}
+        className={`pulsan-app tema-${tema} ${acessibilidade.altoContraste ? "acessibilidade-alto-contraste" : ""} ${acessibilidade.textoMaior ? "acessibilidade-texto-maior" : ""} ${acessibilidade.botoesMaiores ? "acessibilidade-botoes-maiores" : ""} ${acessibilidade.reduzirAnimacoes ? "acessibilidade-reduzir-animacoes" : ""} ${acessibilidade.daltonismo && acessibilidade.daltonismo !== "normal" ? `acessibilidade-${acessibilidade.daltonismo}` : ""} ${acessibilidade.libras ? "acessibilidade-libras" : ""}`}
         style={{
           minHeight: "100vh",
           width: "100%",

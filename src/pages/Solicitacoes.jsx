@@ -99,9 +99,38 @@ function Solicitacoes({ irPara }) {
     );
   }
 
+  // Recupera o desabafo que originou cada solicitação.
+  // Assim, quem recebe consegue saber quem enviou e de qual
+  // desabafo partiu o pedido de conversa.
+  const idsDesabafos = (solicitacoesBanco || [])
+    .map((item) => item.desabafo_id)
+    .filter(Boolean);
+
+  let desabafosOrigem = [];
+
+  if (idsDesabafos.length > 0) {
+    const { data: postsBanco, error: erroPosts } = await supabase
+      .from("posts_ambiente")
+      .select("id, texto, nome_usuario, foto_usuario, usuario_id, criado_em")
+      .in("id", idsDesabafos);
+
+    if (erroPosts) {
+      console.error(
+        "Erro ao carregar o desabafo da solicitação:",
+        erroPosts
+      );
+    } else {
+      desabafosOrigem = postsBanco || [];
+    }
+  }
+
   const solicitacoesFormatadas =
-    (solicitacoesBanco || []).map(
-      (item) => ({
+    (solicitacoesBanco || []).map((item) => {
+      const desabafoOrigem = desabafosOrigem.find(
+        (post) => String(post.id) === String(item.desabafo_id)
+      );
+
+      return {
         ...item,
 
         solicitanteId:
@@ -113,20 +142,31 @@ function Solicitacoes({ irPara }) {
         publicacaoId:
           item.desabafo_id,
 
+        // Primeiro usa os dados gravados na solicitação.
+        // Se eles não existirem, usa os dados do desabafo de origem.
         nomeSolicitante:
           item.nome_solicitante ||
           item.nomeSolicitante ||
           item.nome ||
+          desabafoOrigem?.nome_usuario ||
           "Usuário",
 
         fotoSolicitante:
           item.foto_solicitante ||
           item.fotoSolicitante ||
           item.foto ||
+          desabafoOrigem?.foto_usuario ||
           "",
 
         textoDesabafo:
-          "A pessoa deseja conversar com você.",
+          item.texto_desabafo ||
+          item.textoDesabafo ||
+          desabafoOrigem?.texto ||
+          "O desabafo relacionado a esta solicitação não está disponível.",
+
+        dataDesabafo:
+          desabafoOrigem?.criado_em ||
+          null,
 
         data:
           item.criado_em
@@ -136,6 +176,8 @@ function Solicitacoes({ irPara }) {
             : "Agora",
 
         urgencia:
+          item.urgencia ||
+          desabafoOrigem?.urgencia ||
           "normal",
 
         mediaAvaliacoes:
@@ -159,8 +201,8 @@ function Solicitacoes({ irPara }) {
           item.selo_psicologo ??
           item.seloPsicologo ??
           false,
-      })
-    );
+      };
+    });
 
   setSolicitacoes(
     solicitacoesFormatadas
@@ -1460,6 +1502,32 @@ function Solicitacoes({ irPara }) {
 
                         </div>
 
+                        {/* ORIGEM DA SOLICITAÇÃO */}
+
+                        <div
+                          style={{
+                            marginTop:
+                              "16px",
+                            marginBottom:
+                              "-2px",
+                            display:
+                              "flex",
+                            alignItems:
+                              "center",
+                            gap:
+                              "7px",
+                            color:
+                              "var(--pulsan-texto-secundario, #777)",
+                            fontSize:
+                              "12px",
+                          }}
+                        >
+                          <span>💬</span>
+                          <span>
+                            Solicitação enviada a partir de um desabafo
+                          </span>
+                        </div>
+
                         {/* DESABAFO */}
 
                         <div
@@ -1499,8 +1567,30 @@ function Solicitacoes({ irPara }) {
                                 "7px",
                             }}
                           >
-                            DESABAFO
+                            DESABAFO DE ORIGEM
                           </span>
+
+                          <div
+                            style={{
+                              display:
+                                "flex",
+                              alignItems:
+                                "center",
+                              gap:
+                                "8px",
+                              marginBottom:
+                                "9px",
+                              color:
+                                "var(--pulsan-texto-secundario, #777)",
+                              fontSize:
+                                "12px",
+                            }}
+                          >
+                            <span>🔒</span>
+                            <span>
+                              Esta solicitação está vinculada a este desabafo.
+                            </span>
+                          </div>
 
                           <p
                             style={{

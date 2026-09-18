@@ -30,165 +30,12 @@ function Premios({ irPara }) {
   // PRÊMIOS
   // =====================================
 
-  const premios = [
-    {
-      id: 1,
-      nome: "Cupom de desconto",
-      descricao:
-        "Cupom de desconto oferecido por um parceiro do Pulsan.",
-      pontos: 100,
-      icone: "🎟️",
-    },
-
-    {
-      id: 2,
-      nome: "Vale-café",
-      descricao:
-        "Troque seus pontos por um vale-café.",
-      pontos: 250,
-      icone: "☕",
-    },
-
-    {
-      id: 3,
-      nome: "Benefício especial",
-      descricao:
-        "Uma recompensa especial para quem ajuda a comunidade.",
-      pontos: 500,
-      icone: "🎁",
-    },
-
-    {
-      id: 4,
-      nome: "Prêmio especial Pulsan",
-      descricao:
-        "Recompensa exclusiva para usuários que se destacam.",
-      pontos: 1000,
-      icone: "🏆",
-    },
-  ];
+  // Os prêmios ainda não foram definidos.
+  // A área permanece preparada para receber recompensas
+  // quando os benefícios e parceiros do Pulsan forem definidos.
+  const premiosDisponiveis = false;
 
 
-  // =====================================
-  // RESGATAR PRÊMIO
-  // =====================================
-
-  function resgatarPremio(premio) {
-
-    // Verificar pontos
-
-    if (pontos < premio.pontos) {
-
-      alert(
-        `Você ainda precisa de ${
-          premio.pontos - pontos
-        } pontos para resgatar este prêmio.`
-      );
-
-      return;
-    }
-
-
-    // Confirmar
-
-    const confirmar =
-      window.confirm(
-        `Deseja trocar ${premio.pontos} pontos por "${premio.nome}"?`
-      );
-
-
-    if (!confirmar) {
-      return;
-    }
-
-
-    // ===================================
-    // NOVO SALDO
-    // ===================================
-
-    const novoSaldo =
-      pontos - premio.pontos;
-
-
-    // ===================================
-    // GERAR RESGATE
-    // ===================================
-
-    const novoResgate = {
-
-      id: Date.now(),
-
-      premioId: premio.id,
-
-      premioNome: premio.nome,
-
-      premioIcone: premio.icone,
-
-      pontosUtilizados:
-        premio.pontos,
-
-      data:
-        new Date().toLocaleDateString(
-          "pt-BR"
-        ),
-
-      status: "Solicitado",
-
-    };
-
-
-    // ===================================
-    // NOVO HISTÓRICO
-    // ===================================
-
-    const novosResgates = [
-      novoResgate,
-      ...resgates,
-    ];
-
-
-    // ===================================
-    // SALVAR PONTOS
-    // ===================================
-
-    localStorage.setItem(
-      "pulsanPontos",
-      String(novoSaldo)
-    );
-
-
-    // ===================================
-    // SALVAR RESGATES
-    // ===================================
-
-    localStorage.setItem(
-      "pulsanResgates",
-      JSON.stringify(
-        novosResgates
-      )
-    );
-
-
-    // Atualizar tela
-
-    setPontos(novoSaldo);
-
-    setResgates(
-      novosResgates
-    );
-
-
-    // ===================================
-    // AVISO
-    // ===================================
-
-    alert(
-      `Prêmio solicitado com sucesso! 🎉\n\n` +
-      `${premio.nome}\n\n` +
-      `Pontos utilizados: ${premio.pontos}\n` +
-      `Saldo restante: ${novoSaldo} pontos.`
-    );
-  }
 
 
   return (
@@ -389,172 +236,81 @@ function Premios({ irPara }) {
         =================================== */}
 
         <section>
-
           <h2
             style={{
               fontSize: "23px",
               marginBottom: "18px",
             }}
           >
-            🎁 Recompensas disponíveis
+            🎁 Recompensas
           </h2>
-
 
           <div
             style={{
-              display: "grid",
-              gridTemplateColumns:
-                "repeat(auto-fit, minmax(230px, 1fr))",
-              gap: "18px",
+              background: "#ffffff",
+              border: "1px solid #e5e5e5",
+              borderRadius: "20px",
+              padding: "35px 25px",
+              textAlign: "center",
+              boxShadow: "0 5px 18px rgba(0,0,0,0.04)",
             }}
           >
+            <div
+              style={{
+                width: "70px",
+                height: "70px",
+                margin: "0 auto 16px",
+                borderRadius: "20px",
+                background: "#f0faf8",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "36px",
+              }}
+              aria-hidden="true"
+            >
+              🎁
+            </div>
 
-            {premios.map(
-              (premio) => {
+            <h3
+              style={{
+                margin: "0 0 10px",
+                fontSize: "20px",
+                color: "#173b38",
+              }}
+            >
+              Nenhum prêmio disponível no momento
+            </h3>
 
-                const podeTrocar =
-                  pontos >=
-                  premio.pontos;
+            <p
+              style={{
+                margin: "0 auto",
+                maxWidth: "560px",
+                color: "#777",
+                fontSize: "14px",
+                lineHeight: "1.6",
+              }}
+            >
+              Estamos definindo quais benefícios e recompensas poderão ser
+              oferecidos no Pulsan. Quando os prêmios forem definidos,
+              esta área será atualizada.
+            </p>
 
-
-                return (
-
-                  <article
-                    key={premio.id}
-                    style={{
-                      background:
-                        "#ffffff",
-                      border:
-                        "1px solid #e5e5e5",
-                      borderRadius:
-                        "20px",
-                      padding:
-                        "25px",
-                      boxShadow:
-                        "0 5px 18px rgba(0,0,0,0.04)",
-                    }}
-                  >
-
-                    <div
-                      style={{
-                        width: "60px",
-                        height: "60px",
-                        borderRadius:
-                          "16px",
-                        background:
-                          "#fff8e6",
-                        display:
-                          "flex",
-                        alignItems:
-                          "center",
-                        justifyContent:
-                          "center",
-                        fontSize:
-                          "32px",
-                        marginBottom:
-                          "15px",
-                      }}
-                    >
-                      {premio.icone}
-                    </div>
-
-
-                    <h3
-                      style={{
-                        margin:
-                          "0 0 8px",
-                        fontSize:
-                          "19px",
-                      }}
-                    >
-                      {premio.nome}
-                    </h3>
-
-
-                    <p
-                      style={{
-                        color:
-                          "#777",
-                        fontSize:
-                          "14px",
-                        lineHeight:
-                          "1.5",
-                        minHeight:
-                          "45px",
-                      }}
-                    >
-                      {premio.descricao}
-                    </p>
-
-
-                    <div
-                      style={{
-                        marginTop:
-                          "18px",
-                        fontWeight:
-                          "700",
-                        color:
-                          "#b48619",
-                      }}
-                    >
-                      🏆{" "}
-                      {premio.pontos}{" "}
-                      pontos
-                    </div>
-
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        resgatarPremio(
-                          premio
-                        )
-                      }
-                      disabled={
-                        !podeTrocar
-                      }
-                      style={{
-                        width:
-                          "100%",
-                        marginTop:
-                          "15px",
-                        border:
-                          "none",
-                        padding:
-                          "12px",
-                        borderRadius:
-                          "11px",
-                        fontWeight:
-                          "700",
-                        fontSize:
-                          "14px",
-                        cursor:
-                          podeTrocar
-                            ? "pointer"
-                            : "not-allowed",
-                        background:
-                          podeTrocar
-                            ? "#20adb0"
-                            : "#e5e5e5",
-                        color:
-                          podeTrocar
-                            ? "#ffffff"
-                            : "#999",
-                      }}
-                    >
-                      {podeTrocar
-                        ? "🎁 Trocar prêmio"
-                        : "Pontos insuficientes"}
-                    </button>
-
-                  </article>
-
-                );
-              }
-            )}
-
+            <div
+              style={{
+                marginTop: "18px",
+                display: "inline-block",
+                padding: "9px 14px",
+                borderRadius: "999px",
+                background: "#fff8e6",
+                color: "#8a6a16",
+                fontSize: "12px",
+                fontWeight: "700",
+              }}
+            >
+              Em breve
+            </div>
           </div>
-
         </section>
 
 

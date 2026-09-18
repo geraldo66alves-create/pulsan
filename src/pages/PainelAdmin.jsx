@@ -42,6 +42,21 @@ function PainelAdmin({ irPara, tema, alterarTema }) {
 
   useEffect(() => {
     carregarDados();
+
+    try {
+      const configuracoesSalvas = JSON.parse(
+        localStorage.getItem("pulsanConfiguracoesAdmin") || "null"
+      );
+
+      if (configuracoesSalvas && typeof configuracoesSalvas === "object") {
+        setConfiguracoes((atual) => ({
+          ...atual,
+          ...configuracoesSalvas,
+        }));
+      }
+    } catch (erro) {
+      console.error("Erro ao carregar configurações administrativas:", erro);
+    }
   }, []);
 
   function lerLocalStorage(chave) {
@@ -456,273 +471,705 @@ function PainelAdmin({ irPara, tema, alterarTema }) {
     );
   }
 
+  const usuarioAdmin = (() => {
+    try {
+      return JSON.parse(localStorage.getItem("pulsanUsuarioAtual") || "null") || {};
+    } catch {
+      return {};
+    }
+  })();
+
+  const pendenciasTotais =
+    Number(dados.pendentes || 0) +
+    Number(dados.alertas || 0) +
+    Number(dados.moderacoes || 0);
+
+  const inicialAdmin =
+    String(usuarioAdmin.nome || "Equipe Pulsan")
+      .trim()
+      .charAt(0)
+      .toUpperCase() || "P";
+
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        padding: "24px 18px 100px",
-        boxSizing: "border-box",
-        background: "var(--pulsan-bg, #fffdf9)",
-        color: "var(--pulsan-texto, #172c35)",
-      }}
-    >
-      <section
-        style={{
-          maxWidth: "1100px",
-          margin: "0 auto 24px",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
-            gap: "16px",
-            flexWrap: "wrap",
-          }}
-        >
-          <div>
-            <div
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "8px",
-                padding: "7px 12px",
-                borderRadius: "999px",
-                background: "rgba(32,173,176,0.12)",
-                color: "var(--pulsan-primaria, #20adb0)",
-                fontSize: "12px",
-                fontWeight: "700",
-                marginBottom: "12px",
-              }}
-            >
-              🛡️ Equipe Pulsan
+    <main className={`pulsan-admin-dashboard tema-${tema === "dark" ? "dark" : "light"}`}>
+      <style>{`
+        .pulsan-admin-dashboard {
+          min-height: 100vh;
+          background:
+            radial-gradient(circle at 85% 0%, rgba(168,199,255,.32), transparent 30%),
+            linear-gradient(180deg, #f7faff 0%, #eef5ff 100%);
+          color: #0F2D5B;
+          padding: 22px;
+          box-sizing: border-box;
+          font-family: inherit;
+        }
+
+        .pulsan-admin-shell {
+          width: 100%;
+          max-width: 1440px;
+          margin: 0 auto;
+          display: grid;
+          grid-template-columns: 245px minmax(0, 1fr);
+          gap: 20px;
+        }
+
+        .pulsan-admin-sidebar {
+          position: sticky;
+          top: 22px;
+          height: calc(100vh - 44px);
+          min-height: 620px;
+          box-sizing: border-box;
+          border: 1px solid rgba(168,199,255,.55);
+          border-radius: 26px;
+          background: rgba(255,255,255,.92);
+          box-shadow: 0 18px 50px rgba(15,45,91,.08);
+          padding: 18px;
+          display: flex;
+          flex-direction: column;
+        }
+
+        .pulsan-admin-brand {
+          display: flex;
+          align-items: center;
+          gap: 11px;
+          padding: 8px 6px 22px;
+        }
+
+        .pulsan-admin-brand-mark {
+          width: 42px;
+          height: 42px;
+          border-radius: 14px;
+          display: grid;
+          place-items: center;
+          color: #fff;
+          font-size: 21px;
+          font-weight: 900;
+          background: linear-gradient(135deg, #3A7DFF, #0F2D5B);
+          box-shadow: 0 8px 20px rgba(58,125,255,.25);
+        }
+
+        .pulsan-admin-nav-title {
+          margin: 4px 8px 9px;
+          font-size: 10px;
+          font-weight: 900;
+          letter-spacing: .11em;
+          text-transform: uppercase;
+          color: #7b91ad;
+        }
+
+        .pulsan-admin-nav {
+          display: grid;
+          gap: 7px;
+        }
+
+        .pulsan-admin-nav button {
+          width: 100%;
+          border: 0;
+          border-radius: 13px;
+          background: transparent;
+          color: #49627f;
+          padding: 11px 12px;
+          text-align: left;
+          font: inherit;
+          font-size: 13px;
+          font-weight: 800;
+          cursor: pointer;
+          transition: .18s ease;
+        }
+
+        .pulsan-admin-nav button:hover {
+          background: #EAF3FF;
+          color: #0F2D5B;
+          transform: translateX(2px);
+        }
+
+        .pulsan-admin-sidebar-spacer { flex: 1; }
+
+        .pulsan-admin-account {
+          border: 1px solid #dce9fb;
+          background: #f7faff;
+          border-radius: 17px;
+          padding: 11px;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+
+        .pulsan-admin-avatar {
+          width: 38px;
+          height: 38px;
+          border-radius: 13px;
+          flex: 0 0 auto;
+          display: grid;
+          place-items: center;
+          overflow: hidden;
+          background: #EAF3FF;
+          color: #3A7DFF;
+          font-weight: 900;
+        }
+
+        .pulsan-admin-avatar img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+
+        .pulsan-admin-content {
+          min-width: 0;
+        }
+
+        .pulsan-admin-topbar {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 16px;
+          margin-bottom: 18px;
+        }
+
+        .pulsan-admin-kicker {
+          display: inline-flex;
+          align-items: center;
+          gap: 7px;
+          border-radius: 999px;
+          padding: 7px 11px;
+          background: rgba(58,125,255,.10);
+          color: #3A7DFF;
+          font-size: 11px;
+          font-weight: 900;
+        }
+
+        .pulsan-admin-actions {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .pulsan-admin-action {
+          border: 1px solid #d7e5f8;
+          background: rgba(255,255,255,.9);
+          color: #0F2D5B;
+          border-radius: 12px;
+          padding: 10px 13px;
+          font: inherit;
+          font-size: 12px;
+          font-weight: 900;
+          cursor: pointer;
+          transition: .18s ease;
+        }
+
+        .pulsan-admin-action:hover {
+          border-color: #A8C7FF;
+          background: #EAF3FF;
+          transform: translateY(-1px);
+        }
+
+        .pulsan-admin-hero {
+          position: relative;
+          overflow: hidden;
+          border-radius: 28px;
+          padding: 27px;
+          margin-bottom: 18px;
+          color: #fff;
+          background:
+            radial-gradient(circle at 90% 20%, rgba(168,199,255,.35), transparent 25%),
+            linear-gradient(135deg, #0F2D5B 0%, #174c96 52%, #3A7DFF 100%);
+          box-shadow: 0 22px 55px rgba(15,45,91,.18);
+        }
+
+        .pulsan-admin-hero::after {
+          content: "";
+          position: absolute;
+          width: 180px;
+          height: 180px;
+          right: -55px;
+          bottom: -80px;
+          border-radius: 50%;
+          border: 28px solid rgba(255,255,255,.08);
+        }
+
+        .pulsan-admin-hero-inner {
+          position: relative;
+          z-index: 1;
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-end;
+          gap: 22px;
+        }
+
+        .pulsan-admin-hero h1 {
+          margin: 10px 0 7px;
+          font-size: clamp(27px, 4vw, 39px);
+          line-height: 1.05;
+          letter-spacing: -.03em;
+        }
+
+        .pulsan-admin-hero p {
+          margin: 0;
+          max-width: 620px;
+          color: rgba(255,255,255,.78);
+          font-size: 14px;
+          line-height: 1.6;
+        }
+
+        .pulsan-admin-status {
+          min-width: 185px;
+          border: 1px solid rgba(255,255,255,.16);
+          background: rgba(255,255,255,.10);
+          backdrop-filter: blur(10px);
+          border-radius: 18px;
+          padding: 14px;
+        }
+
+        .pulsan-admin-status strong {
+          display: block;
+          font-size: 25px;
+          margin-top: 4px;
+        }
+
+        .pulsan-admin-status span {
+          font-size: 11px;
+          color: rgba(255,255,255,.72);
+        }
+
+        .pulsan-admin-section-title {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 12px;
+          margin: 22px 0 11px;
+        }
+
+        .pulsan-admin-section-title h2 {
+          margin: 0;
+          font-size: 17px;
+          color: #0F2D5B;
+        }
+
+        .pulsan-admin-section-title span {
+          color: #7890ad;
+          font-size: 11px;
+          font-weight: 800;
+        }
+
+        .pulsan-admin-stats {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 11px;
+        }
+
+        .pulsan-admin-stat {
+          border: 1px solid #dce9fb;
+          border-radius: 18px;
+          background: rgba(255,255,255,.94);
+          padding: 16px;
+          box-shadow: 0 9px 28px rgba(15,45,91,.055);
+          transition: .18s ease;
+        }
+
+        .pulsan-admin-stat:hover {
+          transform: translateY(-2px);
+          border-color: #A8C7FF;
+          box-shadow: 0 14px 32px rgba(58,125,255,.10);
+        }
+
+        .pulsan-admin-stat-icon {
+          width: 34px;
+          height: 34px;
+          display: grid;
+          place-items: center;
+          border-radius: 11px;
+          background: #EAF3FF;
+          margin-bottom: 13px;
+          font-size: 17px;
+        }
+
+        .pulsan-admin-stat-value {
+          font-size: 25px;
+          font-weight: 950;
+          color: #0F2D5B;
+          line-height: 1;
+        }
+
+        .pulsan-admin-stat-name {
+          margin-top: 7px;
+          font-size: 12px;
+          font-weight: 900;
+          color: #334e6e;
+        }
+
+        .pulsan-admin-stat-desc {
+          margin-top: 3px;
+          font-size: 10px;
+          color: #8295ac;
+        }
+
+        .pulsan-admin-tools {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 11px;
+        }
+
+        .pulsan-admin-tool {
+          position: relative;
+          min-height: 142px;
+          border: 1px solid #dce9fb;
+          border-radius: 19px;
+          background: rgba(255,255,255,.95);
+          padding: 17px;
+          text-align: left;
+          color: #0F2D5B;
+          cursor: pointer;
+          box-shadow: 0 9px 28px rgba(15,45,91,.055);
+          transition: .18s ease;
+        }
+
+        .pulsan-admin-tool:hover {
+          transform: translateY(-3px);
+          border-color: #A8C7FF;
+          box-shadow: 0 16px 35px rgba(58,125,255,.12);
+        }
+
+        .pulsan-admin-tool-icon {
+          width: 39px;
+          height: 39px;
+          display: grid;
+          place-items: center;
+          border-radius: 12px;
+          background: #EAF3FF;
+          font-size: 19px;
+        }
+
+        .pulsan-admin-tool-arrow {
+          position: absolute;
+          top: 17px;
+          right: 17px;
+          width: 28px;
+          height: 28px;
+          display: grid;
+          place-items: center;
+          border-radius: 50%;
+          background: #f2f7ff;
+          color: #3A7DFF;
+          font-weight: 900;
+        }
+
+        .pulsan-admin-tool h3 {
+          margin: 14px 0 5px;
+          font-size: 14px;
+        }
+
+        .pulsan-admin-tool p {
+          margin: 0;
+          color: #7186a0;
+          font-size: 11px;
+          line-height: 1.5;
+        }
+
+        .pulsan-admin-tool-badge {
+          display: inline-flex;
+          margin-top: 10px;
+          padding: 5px 8px;
+          border-radius: 999px;
+          background: #fff7df;
+          color: #9b7200;
+          font-size: 9px;
+          font-weight: 900;
+        }
+
+        .pulsan-admin-tool-badge.ok {
+          background: #e8f8ef;
+          color: #168653;
+        }
+
+        .pulsan-admin-dashboard.tema-dark {
+          background:
+            radial-gradient(circle at 85% 0%, rgba(58,125,255,.20), transparent 30%),
+            linear-gradient(180deg, #07172f 0%, #0b203e 100%);
+          color: #eef5ff;
+        }
+
+        .pulsan-admin-dashboard.tema-dark .pulsan-admin-sidebar,
+        .pulsan-admin-dashboard.tema-dark .pulsan-admin-stat,
+        .pulsan-admin-dashboard.tema-dark .pulsan-admin-tool,
+        .pulsan-admin-dashboard.tema-dark .pulsan-admin-action {
+          background: rgba(15,45,91,.82);
+          border-color: rgba(168,199,255,.18);
+          color: #eef5ff;
+        }
+
+        .pulsan-admin-dashboard.tema-dark .pulsan-admin-nav button {
+          color: #b8cae0;
+        }
+
+        .pulsan-admin-dashboard.tema-dark .pulsan-admin-nav button:hover,
+        .pulsan-admin-dashboard.tema-dark .pulsan-admin-action:hover {
+          background: rgba(58,125,255,.18);
+          color: #fff;
+        }
+
+        .pulsan-admin-dashboard.tema-dark .pulsan-admin-section-title h2,
+        .pulsan-admin-dashboard.tema-dark .pulsan-admin-stat-value,
+        .pulsan-admin-dashboard.tema-dark .pulsan-admin-stat-name {
+          color: #fff;
+        }
+
+        .pulsan-admin-dashboard.tema-dark .pulsan-admin-stat-desc,
+        .pulsan-admin-dashboard.tema-dark .pulsan-admin-section-title span {
+          color: #9db3cf;
+        }
+
+        .pulsan-admin-dashboard.tema-dark .pulsan-admin-account {
+          background: rgba(7,23,47,.7);
+          border-color: rgba(168,199,255,.15);
+        }
+
+        .pulsan-admin-dashboard.tema-dark .pulsan-admin-tool p {
+          color: #a8bad0;
+        }
+
+        .pulsan-admin-dashboard.tema-dark .pulsan-admin-tool-arrow {
+          background: rgba(58,125,255,.16);
+        }
+
+        @media (max-width: 1050px) {
+          .pulsan-admin-shell { grid-template-columns: 1fr; }
+          .pulsan-admin-sidebar {
+            position: static;
+            height: auto;
+            min-height: 0;
+          }
+          .pulsan-admin-nav { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+          .pulsan-admin-sidebar-spacer { display: none; }
+          .pulsan-admin-account { margin-top: 14px; }
+          .pulsan-admin-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        }
+
+        @media (max-width: 760px) {
+          .pulsan-admin-dashboard { padding: 10px; }
+          .pulsan-admin-sidebar, .pulsan-admin-hero { border-radius: 20px; }
+          .pulsan-admin-nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+          .pulsan-admin-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+          .pulsan-admin-tools { grid-template-columns: 1fr; }
+          .pulsan-admin-hero-inner { align-items: stretch; flex-direction: column; }
+          .pulsan-admin-status { min-width: 0; }
+          .pulsan-admin-topbar { align-items: flex-start; }
+          .pulsan-admin-actions { flex-wrap: wrap; justify-content: flex-end; }
+        }
+
+        @media (max-width: 430px) {
+          .pulsan-admin-stats { grid-template-columns: 1fr 1fr; gap: 8px; }
+          .pulsan-admin-stat { padding: 12px; }
+          .pulsan-admin-stat-value { font-size: 22px; }
+          .pulsan-admin-nav button { font-size: 11px; }
+        }
+      `}</style>
+
+      <div className="pulsan-admin-shell">
+        <aside className="pulsan-admin-sidebar">
+          <div className="pulsan-admin-brand">
+            <div className="pulsan-admin-brand-mark">P</div>
+            <div>
+              <div style={{ fontWeight: 950, fontSize: 18 }}>Pulsan</div>
+              <div style={{ fontSize: 10, color: "#7b91ad", fontWeight: 800 }}>
+                Administração
+              </div>
             </div>
+          </div>
 
-            <h1
-              style={{
-                margin: 0,
-                fontSize: "30px",
-                lineHeight: 1.15,
-              }}
-            >
-              Painel Administrativo
-            </h1>
+          <div className="pulsan-admin-nav-title">Navegação</div>
 
-            <p
-              style={{
-                margin: "8px 0 0",
-                color: "var(--pulsan-texto-secundario, #777)",
-                fontSize: "15px",
-              }}
-            >
-              Controle geral da plataforma Pulsan.
-            </p>
+          <nav className="pulsan-admin-nav">
+            <button type="button" onClick={() => setPaginaAdmin("inicio")}>⌂ &nbsp; Visão geral</button>
+            <button type="button" onClick={() => irPara("gestao-psicologos")}>🧠 &nbsp; Psicólogos</button>
+            <button type="button" onClick={() => irPara("alertas")}>🚨 &nbsp; Alertas</button>
+            <button type="button" onClick={abrirUsuarios}>👥 &nbsp; Usuários</button>
+            <button type="button" onClick={() => abrirPagina("escolas")}>🏫 &nbsp; Escolas</button>
+            <button type="button" onClick={() => abrirPagina("empresas")}>🏢 &nbsp; Empresas</button>
+            <button type="button" onClick={() => abrirPagina("moderacao")}>🛡️ &nbsp; Moderação</button>
+            <button type="button" onClick={() => abrirPagina("relatorios")}>📊 &nbsp; Relatórios</button>
+            <button type="button" onClick={() => abrirPagina("conversas")}>💬 &nbsp; Conversas</button>
+            <button type="button" onClick={() => abrirPagina("configuracoes")}>⚙️ &nbsp; Configurações</button>
+          </nav>
+
+          <div className="pulsan-admin-sidebar-spacer" />
+
+          <div className="pulsan-admin-account">
+            <div className="pulsan-admin-avatar">
+              {usuarioAdmin.foto_url || usuarioAdmin.foto ? (
+                <img src={usuarioAdmin.foto_url || usuarioAdmin.foto} alt="" />
+              ) : (
+                inicialAdmin
+              )}
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 12, fontWeight: 900, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {usuarioAdmin.nome || "Equipe Pulsan"}
+              </div>
+              <div style={{ fontSize: 9, color: "#7b91ad", marginTop: 2 }}>
+                Acesso administrativo
+              </div>
+            </div>
           </div>
 
           <button
             type="button"
             onClick={sair}
-            style={botaoSecundario}
+            className="pulsan-admin-action"
+            style={{ width: "100%", marginTop: 9 }}
           >
-            Sair
+            ↪ Sair da conta
           </button>
-        </div>
-      </section>
+        </aside>
 
-      <section
-        style={{
-          maxWidth: "1100px",
-          margin: "0 auto 28px",
-        }}
-      >
-        <h2 style={tituloSecao}>Visão geral</h2>
+        <section className="pulsan-admin-content">
+          <div className="pulsan-admin-topbar">
+            <div className="pulsan-admin-kicker">🛡️ Área restrita · Equipe Pulsan</div>
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns:
-              "repeat(auto-fit, minmax(190px, 1fr))",
-            gap: "14px",
-          }}
-        >
-          <CardResumo
-            icone="👥"
-            titulo="Usuários"
-            valor={dados.usuarios}
-            descricao="Contas cadastradas"
-          />
+            <div className="pulsan-admin-actions">
+              <button
+                type="button"
+                className="pulsan-admin-action"
+                onClick={carregarDados}
+                title="Atualizar dados"
+              >
+                ↻ Atualizar
+              </button>
 
-          <CardResumo
-            icone="🧠"
-            titulo="Psicólogos"
-            valor={dados.psicologos}
-            descricao="Profissionais cadastrados"
-          />
+              {typeof alterarTema === "function" && (
+                <button
+                  type="button"
+                  className="pulsan-admin-action"
+                  onClick={() => alterarTema(tema === "dark" ? "light" : "dark")}
+                >
+                  {tema === "dark" ? "☀️ Claro" : "🌙 Escuro"}
+                </button>
+              )}
+            </div>
+          </div>
 
-          <CardResumo
-            icone="⏳"
-            titulo="Pendentes"
-            valor={dados.pendentes}
-            descricao="Aguardando aprovação"
-          />
+          <div className="pulsan-admin-hero">
+            <div className="pulsan-admin-hero-inner">
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 900, opacity: .8 }}>
+                  CENTRO DE CONTROLE
+                </div>
+                <h1>Painel Administrativo</h1>
+                <p>
+                  Gerencie usuários, profissionais, instituições, alertas e recursos do Pulsan
+                  em um único espaço.
+                </p>
+              </div>
 
-          <CardResumo
-            icone="✅"
-            titulo="Parceiros"
-            valor={dados.aprovados}
-            descricao="Psicólogos aprovados"
-          />
+              <div className="pulsan-admin-status">
+                <span>Itens que merecem atenção</span>
+                <strong>{pendenciasTotais}</strong>
+                <span>
+                  {pendenciasTotais === 1 ? "pendência registrada" : "itens registrados"}
+                </span>
+              </div>
+            </div>
+          </div>
 
-          <CardResumo
-            icone="🚨"
-            titulo="Alertas"
-            valor={dados.alertas}
-            descricao="Alertas registrados"
-          />
+          <div className="pulsan-admin-section-title">
+            <h2>Visão geral</h2>
+            <span>Dados atuais da plataforma</span>
+          </div>
 
-          <CardResumo
-            icone="🏫"
-            titulo="Alunos"
-            valor={dados.alunos}
-            descricao="Usuários alunos"
-          />
+          <div className="pulsan-admin-stats">
+            <CardResumoModerno icone="👥" titulo="Usuários" valor={dados.usuarios} descricao="Contas cadastradas" />
+            <CardResumoModerno icone="🧠" titulo="Psicólogos" valor={dados.psicologos} descricao="Profissionais cadastrados" />
+            <CardResumoModerno icone="⏳" titulo="Pendentes" valor={dados.pendentes} descricao="Aguardando aprovação" />
+            <CardResumoModerno icone="🤝" titulo="Parceiros" valor={dados.aprovados} descricao="Psicólogos aprovados" />
+            <CardResumoModerno icone="🚨" titulo="Alertas" valor={dados.alertas} descricao="Alertas registrados" />
+            <CardResumoModerno icone="🎓" titulo="Alunos" valor={dados.alunos} descricao="Usuários alunos" />
+            <CardResumoModerno icone="💼" titulo="Colaboradores" valor={dados.colaboradores} descricao="Usuários colaboradores" />
+            <CardResumoModerno icone="🏫" titulo="Escolas" valor={dados.escolas} descricao="Instituições cadastradas" />
+            <CardResumoModerno icone="🏢" titulo="Empresas" valor={dados.empresas} descricao="Empresas cadastradas" />
+            <CardResumoModerno icone="🛡️" titulo="Moderação" valor={dados.moderacoes} descricao="Ocorrências registradas" />
+            <CardResumoModerno icone="💬" titulo="Conversas" valor={dados.conversas} descricao="Conversas registradas" />
+            <CardResumoModerno icone="❌" titulo="Recusados" valor={dados.recusados} descricao="Psicólogos recusados" />
+          </div>
 
-          <CardResumo
-            icone="💼"
-            titulo="Colaboradores"
-            valor={dados.colaboradores}
-            descricao="Usuários colaboradores"
-          />
+          <div className="pulsan-admin-section-title">
+            <h2>Acesso rápido</h2>
+            <span>Ferramentas administrativas</span>
+          </div>
 
-          <CardResumo
-            icone="🏫"
-            titulo="Escolas"
-            valor={dados.escolas}
-            descricao="Instituições cadastradas"
-          />
+          <div className="pulsan-admin-tools">
+            <CardAdministracaoModerno
+              icone="🧠"
+              titulo="Gestão de Psicólogos"
+              descricao="Analise documentos, acompanhe verificações e aprove ou recuse profissionais."
+              destaque={dados.pendentes}
+              textoDestaque={dados.pendentes > 0 ? `${dados.pendentes} aguardando análise` : "Tudo em dia"}
+              onClick={() => irPara("gestao-psicologos")}
+            />
 
-          <CardResumo
-            icone="🏢"
-            titulo="Empresas"
-            valor={dados.empresas}
-            descricao="Empresas cadastradas"
-          />
+            <CardAdministracaoModerno
+              icone="🚨"
+              titulo="Alertas"
+              descricao="Acompanhe situações classificadas e encaminhamentos da plataforma."
+              destaque={dados.alertas}
+              textoDestaque={`${dados.alertas} alerta(s) registrado(s)`}
+              onClick={() => irPara("alertas")}
+            />
 
-          <CardResumo
-            icone="🛡️"
-            titulo="Moderação"
-            valor={dados.moderacoes}
-            descricao="Ocorrências registradas"
-          />
-
-          <CardResumo
-            icone="💬"
-            titulo="Conversas"
-            valor={dados.conversas}
-            descricao="Conversas registradas"
-          />
-
-          <CardResumo
-            icone="❌"
-            titulo="Recusados"
-            valor={dados.recusados}
-            descricao="Psicólogos recusados"
-          />
-        </div>
-      </section>
-
-      <section
-        style={{
-          maxWidth: "1100px",
-          margin: "0 auto",
-        }}
-      >
-        <h2 style={tituloSecao}>Administração</h2>
-
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns:
-              "repeat(auto-fit, minmax(240px, 1fr))",
-            gap: "14px",
-          }}
-        >
-          <CardAdministracao
-            icone="🧠"
-            titulo="Gestão de Psicólogos"
-            descricao="Analise cadastros, documentos e aprove ou recuse profissionais."
-            destaque={dados.pendentes}
-            textoDestaque={
-              dados.pendentes > 0
-                ? `${dados.pendentes} aguardando análise`
-                : "Nenhuma pendência"
-            }
-            onClick={() => irPara("gestao-psicologos")}
-          />
-
-          <CardAdministracao
-            icone="🚨"
-            titulo="Alertas"
-            descricao="Acompanhe situações classificadas pela inteligência artificial."
-            destaque={dados.alertas}
-            textoDestaque={`${dados.alertas} alerta(s) registrado(s)`}
-            onClick={() => irPara("alertas")}
-          />
-
-          <CardAdministracao
-            icone="👥"
-            titulo="Usuários"
-            descricao="Consulte informações gerais sobre todos os usuários cadastrados."
-            onClick={abrirUsuarios}
-          />
-
-          <CardAdministracao
-            icone="🏫"
-            titulo="Escolas"
-            descricao="Cadastre e acompanhe as instituições escolares participantes."
-            onClick={() => abrirPagina("escolas")}
-          />
-
-          <CardAdministracao
-            icone="🏢"
-            titulo="Empresas"
-            descricao="Cadastre e acompanhe as empresas participantes da plataforma."
-            onClick={() => abrirPagina("empresas")}
-          />
-
-          <CardAdministracao
-            icone="🛡️"
-            titulo="Moderação"
-            descricao="Analise conteúdos sinalizados e ocorrências que precisam da equipe."
-            destaque={dados.moderacoes}
-            textoDestaque={`${dados.moderacoes} ocorrência(s)`}
-            onClick={() => abrirPagina("moderacao")}
-          />
-
-          <CardAdministracao
-            icone="📊"
-            titulo="Relatórios"
-            descricao="Visualize indicadores gerais e acompanhe o crescimento da plataforma."
-            onClick={() => abrirPagina("relatorios")}
-          />
-
-          <CardAdministracao
-            icone="💬"
-            titulo="Conversas"
-            descricao="Acompanhe o funcionamento geral das conversas e atendimentos."
-            onClick={() => abrirPagina("conversas")}
-          />
-
-          <CardAdministracao
-            icone="⚙️"
-            titulo="Configurações"
-            descricao="Controle recursos administrativos e preferências gerais da plataforma."
-            onClick={() => abrirPagina("configuracoes")}
-          />
-        </div>
-      </section>
+            <CardAdministracaoModerno icone="👥" titulo="Usuários" descricao="Pesquise e filtre as contas cadastradas." onClick={abrirUsuarios} />
+            <CardAdministracaoModerno icone="🏫" titulo="Escolas" descricao="Cadastre, ative, desative ou exclua instituições." onClick={() => abrirPagina("escolas")} />
+            <CardAdministracaoModerno icone="🏢" titulo="Empresas" descricao="Cadastre, ative, desative ou exclua empresas." onClick={() => abrirPagina("empresas")} />
+            <CardAdministracaoModerno
+              icone="🛡️"
+              titulo="Moderação"
+              descricao="Analise conteúdos sinalizados e registre a decisão da equipe."
+              destaque={dados.moderacoes}
+              textoDestaque={`${dados.moderacoes} ocorrência(s)`}
+              onClick={() => abrirPagina("moderacao")}
+            />
+            <CardAdministracaoModerno icone="📊" titulo="Relatórios" descricao="Consulte os principais indicadores administrativos." onClick={() => abrirPagina("relatorios")} />
+            <CardAdministracaoModerno icone="💬" titulo="Conversas" descricao="Consulte as conversas registradas respeitando o anonimato." onClick={() => abrirPagina("conversas")} />
+            <CardAdministracaoModerno icone="⚙️" titulo="Configurações" descricao="Controle recursos e preferências administrativas." onClick={() => abrirPagina("configuracoes")} />
+          </div>
+        </section>
+      </div>
     </main>
+  );
+}
+
+function CardResumoModerno({ icone, titulo, valor, descricao }) {
+  return (
+    <div className="pulsan-admin-stat">
+      <div className="pulsan-admin-stat-icon">{icone}</div>
+      <div className="pulsan-admin-stat-value">{valor}</div>
+      <div className="pulsan-admin-stat-name">{titulo}</div>
+      <div className="pulsan-admin-stat-desc">{descricao}</div>
+    </div>
+  );
+}
+
+function CardAdministracaoModerno({
+  icone,
+  titulo,
+  descricao,
+  destaque,
+  textoDestaque,
+  onClick,
+}) {
+  const possuiDestaque = typeof destaque === "number";
+
+  return (
+    <button type="button" className="pulsan-admin-tool" onClick={onClick}>
+      <div className="pulsan-admin-tool-icon">{icone}</div>
+      <div className="pulsan-admin-tool-arrow">→</div>
+      <h3>{titulo}</h3>
+      <p>{descricao}</p>
+
+      {possuiDestaque && (
+        <span className={`pulsan-admin-tool-badge ${destaque === 0 ? "ok" : ""}`}>
+          {destaque === 0 ? "✓ " : "⏳ "}
+          {textoDestaque}
+        </span>
+      )}
+    </button>
   );
 }
 

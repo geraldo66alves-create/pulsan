@@ -486,7 +486,7 @@ const sentimentos = [
       descricao:
         "Seu valor não precisa ser medido pela quantidade de coisas que você consegue suportar.",
       video: "/videos/pressao.mp4",
-      audio: "/sons/pressao.mp3",
+      audio: "/sons/sobrecarregado.mp3",
       reflexao:
         "O que você poderia deixar de carregar se aceitasse que não precisa resolver tudo sozinho?",
     },
@@ -1228,7 +1228,7 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
 
   if (!sentimento) {
     return (
-      <div style={styles.page}>
+      <div className="pulsan-reflexao-page" style={styles.page}>
         <Header irPara={irPara} />
 
         <main style={styles.container}>
@@ -1247,7 +1247,7 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
             </p>
           </section>
 
-          <section style={styles.sentimentosGrid}>
+          <section className="pulsan-reflexao-grid" style={styles.sentimentosGrid}>
             {sentimentos.map((item) => (
               <button
                 key={item.id}
@@ -1255,7 +1255,8 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
                 onClick={() =>
                   escolherSentimento(item.id)
                 }
-                style={styles.sentimentoCard}
+                className="pulsan-sentimento-card"
+                 style={styles.sentimentoCard}
               >
                 <span style={styles.sentimentoEmoji}>
                   {item.emoji}
@@ -1294,7 +1295,7 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
 
   if (mostrarMomento) {
     return (
-      <div style={styles.page}>
+      <div className="pulsan-reflexao-page" style={styles.page}>
         <Header irPara={irPara} />
 
         <main style={styles.container}>
@@ -1333,7 +1334,8 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
                       : "video"
                   )
                 }
-                style={styles.conteudoBotao}
+                className="pulsan-conteudo-botao"
+                 style={styles.conteudoBotao}
               >
                 <div style={styles.conteudoIcone}>
                   ▶
@@ -1413,7 +1415,8 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
                       : "audio"
                   )
                 }
-                style={styles.conteudoBotao}
+                className="pulsan-conteudo-botao"
+                 style={styles.conteudoBotao}
               >
                 <div style={styles.conteudoIconeAudio}>
                   🎧
@@ -1490,7 +1493,8 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
                       : "reflexao"
                   )
                 }
-                style={styles.conteudoBotao}
+                className="pulsan-conteudo-botao"
+                 style={styles.conteudoBotao}
               >
                 <div style={styles.conteudoIconeReflexao}>
                   💭
@@ -1539,6 +1543,7 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
             <button
               type="button"
               onClick={continuarReflexoes}
+              className="pulsan-continuar"
               style={styles.continuar}
             >
               Continuar reflexões →
@@ -1565,7 +1570,7 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
 
   if (carregandoReflexoes) {
     return (
-      <div style={styles.page}>
+      <div className="pulsan-reflexao-page" style={styles.page}>
         <Header irPara={irPara} />
         <main style={styles.container}>
           <div style={styles.fraseInicio}>
@@ -1579,7 +1584,7 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
 
   if (erroReflexoes) {
     return (
-      <div style={styles.page}>
+      <div className="pulsan-reflexao-page" style={styles.page}>
         <Header irPara={irPara} />
         <main style={styles.container}>
           <button
@@ -1602,7 +1607,7 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
     sentimentoComReflexoes.reflexoes[cardAtual];
 
   return (
-    <div style={styles.page}>
+    <div className="pulsan-reflexao-page" style={styles.page}>
       <Header irPara={irPara} />
 
       <main style={styles.container}>
@@ -1704,6 +1709,7 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
                     onClick={() =>
                       tocarSomFundo(som)
                     }
+                    className="pulsan-som"
                     style={
                       estaTocando
                         ? styles.somAtivo
@@ -1841,24 +1847,31 @@ const styles = {
   page: {
     minHeight: "100vh",
     width: "100%",
-    background: "#fffdf9",
+    background:
+      "radial-gradient(circle at 15% 5%, rgba(168,199,255,0.22), transparent 30%), radial-gradient(circle at 88% 18%, rgba(58,125,255,0.08), transparent 28%), #f8fbff",
     color: "#173b38",
     fontFamily:
-      "Arial, Helvetica, sans-serif",
-    paddingBottom: "100px",
+      "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    paddingBottom: "108px",
     boxSizing: "border-box",
+    overflowX: "hidden",
   },
 
   header: {
     width: "100%",
-    minHeight: "72px",
-    padding: "10px 5%",
+    minHeight: "78px",
+    padding: "12px clamp(18px, 5vw, 70px)",
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    background: "#ffffff",
-    borderBottom: "1px solid #eeeeee",
+    background: "rgba(255,255,255,0.88)",
+    borderBottom: "1px solid rgba(58,125,255,0.10)",
+    boxShadow: "0 4px 22px rgba(15,45,91,0.035)",
+    backdropFilter: "blur(16px)",
     boxSizing: "border-box",
+    position: "sticky",
+    top: 0,
+    zIndex: 20,
   },
 
   logoButton: {
@@ -1866,155 +1879,196 @@ const styles = {
     background: "transparent",
     display: "flex",
     alignItems: "center",
-    gap: "10px",
+    gap: "11px",
     cursor: "pointer",
     padding: 0,
   },
 
   logo: {
-    width: "43px",
-    height: "43px",
+    width: "46px",
+    height: "46px",
     objectFit: "contain",
+    filter: "drop-shadow(0 5px 10px rgba(58,125,255,0.12))",
   },
 
   logoTexto: {
     fontSize: "18px",
-    fontWeight: "800",
+    fontWeight: "850",
     letterSpacing: "3px",
-    color: "#173b38",
+    color: "#0F2D5B",
   },
 
   logoSubtexto: {
-    color: "#999999",
+    color: "#6f83a0",
     fontSize: "10px",
-    marginTop: "2px",
+    marginTop: "3px",
+    letterSpacing: "0.2px",
   },
 
   headerPerfil: {
-    width: "40px",
-    height: "40px",
+    width: "42px",
+    height: "42px",
     borderRadius: "50%",
-    background: "#f1f8f7",
+    background:
+      "linear-gradient(145deg, #EAF3FF, #FFFFFF)",
+    border: "1px solid #dceaff",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     fontSize: "18px",
+    boxShadow: "0 5px 15px rgba(15,45,91,0.07)",
   },
 
   container: {
-    width: "92%",
-    maxWidth: "900px",
+    width: "min(92%, 1080px)",
     margin: "0 auto",
-    paddingTop: "40px",
+    paddingTop: "clamp(30px, 5vw, 58px)",
     boxSizing: "border-box",
   },
 
   topo: {
     textAlign: "center",
-    marginBottom: "38px",
+    marginBottom: "clamp(28px, 4vw, 42px)",
   },
 
   tag: {
-    color: "#20adb0",
-    fontSize: "12px",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "7px",
+    color: "#3A7DFF",
+    background: "rgba(234,243,255,0.88)",
+    border: "1px solid #d8e8ff",
+    borderRadius: "999px",
+    padding: "7px 13px",
+    fontSize: "10px",
     fontWeight: "800",
-    letterSpacing: "4px",
-    marginBottom: "10px",
+    letterSpacing: "2.4px",
+    marginBottom: "16px",
+    boxShadow: "0 5px 18px rgba(58,125,255,0.06)",
   },
 
   titulo: {
-    fontSize: "clamp(30px, 5vw, 43px)",
-    lineHeight: "1.15",
+    fontSize: "clamp(30px, 5vw, 47px)",
+    lineHeight: "1.08",
     margin: 0,
-    color: "#173b38",
+    color: "#0F2D5B",
+    fontWeight: "800",
+    letterSpacing: "-1px",
   },
 
   subtitulo: {
-    maxWidth: "620px",
-    margin: "15px auto 0",
-    color: "#808080",
+    maxWidth: "650px",
+    margin: "16px auto 0",
+    color: "#687c98",
     fontSize: "15px",
-    lineHeight: "1.6",
+    lineHeight: "1.7",
   },
 
   sentimentosGrid: {
     display: "grid",
     gridTemplateColumns:
       "repeat(3, minmax(0, 1fr))",
-    gap: "13px",
+    gap: "16px",
   },
 
   sentimentoCard: {
-    border: "1px solid #e1ebe9",
-    background: "#ffffff",
-    borderRadius: "18px",
-    padding: "20px 14px",
+    position: "relative",
+    overflow: "hidden",
+    border: "1px solid #dce9f8",
+    background:
+      "linear-gradient(145deg, rgba(255,255,255,0.98), rgba(234,243,255,0.72))",
+    borderRadius: "22px",
+    padding: "24px 18px",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
-    minHeight: "145px",
+    minHeight: "158px",
     cursor: "pointer",
     boxShadow:
-      "0 4px 18px rgba(0,0,0,0.035)",
+      "0 12px 30px rgba(15,45,91,0.055)",
+    transition:
+      "transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease",
+    boxSizing: "border-box",
   },
 
   sentimentoEmoji: {
+    width: "56px",
+    height: "56px",
+    borderRadius: "18px",
+    background:
+      "linear-gradient(145deg, #EAF3FF, #FFFFFF)",
+    border: "1px solid #dbeaff",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
     fontSize: "29px",
-    marginBottom: "8px",
+    marginBottom: "11px",
+    boxShadow: "0 7px 18px rgba(58,125,255,0.08)",
   },
 
   sentimentoNome: {
     fontSize: "15px",
-    fontWeight: "700",
-    color: "#234542",
+    fontWeight: "750",
+    color: "#173b68",
   },
 
   sentimentoDescricao: {
     fontSize: "11px",
-    color: "#999999",
+    color: "#7588a2",
     textAlign: "center",
-    lineHeight: "1.4",
-    marginTop: "5px",
+    lineHeight: "1.45",
+    marginTop: "6px",
+    maxWidth: "210px",
   },
 
   fraseInicio: {
-    maxWidth: "580px",
-    margin: "35px auto 0",
+    maxWidth: "640px",
+    margin: "34px auto 0",
+    padding: "14px 18px",
     display: "flex",
     gap: "10px",
     alignItems: "flex-start",
     justifyContent: "center",
-    color: "#888888",
+    color: "#667b97",
+    background: "rgba(255,255,255,0.65)",
+    border: "1px solid rgba(168,199,255,0.48)",
+    borderRadius: "16px",
     textAlign: "center",
     fontSize: "13px",
-    lineHeight: "1.5",
+    lineHeight: "1.55",
+    boxSizing: "border-box",
   },
 
   voltar: {
     border: "none",
     background: "transparent",
-    color: "#20adb0",
+    color: "#3A7DFF",
     cursor: "pointer",
     fontSize: "14px",
-    padding: "5px 0",
+    fontWeight: "650",
+    padding: "7px 0",
     marginBottom: "22px",
   },
 
   flashCard: {
-    maxWidth: "700px",
-    minHeight: "390px",
+    position: "relative",
+    overflow: "hidden",
+    maxWidth: "760px",
+    minHeight: "410px",
     margin: "0 auto",
-    background: "#ffffff",
-    border: "1px solid #e4eceb",
-    borderRadius: "28px",
-    padding: "45px 40px",
+    background:
+      "radial-gradient(circle at 50% 0%, rgba(168,199,255,0.28), transparent 42%), #ffffff",
+    border: "1px solid #dbe8f7",
+    borderRadius: "30px",
+    padding: "clamp(34px, 6vw, 58px) clamp(24px, 6vw, 56px)",
     boxSizing: "border-box",
     display: "flex",
     flexDirection: "column",
     justifyContent: "center",
     boxShadow:
-      "0 10px 35px rgba(0,0,0,0.045)",
+      "0 20px 55px rgba(15,45,91,0.09)",
   },
 
   flashCardTopo: {
@@ -2022,20 +2076,21 @@ const styles = {
     alignItems: "center",
     justifyContent: "center",
     gap: "8px",
-    color: "#20adb0",
+    color: "#3A7DFF",
     fontSize: "13px",
-    fontWeight: "700",
-    marginBottom: "30px",
+    fontWeight: "750",
+    marginBottom: "32px",
   },
 
   flashFrase: {
     textAlign: "center",
-    color: "#234542",
+    color: "#173b68",
     fontSize:
-      "clamp(22px, 3vw, 30px)",
+      "clamp(22px, 3vw, 31px)",
     lineHeight: "1.55",
-    fontWeight: "600",
+    fontWeight: "650",
     margin: 0,
+    letterSpacing: "-0.25px",
   },
 
   flashCardRodape: {
@@ -2043,8 +2098,8 @@ const styles = {
     flexDirection: "column",
     alignItems: "center",
     gap: "7px",
-    marginTop: "35px",
-    color: "#aaaaaa",
+    marginTop: "38px",
+    color: "#8192aa",
   },
 
   arrasteIndicacao: {
@@ -2052,56 +2107,74 @@ const styles = {
     justifyContent: "center",
     alignItems: "center",
     gap: "12px",
-    marginTop: "12px",
-    color: "#aaaaaa",
+    marginTop: "14px",
+    color: "#8091aa",
     fontSize: "12px",
   },
 
   sonsArea: {
-    maxWidth: "700px",
-    margin: "18px auto 0",
+    maxWidth: "760px",
+    margin: "22px auto 0",
+    padding: "18px",
+    background: "rgba(255,255,255,0.58)",
+    border: "1px solid rgba(220,233,248,0.9)",
+    borderRadius: "20px",
+    boxSizing: "border-box",
   },
 
   sonsTitulo: {
-    color: "#8a8a8a",
+    color: "#365b88",
     fontSize: "12px",
-    marginBottom: "9px",
+    fontWeight: "750",
+    marginBottom: "11px",
     paddingLeft: "4px",
   },
 
   sonsLista: {
     display: "flex",
     flexWrap: "wrap",
-    gap: "8px",
+    gap: "9px",
   },
 
   som: {
-    border: "1px solid #e4ebea",
+    border: "1px solid #dbe7f4",
     background: "#ffffff",
-    borderRadius: "12px",
-    padding: "7px 10px",
+    borderRadius: "14px",
+    padding: "9px 12px",
     display: "flex",
     alignItems: "center",
-    gap: "7px",
+    gap: "8px",
     cursor: "pointer",
-    color: "#496663",
-    minHeight: "42px",
+    color: "#496582",
+    minHeight: "46px",
+    boxSizing: "border-box",
+    transition:
+      "transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease",
   },
 
   somAtivo: {
-    border: "1px solid #20adb0",
-    background: "#f0fbfa",
-    borderRadius: "12px",
-    padding: "7px 10px",
+    border: "1px solid #3A7DFF",
+    background: "#EAF3FF",
+    borderRadius: "14px",
+    padding: "9px 12px",
     display: "flex",
     alignItems: "center",
-    gap: "7px",
+    gap: "8px",
     cursor: "pointer",
-    color: "#168f92",
-    minHeight: "42px",
+    color: "#245dbd",
+    minHeight: "46px",
+    boxSizing: "border-box",
+    boxShadow: "0 6px 18px rgba(58,125,255,0.13)",
   },
 
   somEmoji: {
+    width: "31px",
+    height: "31px",
+    borderRadius: "10px",
+    background: "#f3f8ff",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
     fontSize: "16px",
   },
 
@@ -2109,7 +2182,7 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     alignItems: "flex-start",
-    lineHeight: "1.2",
+    lineHeight: "1.25",
   },
 
   somPlay: {
@@ -2118,10 +2191,11 @@ const styles = {
   },
 
   erroSom: {
-    marginTop: "9px",
-    padding: "9px 12px",
-    borderRadius: "10px",
+    marginTop: "10px",
+    padding: "10px 13px",
+    borderRadius: "12px",
     background: "#fff8ef",
+    border: "1px solid #f1dfc8",
     color: "#9a7650",
     fontSize: "11px",
     lineHeight: "1.5",
@@ -2129,108 +2203,123 @@ const styles = {
 
   pequenaMensagem: {
     textAlign: "center",
-    color: "#aaaaaa",
+    color: "#7f90a8",
     fontSize: "12px",
     lineHeight: "1.5",
-    margin: "13px auto 0",
-    maxWidth: "400px",
+    margin: "15px auto 0",
+    maxWidth: "430px",
   },
 
-  /* =======================================================
-     MOMENTO PULSAN
-  ======================================================= */
-
   momento: {
-    maxWidth: "750px",
+    position: "relative",
+    overflow: "hidden",
+    maxWidth: "820px",
     margin: "0 auto",
-    background: "#f3faf9",
-    border: "1px solid #dceceb",
-    borderRadius: "28px",
-    padding: "40px",
+    background:
+      "radial-gradient(circle at 10% 0%, rgba(168,199,255,0.38), transparent 35%), linear-gradient(145deg, #f8fbff, #EAF3FF)",
+    border: "1px solid #d6e6fb",
+    borderRadius: "30px",
+    padding: "clamp(25px, 5vw, 48px)",
     boxSizing: "border-box",
+    boxShadow:
+      "0 20px 55px rgba(15,45,91,0.08)",
   },
 
   momentoTag: {
+    width: "fit-content",
+    margin: "0 auto",
     textAlign: "center",
-    color: "#20adb0",
-    fontSize: "12px",
+    color: "#3A7DFF",
+    background: "rgba(255,255,255,0.82)",
+    border: "1px solid #d4e5ff",
+    borderRadius: "999px",
+    padding: "7px 13px",
+    fontSize: "10px",
     fontWeight: "800",
-    letterSpacing: "3px",
+    letterSpacing: "2px",
   },
 
   momentoTitulo: {
     textAlign: "center",
-    color: "#173b38",
+    color: "#0F2D5B",
     fontSize:
-      "clamp(27px, 4vw, 37px)",
+      "clamp(27px, 4vw, 39px)",
     lineHeight: "1.2",
-    margin: "12px 0 12px",
+    margin: "18px 0 13px",
+    letterSpacing: "-0.5px",
   },
 
   momentoIntro: {
-    maxWidth: "570px",
-    margin: "0 auto 28px",
+    maxWidth: "610px",
+    margin: "0 auto 30px",
     textAlign: "center",
-    color: "#777777",
+    color: "#657b98",
     fontSize: "14px",
-    lineHeight: "1.6",
+    lineHeight: "1.7",
   },
 
   conteudoProfundo: {
-    marginTop: "10px",
+    marginTop: "11px",
   },
 
   conteudoBotao: {
     width: "100%",
-    border: "1px solid #dce7e6",
-    background: "#ffffff",
-    borderRadius: "17px",
-    padding: "14px",
+    border: "1px solid #d7e5f5",
+    background: "rgba(255,255,255,0.88)",
+    borderRadius: "18px",
+    padding: "15px",
     display: "flex",
     alignItems: "center",
     gap: "13px",
     cursor: "pointer",
     textAlign: "left",
     boxSizing: "border-box",
+    boxShadow: "0 6px 20px rgba(15,45,91,0.035)",
+    transition:
+      "transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease",
   },
 
   conteudoIcone: {
-    width: "45px",
-    height: "45px",
-    minWidth: "45px",
-    borderRadius: "50%",
-    background: "#20adb0",
+    width: "47px",
+    height: "47px",
+    minWidth: "47px",
+    borderRadius: "15px",
+    background:
+      "linear-gradient(145deg, #3A7DFF, #5b92ff)",
     color: "#ffffff",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     fontSize: "17px",
+    boxShadow: "0 7px 17px rgba(58,125,255,0.2)",
   },
 
   conteudoIconeAudio: {
-    width: "45px",
-    height: "45px",
-    minWidth: "45px",
-    borderRadius: "50%",
-    background: "#edf7f6",
-    color: "#20adb0",
+    width: "47px",
+    height: "47px",
+    minWidth: "47px",
+    borderRadius: "15px",
+    background: "#EAF3FF",
+    color: "#3A7DFF",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     fontSize: "19px",
+    border: "1px solid #d7e7ff",
   },
 
   conteudoIconeReflexao: {
-    width: "45px",
-    height: "45px",
-    minWidth: "45px",
-    borderRadius: "50%",
-    background: "#edf7f6",
-    color: "#20adb0",
+    width: "47px",
+    height: "47px",
+    minWidth: "47px",
+    borderRadius: "15px",
+    background: "#f0f6ff",
+    color: "#3A7DFF",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     fontSize: "19px",
+    border: "1px solid #dbe8f8",
   },
 
   conteudoTexto: {
@@ -2242,44 +2331,54 @@ const styles = {
   },
 
   seta: {
-    color: "#20adb0",
+    color: "#3A7DFF",
     fontSize: "21px",
+    fontWeight: "700",
   },
 
   areaVideo: {
     background: "#ffffff",
     padding: "10px",
-    borderRadius: "15px",
-    marginTop: "8px",
+    borderRadius: "17px",
+    marginTop: "9px",
+    border: "1px solid #dce8f6",
   },
 
   video: {
     width: "100%",
-    maxHeight: "480px",
+    maxHeight: "500px",
     display: "block",
-    borderRadius: "10px",
-    background: "#111111",
+    borderRadius: "12px",
+    background: "#0F2D5B",
   },
 
   videoAviso: {
-    color: "#999999",
+    color: "#8192aa",
     fontSize: "11px",
     lineHeight: "1.5",
     margin: "8px 4px 2px",
   },
 
   audioMomento: {
-    marginTop: "8px",
+    marginTop: "9px",
     background: "#ffffff",
-    borderRadius: "15px",
-    padding: "12px",
+    border: "1px solid #dce8f6",
+    borderRadius: "17px",
+    padding: "13px",
     display: "flex",
     alignItems: "center",
     gap: "12px",
   },
 
   audioMomentoIcone: {
-    fontSize: "22px",
+    width: "40px",
+    height: "40px",
+    borderRadius: "13px",
+    background: "#EAF3FF",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "20px",
   },
 
   audioMomentoTexto: {
@@ -2288,97 +2387,108 @@ const styles = {
     flexDirection: "column",
     gap: "3px",
     fontSize: "13px",
+    color: "#365b88",
   },
 
   playPequeno: {
-    width: "38px",
-    height: "38px",
+    width: "40px",
+    height: "40px",
     border: "none",
     borderRadius: "50%",
-    background: "#20adb0",
+    background: "#3A7DFF",
     color: "#ffffff",
     cursor: "pointer",
+    boxShadow: "0 7px 16px rgba(58,125,255,0.2)",
   },
 
   reflexaoProfunda: {
-    marginTop: "8px",
-    padding: "24px",
-    background: "#ffffff",
-    borderRadius: "17px",
+    marginTop: "9px",
+    padding: "clamp(22px, 5vw, 30px)",
+    background: "rgba(255,255,255,0.92)",
+    border: "1px solid #dce8f6",
+    borderRadius: "18px",
     textAlign: "center",
-    color: "#234542",
+    color: "#173b68",
+    boxShadow: "0 7px 20px rgba(15,45,91,0.035)",
   },
 
   reflexaoTexto: {
-    fontSize: "20px",
+    fontSize: "clamp(18px, 3vw, 22px)",
     lineHeight: "1.6",
     margin: "5px 0",
-    fontWeight: "600",
+    fontWeight: "650",
   },
 
   quotation: {
-    fontSize: "30px",
-    color: "#20adb0",
+    fontSize: "32px",
+    color: "#3A7DFF",
+    lineHeight: "1",
   },
 
   continuar: {
     width: "100%",
     border: "none",
-    background: "#20adb0",
+    background:
+      "linear-gradient(135deg, #3A7DFF, #5b92ff)",
     color: "#ffffff",
     padding: "15px",
-    borderRadius: "13px",
-    marginTop: "25px",
+    borderRadius: "14px",
+    marginTop: "26px",
     cursor: "pointer",
     fontSize: "15px",
-    fontWeight: "700",
+    fontWeight: "750",
+    boxShadow: "0 10px 24px rgba(58,125,255,0.2)",
+    transition: "transform 0.18s ease, box-shadow 0.18s ease",
   },
 
   outroSentimento: {
     display: "block",
-    margin: "13px auto 0",
+    margin: "14px auto 0",
     border: "none",
     background: "transparent",
-    color: "#20adb0",
+    color: "#3A7DFF",
     cursor: "pointer",
     fontSize: "13px",
+    fontWeight: "650",
   },
-
-  /* =======================================================
-     MENU
-  ======================================================= */
 
   menu: {
     position: "fixed",
     left: 0,
     right: 0,
     bottom: 0,
-    height: "72px",
-    background: "#ffffff",
-    borderTop: "1px solid #e5e5e5",
+    height: "74px",
+    padding: "0 10px",
+    background: "rgba(255,255,255,0.94)",
+    borderTop: "1px solid #dce8f6",
     display: "flex",
     alignItems: "center",
     justifyContent: "space-around",
     zIndex: 1000,
     boxSizing: "border-box",
+    boxShadow: "0 -8px 25px rgba(15,45,91,0.06)",
+    backdropFilter: "blur(16px)",
   },
 
   menuItem: {
     minWidth: "65px",
+    padding: "7px 13px",
+    borderRadius: "15px",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
     gap: "3px",
-    color: "#858585",
+    color: "#7c8da5",
     fontSize: "19px",
+    transition: "background 0.18s ease, color 0.18s ease",
   },
 
   menuAtivo: {
-    color: "#20adb0",
+    color: "#3A7DFF",
+    background: "#EAF3FF",
     fontWeight: "700",
   },
 };
-
 /* =========================================================
    RESPONSIVIDADE
 ========================================================= */
@@ -2396,9 +2506,41 @@ if (
     "pulsan-reflexao-responsive";
 
   style.innerHTML = `
-    @media (max-width: 700px) {
-      .pulsan-mobile {
-        width: 100%;
+    .pulsan-reflexao-page button {
+      font-family: inherit;
+    }
+
+    .pulsan-reflexao-page .pulsan-sentimento-card:hover {
+      transform: translateY(-4px);
+      border-color: #bcd5f8;
+      box-shadow: 0 16px 34px rgba(15,45,91,0.10);
+    }
+
+    .pulsan-reflexao-page .pulsan-conteudo-botao:hover {
+      transform: translateY(-2px);
+      border-color: #bcd5f8;
+      box-shadow: 0 10px 25px rgba(15,45,91,0.07);
+    }
+
+    .pulsan-reflexao-page .pulsan-som:hover {
+      transform: translateY(-2px);
+      border-color: #bcd5f8;
+      box-shadow: 0 7px 18px rgba(15,45,91,0.06);
+    }
+
+    .pulsan-reflexao-page .pulsan-continuar:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 14px 28px rgba(58,125,255,0.26);
+    }
+
+    .pulsan-reflexao-page button:focus-visible {
+      outline: 3px solid rgba(58,125,255,0.25);
+      outline-offset: 3px;
+    }
+
+    @media (max-width: 900px) {
+      .pulsan-reflexao-page .pulsan-reflexao-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
       }
     }
 
@@ -2406,10 +2548,90 @@ if (
       body {
         overflow-x: hidden;
       }
+
+      .pulsan-reflexao-page .pulsan-reflexao-grid {
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+      }
+
+      .pulsan-reflexao-page .pulsan-sentimento-card {
+        min-height: 136px !important;
+        padding: 18px 16px !important;
+      }
+
+      .pulsan-reflexao-page .pulsan-reflexao-grid
+      .pulsan-sentimento-card:hover {
+        transform: none;
+      }
+
+      .pulsan-reflexao-page .pulsan-conteudo-botao {
+        padding: 13px !important;
+      }
+
+      .pulsan-reflexao-page .pulsan-som {
+        flex: 1 1 100%;
+        width: 100%;
+      }
+
+      .pulsan-reflexao-page .pulsan-continuar:hover {
+        transform: none;
+      }
+    }
+
+    @media (max-width: 430px) {
+      .pulsan-reflexao-page {
+        padding-bottom: 100px !important;
+      }
+
+      .pulsan-reflexao-page .pulsan-conteudo-botao {
+        gap: 10px !important;
+      }
+
+      .pulsan-reflexao-page .pulsan-conteudo-botao strong {
+        font-size: 13px !important;
+      }
+
+      .pulsan-reflexao-page .pulsan-conteudo-botao span {
+        font-size: 11px !important;
+      }
+
+      .pulsan-reflexao-page .pulsan-sentimento-card {
+        border-radius: 18px !important;
+      }
+
+      .pulsan-reflexao-page .pulsan-som {
+        border-radius: 13px !important;
+      }
+    }
+
+    @media (max-width: 360px) {
+      .pulsan-reflexao-page .pulsan-conteudo-botao {
+        padding: 11px !important;
+      }
+
+      .pulsan-reflexao-page .pulsan-conteudo-botao > div:first-child {
+        width: 42px !important;
+        min-width: 42px !important;
+        height: 42px !important;
+      }
+
+      .pulsan-reflexao-page .pulsan-conteudo-botao > span:last-child {
+        font-size: 17px !important;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .pulsan-reflexao-page *,
+      .pulsan-reflexao-page *::before,
+      .pulsan-reflexao-page *::after {
+        scroll-behavior: auto !important;
+        transition: none !important;
+        animation: none !important;
+      }
     }
 
     @media (max-width: 500px) {
-      button {
+      .pulsan-reflexao-page button {
         -webkit-tap-highlight-color: transparent;
       }
     }
