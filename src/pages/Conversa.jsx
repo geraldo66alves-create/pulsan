@@ -132,7 +132,12 @@ export default function Conversa({ irPara, tema = "claro" }) {
           .map((item) => item.desabafo_id)
           .filter(Boolean);
 
+        const idsSolicitantes = listaPedidos
+          .map((item) => item.solicitante_id)
+          .filter(Boolean);
+
         let posts = [];
+        let perfisSolicitantes = [];
 
         if (idsDesabafos.length > 0) {
           const {
@@ -155,6 +160,22 @@ export default function Conversa({ irPara, tema = "claro" }) {
           posts = postsData || [];
         }
 
+        // A identidade exibida na solicitação é SEMPRE a de quem
+        // ofereceu ajuda (solicitante_id). O desabafo é carregado
+        // separadamente e pertence ao destinatário da solicitação.
+        if (idsSolicitantes.length > 0) {
+          const { data: perfisData, error: erroPerfis } = await supabase
+            .from("perfis")
+            .select("*")
+            .in("id", [...new Set(idsSolicitantes)]);
+
+          if (erroPerfis) {
+            console.warn("Erro ao carregar perfis dos solicitantes:", erroPerfis);
+          } else {
+            perfisSolicitantes = perfisData || [];
+          }
+        }
+
         const vistasSolicitacoes = JSON.parse(
           localStorage.getItem("pulsanSolicitacoesVistas") || "[]"
         );
@@ -165,23 +186,46 @@ export default function Conversa({ irPara, tema = "claro" }) {
               (item) => item.id === pedido.desabafo_id
             );
 
+            const perfilSolicitante = perfisSolicitantes.find(
+              (item) => String(item.id) === String(pedido.solicitante_id)
+            );
+
+            const psicologoAprovado =
+              perfilSolicitante?.verificacao_psicologo === "aprovado" ||
+              perfilSolicitante?.psicologo_parceiro === true;
+
+            const seloExplicito =
+              perfilSolicitante?.selo ||
+              perfilSolicitante?.selo_nome ||
+              perfilSolicitante?.badge ||
+              perfilSolicitante?.badge_nome ||
+              "";
+
             return {
               ...pedido,
-
               nome:
-                post?.nome_usuario ||
+                perfilSolicitante?.nome ||
+                pedido.nome_solicitante ||
                 pedido.nome_usuario ||
                 "Pessoa anônima",
-
               foto:
-                post?.foto_usuario ||
+                perfilSolicitante?.foto_url ||
+                perfilSolicitante?.foto ||
+                pedido.foto_solicitante ||
                 pedido.foto_usuario ||
                 "",
-
+              possuiSelo: Boolean(psicologoAprovado || seloExplicito),
+              tipoSelo: psicologoAprovado
+                ? "psicologo"
+                : seloExplicito
+                ? "confianca"
+                : "",
+              textoSelo: psicologoAprovado
+                ? "Psicólogo parceiro"
+                : seloExplicito || "Apoiador de confiança",
               desabafo:
                 post?.texto ||
                 "A pessoa deseja conversar com você.",
-
               foiVista: vistasSolicitacoes.includes(String(pedido.id)),
             };
           }
@@ -216,6 +260,29 @@ export default function Conversa({ irPara, tema = "claro" }) {
         );
 
         const idsConversas = listaConversas.map((item) => item.id).filter(Boolean);
+        const idsOutrasPessoas = listaConversas
+          .map((conversa) =>
+            String(conversa.solicitante_id) === String(usuarioId)
+              ? conversa.destinatario_id
+              : conversa.solicitante_id
+          )
+          .filter(Boolean);
+
+        let perfisOutrasPessoas = [];
+
+        if (idsOutrasPessoas.length > 0) {
+          const { data: perfisData, error: erroPerfisRecentes } = await supabase
+            .from("perfis")
+            .select("*")
+            .in("id", [...new Set(idsOutrasPessoas)]);
+
+          if (erroPerfisRecentes) {
+            console.warn("Erro ao carregar perfis das conversas recentes:", erroPerfisRecentes);
+          } else {
+            perfisOutrasPessoas = perfisData || [];
+          }
+        }
+
         let mensagensRecentes = [];
 
         if (idsConversas.length > 0) {
@@ -262,17 +329,38 @@ export default function Conversa({ irPara, tema = "claro" }) {
             Boolean(ultimaMensagemEm) &&
             (!vistaEm || new Date(ultimaMensagemEm).getTime() > Number(vistaEm));
 
+          const perfilOutraPessoa = perfisOutrasPessoas.find(
+            (item) => String(item.id) === String(outraPessoaId)
+          );
+
+          const outraPessoaPsicologo =
+            perfilOutraPessoa?.verificacao_psicologo === "aprovado" ||
+            perfilOutraPessoa?.psicologo_parceiro === true;
+
+          const outraPessoaSelo =
+            perfilOutraPessoa?.selo ||
+            perfilOutraPessoa?.selo_nome ||
+            perfilOutraPessoa?.badge ||
+            perfilOutraPessoa?.badge_nome ||
+            "";
+
           return {
             ...conversa,
             outraPessoaId,
             nome:
+              perfilOutraPessoa?.nome ||
               conversa.nome_outra_pessoa ||
               conversa.nome_usuario ||
               "Pessoa anônima",
             foto:
+              perfilOutraPessoa?.foto_url ||
+              perfilOutraPessoa?.foto ||
               conversa.foto_outra_pessoa ||
               conversa.foto_usuario ||
               "",
+            possuiSelo: Boolean(outraPessoaPsicologo || outraPessoaSelo),
+            tipoSelo: outraPessoaPsicologo ? "psicologo" : outraPessoaSelo ? "confianca" : "",
+            textoSelo: outraPessoaPsicologo ? "Psicólogo parceiro" : outraPessoaSelo || "Apoiador de confiança",
             preview:
               ultimaMensagemReal?.mensagem ||
               conversa.ultima_mensagem ||
@@ -522,6 +610,193 @@ export default function Conversa({ irPara, tema = "claro" }) {
   }
 
   /* =========================================================
+     ACEITAR SOLICITAÇÃO
+
+     Somente quem publicou o desabafo pode aceitar.
+     Ao aceitar, a conversa é criada e entra em Recentes.
+  ========================================================= */
+
+  async function aceitarSolicitacao(pedido) {
+    if (!usuarioId || !pedido?.id) return;
+
+    if (!window.confirm(
+      `Deseja aceitar a solicitação de ${pedido.nome || "Pessoa anônima"}?\n\n` +
+      "A conversa será criada e aparecerá em Recentes."
+    )) return;
+
+    try {
+      setErro("");
+
+      if (!pedido.desabafo_id) {
+        throw new Error("Esta solicitação não está vinculada a um desabafo.");
+      }
+
+      // Confirma que o usuário atual é realmente o autor do desabafo.
+      const { data: post, error: erroPost } = await supabase
+        .from("posts_ambiente")
+        .select("id, usuario_id, texto")
+        .eq("id", pedido.desabafo_id)
+        .maybeSingle();
+
+      if (erroPost) throw erroPost;
+      if (!post) throw new Error("O desabafo relacionado não foi encontrado.");
+
+      if (String(post.usuario_id) !== String(usuarioId)) {
+        throw new Error("Somente quem publicou este desabafo pode aceitar a solicitação.");
+      }
+
+      const { data: solicitacaoAtual, error: erroSolicitacao } = await supabase
+        .from("solicitacoes_chat")
+        .select("id, solicitante_id, destinatario_id, desabafo_id, status")
+        .eq("id", pedido.id)
+        .eq("destinatario_id", usuarioId)
+        .eq("status", "pendente")
+        .maybeSingle();
+
+      if (erroSolicitacao) throw erroSolicitacao;
+      if (!solicitacaoAtual) throw new Error("Esta solicitação não está mais pendente.");
+
+      const { data: aceita, error: erroAceitar } = await supabase
+        .from("solicitacoes_chat")
+        .update({ status: "aceita" })
+        .eq("id", pedido.id)
+        .eq("destinatario_id", usuarioId)
+        .eq("status", "pendente")
+        .select("*")
+        .single();
+
+      if (erroAceitar) throw erroAceitar;
+
+      // Reaproveita uma conversa da mesma solicitação, se existir.
+      let conversa;
+      const { data: existente, error: erroBuscaConversa } = await supabase
+        .from("conversas")
+        .select("*")
+        .eq("solicitacao_id", aceita.id)
+        .maybeSingle();
+
+      if (erroBuscaConversa) throw erroBuscaConversa;
+
+      if (existente) {
+        conversa = existente;
+      } else {
+        const { data: novaConversa, error: erroConversa } = await supabase
+          .from("conversas")
+          .insert({
+            solicitante_id: aceita.solicitante_id,
+            destinatario_id: aceita.destinatario_id,
+            solicitacao_id: aceita.id,
+            status: "ativa",
+            iniciada_em: new Date().toISOString(),
+          })
+          .select("*")
+          .single();
+
+        if (erroConversa) throw erroConversa;
+        conversa = novaConversa;
+      }
+
+      const dadosRecentes = {
+        ...conversa,
+        outraPessoaId: aceita.solicitante_id,
+        nome: pedido.nome || "Pessoa anônima",
+        foto: pedido.foto || "",
+        possuiSelo: Boolean(pedido.possuiSelo),
+        tipoSelo: pedido.tipoSelo || "",
+        textoSelo: pedido.textoSelo || "",
+        preview: "Conversa iniciada a partir do seu desabafo.",
+        ultimaMensagemEm: conversa.iniciada_em || new Date().toISOString(),
+        mensagemNova: false,
+        desabafo_id: aceita.desabafo_id,
+        desabafo: post.texto || pedido.desabafo || "",
+      };
+
+      // Contexto disponível caso a tela de chat seja aberta depois.
+      localStorage.setItem("pulsanConversaAtual", JSON.stringify(dadosRecentes));
+      localStorage.setItem("pulsanNomeOutraPessoa", dadosRecentes.nome);
+      localStorage.setItem("pulsanFotoOutraPessoa", dadosRecentes.foto);
+      localStorage.setItem("pulsanPapelConversa", "autor-desabafo");
+      localStorage.setItem("pulsanIdDesabafoConversa", String(aceita.desabafo_id || ""));
+      localStorage.setItem("pulsanDesabafoConversa", dadosRecentes.desabafo);
+
+      setSolicitacoes((anteriores) => anteriores.filter((item) => item.id !== pedido.id));
+      setNotificacoesSolicitacoes(
+        solicitacoes.some(
+          (item) => item.id !== pedido.id && !item.foiVista
+        )
+      );
+
+      // A conversa aceita aparece imediatamente no topo de Recentes.
+      setRecentes((anteriores) => [
+        dadosRecentes,
+        ...anteriores.filter((item) => String(item.id) !== String(conversa.id)),
+      ]);
+
+      setTela("lista");
+
+      window.setTimeout(() => {
+        document
+          .querySelector(".pulsan-panel-recent")
+          ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 80);
+    } catch (erro) {
+      console.error("Erro ao aceitar solicitação:", erro);
+      setErro(erro?.message || "Não foi possível aceitar esta solicitação.");
+    }
+  }
+
+  /* =========================================================
+     RECUSAR SOLICITAÇÃO
+     Somente quem publicou o desabafo pode recusar.
+  ========================================================= */
+
+  async function recusarSolicitacao(pedido) {
+    if (!usuarioId || !pedido?.id) return;
+
+    if (!window.confirm(
+      `Deseja recusar a solicitação de ${pedido.nome || "Pessoa anônima"}?`
+    )) return;
+
+    try {
+      setErro("");
+
+      if (!pedido.desabafo_id) {
+        throw new Error("Esta solicitação não está vinculada a um desabafo.");
+      }
+
+      const { data: post, error: erroPost } = await supabase
+        .from("posts_ambiente")
+        .select("id, usuario_id")
+        .eq("id", pedido.desabafo_id)
+        .maybeSingle();
+
+      if (erroPost) throw erroPost;
+      if (!post || String(post.usuario_id) !== String(usuarioId)) {
+        throw new Error("Somente quem publicou este desabafo pode recusar a solicitação.");
+      }
+
+      const { error } = await supabase
+        .from("solicitacoes_chat")
+        .update({ status: "recusada" })
+        .eq("id", pedido.id)
+        .eq("destinatario_id", usuarioId)
+        .eq("status", "pendente");
+
+      if (error) throw error;
+
+      setSolicitacoes((anteriores) => anteriores.filter((item) => item.id !== pedido.id));
+      setNotificacoesSolicitacoes(
+        solicitacoes.some(
+          (item) => item.id !== pedido.id && !item.foiVista
+        )
+      );
+    } catch (erro) {
+      console.error("Erro ao recusar solicitação:", erro);
+      setErro(erro?.message || "Não foi possível recusar esta solicitação.");
+    }
+  }
+
+  /* =========================================================
      ENVIAR MENSAGEM
   ========================================================= */
 
@@ -705,9 +980,8 @@ export default function Conversa({ irPara, tema = "claro" }) {
                   ) : (
                     <div className="pulsan-list">
                       {solicitacoes.map((pedido) => (
-                        <button
+                        <article
                           key={pedido.id}
-                          type="button"
                           className={`pulsan-conversation-card request ${
                             pedido.foiVista ? "is-viewed" : "is-unread"
                           }`}
@@ -726,6 +1000,15 @@ export default function Conversa({ irPara, tema = "claro" }) {
                           <div className="pulsan-card-content">
                             <div className="pulsan-card-top">
                               <strong>{pedido.nome}</strong>
+                              {pedido.possuiSelo && (
+                                <span
+                                  className="pulsan-profile-seal"
+                                  title={pedido.textoSelo || "Selo Pulsan"}
+                                  aria-label={pedido.textoSelo || "Selo Pulsan"}
+                                >
+                                  {pedido.tipoSelo === "psicologo" ? "🧠" : "🏅"}
+                                </span>
+                              )}
                               {!pedido.foiVista && (
                                 <span className="pulsan-new-badge">NOVO</span>
                               )}
@@ -735,13 +1018,36 @@ export default function Conversa({ irPara, tema = "claro" }) {
                               💭 A partir de um desabafo
                             </span>
 
-                            <p>{pedido.desabafo}</p>
+                            <div className="pulsan-request-desabafo">
+                              <span>💭 SEU DESABAFO</span>
+                              <p>{pedido.desabafo}</p>
+                            </div>
 
                             <span className="pulsan-card-action">
-                              Ver solicitação →
+                              Essa pessoa ofereceu ajuda a você
                             </span>
+
+                            <div
+                              className="pulsan-request-actions"
+                              onClick={(event) => event.stopPropagation()}
+                            >
+                              <button
+                                type="button"
+                                className="pulsan-request-reject"
+                                onClick={() => recusarSolicitacao(pedido)}
+                              >
+                                ✕ Recusar
+                              </button>
+                              <button
+                                type="button"
+                                className="pulsan-request-accept"
+                                onClick={() => aceitarSolicitacao(pedido)}
+                              >
+                                ✓ Aceitar
+                              </button>
+                            </div>
                           </div>
-                        </button>
+                        </article>
                       ))}
                     </div>
                   )}
@@ -800,6 +1106,15 @@ export default function Conversa({ irPara, tema = "claro" }) {
                           <div className="pulsan-card-content">
                             <div className="pulsan-card-top">
                               <strong>{conversa.nome}</strong>
+                              {conversa.possuiSelo && (
+                                <span
+                                  className="pulsan-profile-seal"
+                                  title={conversa.textoSelo || "Selo Pulsan"}
+                                  aria-label={conversa.textoSelo || "Selo Pulsan"}
+                                >
+                                  {conversa.tipoSelo === "psicologo" ? "🧠" : "🏅"}
+                                </span>
+                              )}
                               {conversa.mensagemNova ? (
                                 <span className="pulsan-new-badge">NOVA</span>
                               ) : (
@@ -1739,6 +2054,79 @@ const CSS = `
     var(--pulsan-blue);
 
   color: white;
+}
+
+.pulsan-profile-seal {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin-left: 6px;
+  border-radius: 999px;
+  background: rgba(58, 125, 255, 0.12);
+  border: 1px solid rgba(58, 125, 255, 0.22);
+  font-size: 13px;
+  vertical-align: middle;
+  flex: 0 0 auto;
+}
+
+.pulsan-request-desabafo {
+  margin-top: 12px;
+  padding: 11px 12px;
+  border-radius: 14px;
+  background: rgba(234, 243, 255, 0.72);
+  border: 1px solid rgba(168, 199, 255, 0.48);
+}
+
+.pulsan-request-desabafo > span {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--pulsan-blue);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .08em;
+}
+
+.pulsan-request-desabafo p {
+  margin: 0;
+  color: var(--pulsan-deep);
+  font-size: 12px;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.pulsan-request-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.pulsan-request-actions button {
+  border: 0;
+  border-radius: 12px;
+  padding: 9px 13px;
+  font-size: 11px;
+  font-weight: 900;
+  cursor: pointer;
+  transition: transform .18s ease, opacity .18s ease;
+}
+
+.pulsan-request-actions button:hover {
+  transform: translateY(-1px);
+}
+
+.pulsan-request-reject {
+  background: rgba(15, 45, 91, 0.08);
+  color: var(--pulsan-deep);
+}
+
+.pulsan-request-accept {
+  background: var(--pulsan-blue);
+  color: #fff;
 }
 
 .pulsan-card-action {

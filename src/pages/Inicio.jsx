@@ -1,17 +1,150 @@
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
+
+const BUBBLE_ONE = "Às vezes eu só precisava que alguém me escutasse.";
+const BUBBLE_TWO = "Você não precisa enfrentar tudo sozinho. 💙";
+
+const SOBRE_DATA = [
+  {
+    icon: "💭",
+    titulo: "Falar",
+    texto:
+      "Compartilhe aquilo que está sentindo e coloque em palavras o que muitas vezes fica guardado.",
+    extra:
+      "Sem formulários, sem categorias obrigatórias — só o espaço em branco e o que você precisa dizer.",
+  },
+  {
+    icon: "👂",
+    titulo: "Ser ouvido",
+    texto: "Encontre pessoas dispostas a ouvir e oferecer uma palavra de apoio.",
+    extra:
+      "Quem responde escolheu estar ali. Cada comentário é alguém que decidiu prestar atenção.",
+  },
+  {
+    icon: "💙",
+    titulo: "Acolher",
+    texto: "Incentive relações baseadas em empatia, respeito e compreensão.",
+    extra:
+      "Acolher não é resolver o problema do outro — é mostrar que ele não está enfrentando isso sozinho.",
+  },
+];
+
+const PASSOS_DATA = [
+  {
+    numero: "01",
+    icon: "💭",
+    titulo: "Compartilhe",
+    texto: "Escreva sobre o que você está sentindo em um espaço pensado para acolher.",
+    exemplo: "Seu desabafo entra no Ambiente sem nome, sem foto, sem rastro.",
+  },
+  {
+    numero: "02",
+    icon: "🤝",
+    titulo: "Receba apoio",
+    texto: "Pessoas dispostas a ajudar podem demonstrar interesse em conversar.",
+    exemplo: "Um pedido de conversa chega para você aceitar ou recusar — a escolha é sempre sua.",
+  },
+  {
+    numero: "03",
+    icon: "💬",
+    titulo: "Converse",
+    texto: "Quando houver aceitação, vocês podem iniciar uma conversa privada.",
+    exemplo: "A conversa fica só entre vocês dois, separada de tudo o mais no Ambiente.",
+  },
+];
+
+const PUBLICO_DATA = [
+  {
+    icon: "🏢",
+    titulo: "Empresas",
+    texto: "Incentivar uma cultura de escuta, acolhimento e cuidado entre colaboradores.",
+    voz: "“Descobri que dois colegas do meu time estavam passando pela mesma semana difícil que eu.”",
+  },
+  {
+    icon: "🎓",
+    titulo: "Escolas",
+    texto: "Criar espaços de diálogo e atenção às relações e ao bem-estar dos estudantes.",
+    voz: "“Consegui contar o que estava acontecendo sem precisar dizer meu nome na frente da turma.”",
+  },
+  {
+    icon: "👥",
+    titulo: "Comunidade",
+    texto: "Aproximar pessoas através da empatia, escuta e apoio mútuo.",
+    voz: "“Respondi ao desabafo de alguém e, sem saber quem era, consegui ajudar.”",
+  },
+];
 
 function Inicio({ irPara }) {
-  const irParaCadastro = () => {
-    irPara("cadastro");
-  };
+  const [activeSobre, setActiveSobre] = useState(0);
+  const [activeStep, setActiveStep] = useState(0);
+  const [flipped, setFlipped] = useState({});
+  const [anonReveal, setAnonReveal] = useState(false);
 
-  const irParaLogin = () => {
-    irPara("login");
+  const [typedOne, setTypedOne] = useState("");
+  const [typedTwo, setTypedTwo] = useState("");
+  const [showTwo, setShowTwo] = useState(false);
+  const [phase, setPhase] = useState("one"); // one -> two -> done
+  const reducedMotionRef = useRef(false);
+
+  useEffect(() => {
+    reducedMotionRef.current =
+      typeof window !== "undefined" &&
+      window.matchMedia &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    if (reducedMotionRef.current) {
+      setTypedOne(BUBBLE_ONE);
+      setTypedTwo(BUBBLE_TWO);
+      setShowTwo(true);
+      setPhase("done");
+      return;
+    }
+
+    let i = 0;
+    const timers = [];
+
+    const typeOne = () => {
+      const interval = setInterval(() => {
+        i += 1;
+        setTypedOne(BUBBLE_ONE.slice(0, i));
+        if (i >= BUBBLE_ONE.length) {
+          clearInterval(interval);
+          timers.push(setTimeout(startTwo, 550));
+        }
+      }, 28);
+      timers.push(interval);
+    };
+
+    const startTwo = () => {
+      setShowTwo(true);
+      setPhase("two");
+      let j = 0;
+      const interval = setInterval(() => {
+        j += 1;
+        setTypedTwo(BUBBLE_TWO.slice(0, j));
+        if (j >= BUBBLE_TWO.length) {
+          clearInterval(interval);
+          setPhase("done");
+        }
+      }, 28);
+      timers.push(interval);
+    };
+
+    timers.push(setTimeout(typeOne, 500));
+
+    return () => {
+      timers.forEach((t) => clearInterval(t) || clearTimeout(t));
+    };
+  }, []);
+
+  const irParaCadastro = () => irPara("cadastro");
+  const irParaLogin = () => irPara("login");
+
+  const toggleFlip = (index) => {
+    setFlipped((prev) => ({ ...prev, [index]: !prev[index] }));
   };
 
   return (
     <main className="inicio-page">
-
       {/* =====================================================
           FUNDO DECORATIVO
       ===================================================== */}
@@ -21,19 +154,13 @@ function Inicio({ irPara }) {
       <div className="inicio-bg-circle circle-1"></div>
       <div className="inicio-bg-circle circle-2"></div>
 
-
       {/* =====================================================
           NAVBAR
       ===================================================== */}
 
       <nav className="inicio-navbar">
-
         <div className="inicio-brand">
-          <img
-            src="/logo.png"
-            alt="Logo Pulsan"
-          />
-
+          <img src="/logo.png" alt="Logo Pulsan" />
           <div>
             <strong>Pulsan</strong>
             <span>Você importa</span>
@@ -45,29 +172,19 @@ function Inicio({ irPara }) {
           <a href="#como-funciona">Como funciona</a>
           <a href="#seguranca">Segurança</a>
 
-          <button
-            type="button"
-            onClick={irParaLogin}
-            className="inicio-nav-login"
-          >
+          <button type="button" onClick={irParaLogin} className="inicio-nav-login">
             Entrar
           </button>
         </div>
-
       </nav>
-
 
       {/* =====================================================
           HERO
       ===================================================== */}
 
       <section className="inicio-hero">
-
         <div className="inicio-hero-text">
-
-          <span className="inicio-tag">
-            Um espaço para ser ouvido
-          </span>
+          <span className="inicio-tag">Um espaço para ser ouvido</span>
 
           <h1>
             Você não precisa
@@ -75,35 +192,23 @@ function Inicio({ irPara }) {
           </h1>
 
           <p>
-            O Pulsan é um espaço de apoio emocional criado para
-            aproximar pessoas, incentivar a escuta e tornar mais
-            fácil falar sobre aquilo que muitas vezes guardamos
-            para nós mesmos.
+            O Pulsan é um espaço de apoio emocional criado para aproximar
+            pessoas, incentivar a escuta e tornar mais fácil falar sobre
+            aquilo que muitas vezes guardamos para nós mesmos.
           </p>
 
           <div className="inicio-hero-buttons">
-
-            <button
-              type="button"
-              className="inicio-btn-primary"
-              onClick={irParaCadastro}
-            >
+            <button type="button" className="inicio-btn-primary" onClick={irParaCadastro}>
               Criar minha conta
               <span>→</span>
             </button>
 
-            <button
-              type="button"
-              className="inicio-btn-secondary"
-              onClick={irParaLogin}
-            >
+            <button type="button" className="inicio-btn-secondary" onClick={irParaLogin}>
               Já tenho uma conta
             </button>
-
           </div>
 
           <div className="inicio-hero-info">
-
             <div>
               <span>🔒</span>
               <small>Privacidade</small>
@@ -118,92 +223,72 @@ function Inicio({ irPara }) {
               <span>🤝</span>
               <small>Escuta</small>
             </div>
-
           </div>
-
         </div>
-
 
         {/* CARD VISUAL */}
 
         <div className="inicio-hero-card">
-
           <div className="hero-card-glow"></div>
+
+          <svg
+            className="hero-pulse-svg"
+            viewBox="0 0 400 60"
+            preserveAspectRatio="none"
+            aria-hidden="true"
+          >
+            <path
+              className="hero-pulse-path"
+              d="M0,30 L120,30 L140,8 L162,52 L184,30 L400,30"
+            />
+          </svg>
 
           <div className="hero-card-top">
             <span className="hero-card-dot"></span>
-
-            <span>
-              Espaço seguro
-            </span>
-
-            <span className="hero-card-lock">
-              🔒
-            </span>
+            <span>Espaço seguro</span>
+            <span className="hero-card-lock">🔒</span>
           </div>
 
           <div className="hero-bubble bubble-one">
-            Às vezes eu só precisava
-            que alguém me escutasse.
+            {typedOne}
+            {phase === "one" && <span className="type-cursor" aria-hidden="true" />}
           </div>
 
-          <div className="hero-bubble bubble-two">
-            Você não precisa enfrentar
-            tudo sozinho. 💙
-          </div>
+          {showTwo && (
+            <div className="hero-bubble bubble-two">
+              {typedTwo}
+              {phase === "two" && <span className="type-cursor" aria-hidden="true" />}
+            </div>
+          )}
 
           <div className="hero-card-bottom">
-
-            <div className="hero-mini-avatar">
-              💬
-            </div>
+            <div className="hero-mini-avatar">💬</div>
 
             <div>
-              <strong>
-                Um lugar para falar
-              </strong>
-
-              <span>
-                Sem julgamentos.
-              </span>
+              <strong>Um lugar para falar</strong>
+              <span>Sem julgamentos.</span>
             </div>
-
           </div>
-
         </div>
-
       </section>
-
 
       {/* =====================================================
           FRASE
       ===================================================== */}
 
       <section className="inicio-frase">
-
         <div className="inicio-frase-line"></div>
-
-        <p>
-          "Falar também é uma forma de cuidar de si."
-        </p>
-
+        <p>"Falar também é uma forma de cuidar de si."</p>
         <div className="inicio-frase-line"></div>
-
       </section>
-
 
       {/* =====================================================
           SOBRE
       ===================================================== */}
 
-      <section
-        id="sobre"
-        className="inicio-section inicio-sobre"
-      >
-
+      <section id="sobre" className="inicio-section inicio-sobre">
         <div className="inicio-section-title">
-
-          <span>CONHEÇA O PULSAN</span>
+          <span>Conheça o Pulsan</span>
 
           <h2>
             Um espaço criado para
@@ -211,89 +296,44 @@ function Inicio({ irPara }) {
           </h2>
 
           <p>
-            Nem sempre é fácil falar sobre o que sentimos.
-            O Pulsan nasceu com a proposta de criar um ambiente
-            onde as pessoas possam compartilhar seus sentimentos,
-            encontrar escuta e construir conexões baseadas em
-            empatia e respeito.
+            Nem sempre é fácil falar sobre o que sentimos. O Pulsan nasceu
+            com a proposta de criar um ambiente onde as pessoas possam
+            compartilhar seus sentimentos, encontrar escuta e construir
+            conexões baseadas em empatia e respeito.
           </p>
-
         </div>
-
 
         <div className="inicio-sobre-grid">
+          {SOBRE_DATA.map((item, index) => {
+            const isActive = activeSobre === index;
+            return (
+              <button
+                type="button"
+                key={item.titulo}
+                className={`inicio-sobre-card${isActive ? " destaque" : ""}`}
+                onClick={() => setActiveSobre(index)}
+                aria-expanded={isActive}
+              >
+                <div className="card-icon">{item.icon}</div>
+                <h3>{item.titulo}</h3>
+                <p>{item.texto}</p>
 
-          <div className="inicio-sobre-card destaque">
-
-            <div className="card-icon">
-              💭
-            </div>
-
-            <h3>
-              Falar
-            </h3>
-
-            <p>
-              Compartilhe aquilo que está sentindo
-              e coloque em palavras o que muitas vezes
-              fica guardado.
-            </p>
-
-          </div>
-
-
-          <div className="inicio-sobre-card">
-
-            <div className="card-icon">
-              👂
-            </div>
-
-            <h3>
-              Ser ouvido
-            </h3>
-
-            <p>
-              Encontre pessoas dispostas a ouvir
-              e oferecer uma palavra de apoio.
-            </p>
-
-          </div>
-
-
-          <div className="inicio-sobre-card">
-
-            <div className="card-icon">
-              💙
-            </div>
-
-            <h3>
-              Acolher
-            </h3>
-
-            <p>
-              Incentive relações baseadas em empatia,
-              respeito e compreensão.
-            </p>
-
-          </div>
-
+                <div className={`sobre-extra${isActive ? " open" : ""}`}>
+                  <p>{item.extra}</p>
+                </div>
+              </button>
+            );
+          })}
         </div>
-
       </section>
-
 
       {/* =====================================================
           COMO FUNCIONA
       ===================================================== */}
 
-      <section
-        id="como-funciona"
-        className="inicio-section inicio-como"
-      >
-
+      <section id="como-funciona" className="inicio-section inicio-como">
         <div className="inicio-section-title center">
-
-          <span>COMO FUNCIONA</span>
+          <span>Como funciona</span>
 
           <h2>
             Simples para você.
@@ -301,103 +341,58 @@ function Inicio({ irPara }) {
           </h2>
 
           <p>
-            O Pulsan foi pensado para que pedir apoio,
-            oferecer escuta e conversar seja algo simples
-            e natural.
+            O Pulsan foi pensado para que pedir apoio, oferecer escuta e
+            conversar seja algo simples e natural.
           </p>
-
         </div>
 
-
-        <div className="inicio-passos">
-
-          <div className="inicio-passo">
-
-            <div className="passo-numero">
-              01
-            </div>
-
-            <div className="passo-icon">
-              💭
-            </div>
-
-            <h3>
-              Compartilhe
-            </h3>
-
-            <p>
-              Escreva sobre o que você está sentindo
-              em um espaço pensado para acolher.
-            </p>
-
+        <div className="inicio-passos-wrap">
+          <div className="pulso-track" aria-hidden="true">
+            <svg className="pulso-line" viewBox="0 0 600 40" preserveAspectRatio="none">
+              <path d="M0,20 L230,20 L250,4 L270,36 L290,20 L600,20" />
+            </svg>
+            <div
+              className="pulso-dot"
+              style={{ left: `${activeStep * 50}%` }}
+            ></div>
           </div>
 
+          <div className="inicio-passos">
+            {PASSOS_DATA.map((passo, index) => {
+              const isActive = activeStep === index;
+              return (
+                <React.Fragment key={passo.titulo}>
+                  <button
+                    type="button"
+                    className={`inicio-passo${isActive ? " active" : ""}`}
+                    onClick={() => setActiveStep(index)}
+                  >
+                    <div className="passo-numero">{passo.numero}</div>
+                    <div className="passo-icon">{passo.icon}</div>
+                    <h3>{passo.titulo}</h3>
+                    <p>{passo.texto}</p>
+                  </button>
 
-          <div className="passo-linha"></div>
-
-
-          <div className="inicio-passo">
-
-            <div className="passo-numero">
-              02
-            </div>
-
-            <div className="passo-icon">
-              🤝
-            </div>
-
-            <h3>
-              Receba apoio
-            </h3>
-
-            <p>
-              Pessoas dispostas a ajudar podem
-              demonstrar interesse em conversar.
-            </p>
-
+                  {index < PASSOS_DATA.length - 1 && <div className="passo-espaco"></div>}
+                </React.Fragment>
+              );
+            })}
           </div>
 
-
-          <div className="passo-linha"></div>
-
-
-          <div className="inicio-passo">
-
-            <div className="passo-numero">
-              03
-            </div>
-
-            <div className="passo-icon">
-              💬
-            </div>
-
-            <h3>
-              Converse
-            </h3>
-
-            <p>
-              Quando houver aceitação, vocês podem
-              iniciar uma conversa privada.
-            </p>
-
+          <div className="passo-exemplo">
+            <span>💬</span>
+            <p>{PASSOS_DATA[activeStep].exemplo}</p>
           </div>
-
         </div>
-
       </section>
-
 
       {/* =====================================================
           PARA QUEM É
       ===================================================== */}
 
       <section className="inicio-section inicio-publico">
-
         <div className="inicio-publico-text">
-
-          <span>
-            PARA QUEM É O PULSAN?
-          </span>
+          <span>Para quem é o Pulsan?</span>
 
           <h2>
             Um projeto que pode
@@ -405,110 +400,55 @@ function Inicio({ irPara }) {
           </h2>
 
           <p>
-            O Pulsan foi pensado inicialmente para contextos
-            onde o cuidado emocional e a comunicação podem
-            fazer diferença no dia a dia.
+            O Pulsan foi pensado inicialmente para contextos onde o cuidado
+            emocional e a comunicação podem fazer diferença no dia a dia.
           </p>
-
         </div>
-
 
         <div className="inicio-publico-cards">
+          {PUBLICO_DATA.map((item, index) => (
+            <button
+              type="button"
+              key={item.titulo}
+              className={`publico-flip${flipped[index] ? " is-flipped" : ""}`}
+              onClick={() => toggleFlip(index)}
+              aria-label={`Ver depoimento sobre ${item.titulo}`}
+            >
+              <div className="publico-flip-inner">
+                <div className="publico-card publico-front">
+                  <span>{item.icon}</span>
+                  <div>
+                    <h3>{item.titulo}</h3>
+                    <p>{item.texto}</p>
+                  </div>
+                </div>
 
-          <div className="publico-card">
-
-            <span>
-              🏢
-            </span>
-
-            <div>
-              <h3>
-                Empresas
-              </h3>
-
-              <p>
-                Incentivar uma cultura de escuta,
-                acolhimento e cuidado entre colaboradores.
-              </p>
-            </div>
-
-          </div>
-
-
-          <div className="publico-card">
-
-            <span>
-              🎓
-            </span>
-
-            <div>
-              <h3>
-                Escolas
-              </h3>
-
-              <p>
-                Criar espaços de diálogo e atenção
-                às relações e ao bem-estar dos estudantes.
-              </p>
-            </div>
-
-          </div>
-
-
-          <div className="publico-card">
-
-            <span>
-              👥
-            </span>
-
-            <div>
-              <h3>
-                Comunidade
-              </h3>
-
-              <p>
-                Aproximar pessoas através da empatia,
-                escuta e apoio mútuo.
-              </p>
-            </div>
-
-          </div>
-
+                <div className="publico-card publico-back">
+                  <p>{item.voz}</p>
+                  <small>toque para voltar</small>
+                </div>
+              </div>
+            </button>
+          ))}
         </div>
-
       </section>
-
 
       {/* =====================================================
           SEGURANÇA
       ===================================================== */}
 
-      <section
-        id="seguranca"
-        className="inicio-section inicio-seguranca"
-      >
-
+      <section id="seguranca" className="inicio-section inicio-seguranca">
         <div className="seguranca-visual">
-
           <div className="seguranca-circle">
-
-            <div>
-              🔒
-            </div>
-
+            <div>🔒</div>
           </div>
 
           <span className="seguranca-orbit orbit-one"></span>
           <span className="seguranca-orbit orbit-two"></span>
-
         </div>
 
-
         <div className="seguranca-text">
-
-          <span>
-            PRIVACIDADE E SEGURANÇA
-          </span>
+          <span>Privacidade e segurança</span>
 
           <h2>
             Sua identidade
@@ -516,55 +456,55 @@ function Inicio({ irPara }) {
           </h2>
 
           <p>
-            O Pulsan foi pensado para preservar a identidade
-            de quem decide compartilhar um desabafo.
-            O objetivo é proporcionar um ambiente onde falar
-            sobre sentimentos não precise significar medo
-            de exposição ou julgamento.
+            O Pulsan foi pensado para preservar a identidade de quem decide
+            compartilhar um desabafo. O objetivo é proporcionar um ambiente
+            onde falar sobre sentimentos não precise significar medo de
+            exposição ou julgamento.
           </p>
 
+          <button
+            type="button"
+            className="seguranca-demo"
+            onClick={() => setAnonReveal((v) => !v)}
+            aria-pressed={anonReveal}
+          >
+            <span className={`seguranca-demo-nome${anonReveal ? " protegido" : ""}`}>
+              {anonReveal ? "Anônimo" : "Ana Lima"}
+            </span>
+            <span className="seguranca-demo-icone">{anonReveal ? "🔒" : "👁️"}</span>
+          </button>
+          <small className="seguranca-demo-legenda">
+            {anonReveal
+              ? "Assim é como seu desabafo aparece para os outros."
+              : "Toque para ver como o Pulsan protege esse nome."}
+          </small>
 
           <div className="seguranca-lista">
-
             <div>
               <span>✓</span>
-              <p>
-                Identidade protegida nos desabafos
-              </p>
+              <p>Identidade protegida nos desabafos</p>
             </div>
 
             <div>
               <span>✓</span>
-              <p>
-                Conversas privadas entre as pessoas envolvidas
-              </p>
+              <p>Conversas privadas entre as pessoas envolvidas</p>
             </div>
 
             <div>
               <span>✓</span>
-              <p>
-                Ambiente baseado em respeito e acolhimento
-              </p>
+              <p>Ambiente baseado em respeito e acolhimento</p>
             </div>
-
           </div>
-
         </div>
-
       </section>
-
 
       {/* =====================================================
           PROPÓSITO
       ===================================================== */}
 
       <section className="inicio-proposito">
-
         <div className="proposito-content">
-
-          <span>
-            O PROPÓSITO DO PULSAN
-          </span>
+          <span>O propósito do Pulsan</span>
 
           <h2>
             Porque às vezes,
@@ -573,81 +513,52 @@ function Inicio({ irPara }) {
           </h2>
 
           <p>
-            O Pulsan busca incentivar uma cultura de empatia,
-            escuta e cuidado emocional, mostrando que falar
-            sobre o que sentimos pode ser um passo importante
-            para não enfrentar tudo sozinho.
+            O Pulsan busca incentivar uma cultura de empatia, escuta e
+            cuidado emocional, mostrando que falar sobre o que sentimos pode
+            ser um passo importante para não enfrentar tudo sozinho.
           </p>
-
         </div>
-
       </section>
-
 
       {/* =====================================================
           CTA FINAL
       ===================================================== */}
 
       <section className="inicio-final">
-
         <div className="inicio-final-card">
+          <div className="final-pulse" aria-hidden="true"></div>
 
-          <div className="final-decoration">
-            ✦
-          </div>
+          <span>Quer fazer parte?</span>
 
-          <span>
-            QUER FAZER PARTE?
-          </span>
-
-          <h2>
-            Existe espaço para você aqui.
-          </h2>
+          <h2>Existe espaço para você aqui.</h2>
 
           <p>
-            Crie sua conta e conheça uma nova forma
-            de compartilhar, ouvir e acolher.
+            Crie sua conta e conheça uma nova forma de compartilhar, ouvir e
+            acolher.
           </p>
 
-          <button
-            type="button"
-            onClick={irParaCadastro}
-          >
+          <button type="button" onClick={irParaCadastro}>
             Começar agora
             <span>→</span>
           </button>
-
         </div>
-
       </section>
-
 
       {/* =====================================================
           RODAPÉ
       ===================================================== */}
 
       <footer className="inicio-footer">
-
         <div className="footer-brand">
-
-          <img
-            src="/logo.png"
-            alt="Pulsan"
-          />
-
+          <img src="/logo.png" alt="Pulsan" />
           <div>
             <strong>Pulsan</strong>
             <span>Você importa.</span>
           </div>
-
         </div>
 
-        <p>
-          Um espaço para ouvir, acolher e conectar.
-        </p>
-
+        <p>Um espaço para ouvir, acolher e conectar.</p>
       </footer>
-
 
       {/* =====================================================
           CSS
@@ -967,6 +878,8 @@ function Inicio({ irPara }) {
 
           box-shadow:
             0 35px 80px rgba(15,45,91,.12);
+
+          overflow: hidden;
         }
 
         .hero-card-glow {
@@ -978,6 +891,41 @@ function Inicio({ irPara }) {
           border-radius: 50%;
           background: rgba(58,125,255,.12);
           filter: blur(25px);
+        }
+
+        .hero-pulse-svg {
+          position: absolute;
+          left: 0;
+          right: 0;
+          top: 58px;
+
+          width: 100%;
+          height: 44px;
+
+          opacity: .55;
+          z-index: 1;
+        }
+
+        .hero-pulse-path {
+          fill: none;
+          stroke: #3a7dff;
+          stroke-width: 2;
+          stroke-linecap: round;
+          stroke-linejoin: round;
+
+          stroke-dasharray: 620;
+          stroke-dashoffset: 620;
+          animation: pulseDraw 2.4s ease-out .4s forwards,
+                      pulseGlow 2.6s ease-in-out 2.8s infinite;
+        }
+
+        @keyframes pulseDraw {
+          to { stroke-dashoffset: 0; }
+        }
+
+        @keyframes pulseGlow {
+          0%, 100% { opacity: .35; }
+          50% { opacity: .8; }
         }
 
         .hero-card-top {
@@ -1008,6 +956,7 @@ function Inicio({ irPara }) {
           z-index: 2;
 
           max-width: 280px;
+          min-height: 1.5em;
           padding: 18px;
 
           border-radius: 20px;
@@ -1030,6 +979,7 @@ function Inicio({ irPara }) {
 
         .bubble-two {
           align-self: flex-end;
+          margin-top: 14px;
 
           background: #3a7dff;
           color: #ffffff;
@@ -1037,6 +987,20 @@ function Inicio({ irPara }) {
           border-bottom-right-radius: 5px;
 
           box-shadow: 0 12px 25px rgba(58,125,255,.20);
+        }
+
+        .type-cursor {
+          display: inline-block;
+          width: 2px;
+          height: 12px;
+          margin-left: 2px;
+          background: currentColor;
+          vertical-align: middle;
+          animation: blink 1s step-end infinite;
+        }
+
+        @keyframes blink {
+          50% { opacity: 0; }
         }
 
         .hero-card-bottom {
@@ -1132,9 +1096,8 @@ function Inicio({ irPara }) {
         .proposito-content > span,
         .inicio-final-card > span {
           color: #3a7dff;
-          font-size: 10px;
-          font-weight: 800;
-          letter-spacing: 1.5px;
+          font-size: 12px;
+          font-weight: 700;
         }
 
         .inicio-section-title h2,
@@ -1164,7 +1127,7 @@ function Inicio({ irPara }) {
 
 
         /* =================================================
-           SOBRE
+           SOBRE (agora interativo)
         ================================================= */
 
         .inicio-sobre-grid {
@@ -1172,24 +1135,37 @@ function Inicio({ irPara }) {
           grid-template-columns: repeat(3, 1fr);
           gap: 18px;
           margin-top: 45px;
+          align-items: start;
         }
 
         .inicio-sobre-card {
+          width: 100%;
+
           padding: 28px;
 
           border: 1px solid #e1ebf8;
           border-radius: 22px;
 
           background: #ffffff;
+          color: inherit;
+          font: inherit;
+          text-align: left;
+
+          cursor: pointer;
 
           box-shadow: 0 15px 40px rgba(15,45,91,.05);
 
-          transition: .25s;
+          transition: border-color .25s, background .25s, transform .25s, box-shadow .25s;
         }
 
         .inicio-sobre-card:hover {
           transform: translateY(-5px);
           box-shadow: 0 20px 45px rgba(15,45,91,.09);
+        }
+
+        .inicio-sobre-card:focus-visible {
+          outline: 2px solid #3a7dff;
+          outline-offset: 3px;
         }
 
         .inicio-sobre-card.destaque {
@@ -1223,27 +1199,111 @@ function Inicio({ irPara }) {
           line-height: 1.7;
         }
 
+        .sobre-extra {
+          max-height: 0;
+          overflow: hidden;
+          opacity: 0;
+          transition: max-height .35s ease, opacity .3s ease, margin-top .35s ease;
+        }
+
+        .sobre-extra p {
+          margin: 0;
+          padding-top: 12px;
+          border-top: 1px dashed #a8c7ff;
+
+          color: #3a7dff;
+          font-size: 12px;
+          line-height: 1.7;
+        }
+
+        .sobre-extra.open {
+          max-height: 160px;
+          opacity: 1;
+          margin-top: 14px;
+        }
+
 
         /* =================================================
-           COMO FUNCIONA
+           COMO FUNCIONA (linha de pulso)
         ================================================= */
 
         .inicio-como {
           max-width: 1200px;
         }
 
+        .inicio-passos-wrap {
+          margin-top: 60px;
+        }
+
+        .pulso-track {
+          position: relative;
+          height: 40px;
+          margin: 0 auto -6px;
+          max-width: 600px;
+        }
+
+        .pulso-line {
+          width: 100%;
+          height: 100%;
+        }
+
+        .pulso-line path {
+          fill: none;
+          stroke: #a8c7ff;
+          stroke-width: 1.5;
+          stroke-linecap: round;
+          stroke-linejoin: round;
+        }
+
+        .pulso-dot {
+          position: absolute;
+          top: 50%;
+          width: 12px;
+          height: 12px;
+          margin-left: -6px;
+          margin-top: -6px;
+
+          border-radius: 50%;
+          background: #3a7dff;
+          box-shadow: 0 0 0 6px rgba(58,125,255,.18);
+
+          transition: left .45s ease;
+        }
+
         .inicio-passos {
           display: flex;
           align-items: stretch;
           justify-content: center;
-
-          margin-top: 60px;
         }
 
         .inicio-passo {
           flex: 1;
           max-width: 280px;
+
+          border: none;
+          background: transparent;
+          font: inherit;
+          color: inherit;
+
+          padding: 6px 10px 0;
           text-align: center;
+          cursor: pointer;
+
+          border-radius: 16px;
+          transition: transform .25s, background .25s;
+        }
+
+        .inicio-passo:hover {
+          background: #eaf3ff;
+        }
+
+        .inicio-passo:focus-visible {
+          outline: 2px solid #3a7dff;
+          outline-offset: 3px;
+        }
+
+        .inicio-passo.active {
+          background: #eaf3ff;
         }
 
         .passo-numero {
@@ -1251,6 +1311,10 @@ function Inicio({ irPara }) {
           font-size: 11px;
           font-weight: 800;
           letter-spacing: 1px;
+        }
+
+        .inicio-passo.active .passo-numero {
+          color: #3a7dff;
         }
 
         .passo-icon {
@@ -1267,6 +1331,14 @@ function Inicio({ irPara }) {
           background: #eaf3ff;
 
           font-size: 27px;
+
+          transition: transform .3s;
+        }
+
+        .inicio-passo.active .passo-icon {
+          transform: scale(1.08);
+          background: #ffffff;
+          box-shadow: 0 12px 25px rgba(58,125,255,.18);
         }
 
         .inicio-passo h3 {
@@ -1281,16 +1353,40 @@ function Inicio({ irPara }) {
           line-height: 1.6;
         }
 
-        .passo-linha {
+        .passo-espaco {
           width: 70px;
-          height: 1px;
-          margin-top: 92px;
-          background: #a8c7ff;
+        }
+
+        .passo-exemplo {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+
+          max-width: 560px;
+          margin: 34px auto 0;
+          padding: 16px 20px;
+
+          border: 1px solid #e1ebf8;
+          border-radius: 16px;
+          background: #ffffff;
+
+          box-shadow: 0 10px 30px rgba(15,45,91,.05);
+        }
+
+        .passo-exemplo span {
+          font-size: 16px;
+        }
+
+        .passo-exemplo p {
+          margin: 0;
+          color: #60728f;
+          font-size: 12px;
+          line-height: 1.6;
         }
 
 
         /* =================================================
-           PÚBLICO
+           PÚBLICO (flip cards)
         ================================================= */
 
         .inicio-publico {
@@ -1309,6 +1405,36 @@ function Inicio({ irPara }) {
           gap: 12px;
         }
 
+        .publico-flip {
+          border: none;
+          background: transparent;
+          padding: 0;
+          font: inherit;
+          color: inherit;
+          text-align: left;
+          cursor: pointer;
+
+          perspective: 1200px;
+        }
+
+        .publico-flip:focus-visible {
+          outline: 2px solid #3a7dff;
+          outline-offset: 3px;
+        }
+
+        .publico-flip-inner {
+          position: relative;
+          width: 100%;
+          min-height: 92px;
+
+          transform-style: preserve-3d;
+          transition: transform .5s;
+        }
+
+        .publico-flip.is-flipped .publico-flip-inner {
+          transform: rotateY(180deg);
+        }
+
         .publico-card {
           display: flex;
           align-items: center;
@@ -1322,6 +1448,41 @@ function Inicio({ irPara }) {
           background: #ffffff;
 
           box-shadow: 0 10px 30px rgba(15,45,91,.04);
+        }
+
+        .publico-front,
+        .publico-back {
+          position: absolute;
+          inset: 0;
+          width: 100%;
+          height: 100%;
+
+          backface-visibility: hidden;
+        }
+
+        .publico-back {
+          flex-direction: column;
+          align-items: flex-start;
+          justify-content: center;
+          gap: 6px;
+
+          background: #eaf3ff;
+          border-color: #a8c7ff;
+
+          transform: rotateY(180deg);
+        }
+
+        .publico-back p {
+          margin: 0;
+          color: #0f2d5b;
+          font-size: 12px;
+          font-style: italic;
+          line-height: 1.6;
+        }
+
+        .publico-back small {
+          color: #3a7dff;
+          font-size: 10px;
         }
 
         .publico-card > span {
@@ -1354,7 +1515,7 @@ function Inicio({ irPara }) {
 
 
         /* =================================================
-           SEGURANÇA
+           SEGURANÇA (demo interativa)
         ================================================= */
 
         .inicio-seguranca {
@@ -1418,6 +1579,7 @@ function Inicio({ irPara }) {
           position: absolute;
           border: 1px dashed #a8c7ff;
           border-radius: 50%;
+          animation: orbitSpin 22s linear infinite;
         }
 
         .orbit-one {
@@ -1433,6 +1595,61 @@ function Inicio({ irPara }) {
           top: 0;
           left: 0;
           opacity: .45;
+          animation-duration: 34s;
+          animation-direction: reverse;
+        }
+
+        @keyframes orbitSpin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+
+        .seguranca-demo {
+          display: inline-flex;
+          align-items: center;
+          gap: 10px;
+
+          margin-top: 22px;
+          padding: 10px 16px;
+
+          border: 1px solid #a8c7ff;
+          border-radius: 30px;
+          background: #eaf3ff;
+
+          cursor: pointer;
+          transition: background .2s;
+        }
+
+        .seguranca-demo:hover {
+          background: #dceafe;
+        }
+
+        .seguranca-demo:focus-visible {
+          outline: 2px solid #3a7dff;
+          outline-offset: 3px;
+        }
+
+        .seguranca-demo-nome {
+          font-size: 13px;
+          font-weight: 700;
+          color: #0f2d5b;
+          filter: blur(0px);
+          transition: filter .3s, color .3s;
+        }
+
+        .seguranca-demo-nome.protegido {
+          color: #3a7dff;
+        }
+
+        .seguranca-demo-icone {
+          font-size: 14px;
+        }
+
+        .seguranca-demo-legenda {
+          display: block;
+          margin-top: 8px;
+          color: #60728f;
+          font-size: 11px;
         }
 
         .seguranca-lista {
@@ -1548,14 +1765,23 @@ function Inicio({ irPara }) {
           text-align: center;
         }
 
-        .final-decoration {
+        .final-pulse {
           position: absolute;
+          top: -60px;
+          right: -60px;
 
-          top: 20px;
-          right: 30px;
+          width: 160px;
+          height: 160px;
 
-          color: #3a7dff;
-          font-size: 25px;
+          border-radius: 50%;
+          background: rgba(58,125,255,.16);
+
+          animation: finalPulse 3.2s ease-in-out infinite;
+        }
+
+        @keyframes finalPulse {
+          0%, 100% { transform: scale(1); opacity: .6; }
+          50% { transform: scale(1.25); opacity: .3; }
         }
 
         .inicio-final-card h2 {
@@ -1575,6 +1801,9 @@ function Inicio({ irPara }) {
         }
 
         .inicio-final-card button {
+          position: relative;
+          z-index: 1;
+
           min-height: 48px;
 
           padding: 0 22px;
@@ -1591,6 +1820,11 @@ function Inicio({ irPara }) {
           cursor: pointer;
 
           box-shadow: 0 12px 25px rgba(58,125,255,.20);
+          transition: transform .2s;
+        }
+
+        .inicio-final-card button:hover {
+          transform: translateY(-3px);
         }
 
         .inicio-final-card button span {
@@ -1651,6 +1885,39 @@ function Inicio({ irPara }) {
 
 
         /* =================================================
+           MOVIMENTO REDUZIDO
+        ================================================= */
+
+        @media (prefers-reduced-motion: reduce) {
+
+          .hero-pulse-path {
+            animation: none;
+            stroke-dashoffset: 0;
+          }
+
+          .seguranca-orbit {
+            animation: none;
+          }
+
+          .final-pulse {
+            animation: none;
+          }
+
+          .type-cursor {
+            animation: none;
+          }
+
+          .inicio-passo,
+          .publico-flip-inner,
+          .inicio-sobre-card,
+          .pulso-dot {
+            transition: none;
+          }
+
+        }
+
+
+        /* =================================================
            TABLET
         ================================================= */
 
@@ -1698,20 +1965,6 @@ function Inicio({ irPara }) {
             grid-template-columns: 1fr;
           }
 
-          .inicio-sobre-card {
-            display: grid;
-            grid-template-columns: 55px 1fr;
-            column-gap: 15px;
-          }
-
-          .inicio-sobre-card .card-icon {
-            grid-row: span 2;
-          }
-
-          .inicio-sobre-card h3 {
-            margin: 2px 0 5px;
-          }
-
           .inicio-publico,
           .inicio-seguranca {
             grid-template-columns: 1fr;
@@ -1726,6 +1979,11 @@ function Inicio({ irPara }) {
           .seguranca-lista {
             align-items: flex-start;
             width: fit-content;
+            margin-left: auto;
+            margin-right: auto;
+          }
+
+          .seguranca-demo {
             margin-left: auto;
             margin-right: auto;
           }
@@ -1834,21 +2092,22 @@ function Inicio({ irPara }) {
             padding: 20px;
           }
 
+          .pulso-track {
+            display: none;
+          }
+
           .inicio-passos {
             flex-direction: column;
             align-items: center;
             gap: 10px;
-            margin-top: 40px;
           }
 
           .inicio-passo {
             width: 100%;
           }
 
-          .passo-linha {
-            width: 1px;
-            height: 35px;
-            margin: 0;
+          .passo-espaco {
+            display: none;
           }
 
           .inicio-publico {
@@ -1934,7 +2193,6 @@ function Inicio({ irPara }) {
         }
 
       `}</style>
-
     </main>
   );
 }

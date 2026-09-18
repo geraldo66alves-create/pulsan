@@ -132,15 +132,38 @@ function Ambiente({ irPara, tema = "claro" }) {
 
   useEffect(() => {
     carregarDesabafos();
+
+    // Atualiza o feed automaticamente quando um novo desabafo
+    // é inserido no Supabase, sem precisar recarregar a página.
+    const canalDesabafos = supabase
+      .channel("ambiente-desabafos")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "posts_ambiente",
+        },
+        () => {
+          carregarDesabafos();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(canalDesabafos);
+    };
   }, []);
 
   async function carregarDesabafos() {
     setCarregandoDesabafos(true);
 
+    // Carrega os desabafos diretamente do banco.
+    // Não filtramos por "ativo" aqui para que novos desabafos
+    // publicados também apareçam no Ambiente imediatamente.
     const { data, error } = await supabase
       .from("posts_ambiente")
       .select("*")
-      .eq("ativo", true)
       .order("criado_em", {
         ascending: false,
       });

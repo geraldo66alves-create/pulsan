@@ -7,8 +7,96 @@ function AcessibilidadeInicial({
   alterarAcessibilidade,
 }) {
   const [salvando, setSalvando] = useState(false);
+  const [falandoTutorial, setFalandoTutorial] = useState(false);
 
   const escuro = tema === "escuro";
+
+  // ============================================================
+  // TUTORIAL AUTOMÁTICO DA LEITURA E COMANDO POR VOZ
+  // Quando a pessoa seleciona "Leitura e comando por voz",
+  // o Pulsan explica imediatamente como o recurso funciona.
+  // ============================================================
+  function falarTutorialVoz() {
+    if (!("speechSynthesis" in window)) {
+      alert(
+        "A leitura por voz não está disponível neste navegador. " +
+        "Você ainda pode utilizar os recursos de acessibilidade do seu dispositivo."
+      );
+      return;
+    }
+
+    window.speechSynthesis.cancel();
+
+    const texto = `
+      Olá! O Pulsan ativou a leitura e o comando por voz.
+
+      Esse recurso permite que você ouça as informações da plataforma
+      e também utilize sua voz para navegar pelo Pulsan.
+
+      Para ouvir o conteúdo da tela, você poderá dizer:
+      Ler página.
+
+      Para navegar, poderá dizer comandos como:
+      Abrir início.
+      Abrir ambiente.
+      Abrir conversas.
+      Abrir perfil.
+      Voltar.
+
+      Quando o comando por voz estiver ouvindo, fale de forma clara
+      e aguarde o Pulsan reconhecer o comando.
+
+      A leitura por voz e os comandos podem ser utilizados enquanto
+      você navega pela plataforma.
+
+      Você também pode utilizar o TalkBack, no Android, ou o VoiceOver,
+      no iPhone, junto com os recursos de acessibilidade do seu dispositivo.
+
+      Se quiser interromper a explicação, você pode utilizar o controle
+      de leitura do seu dispositivo ou desativar a opção de voz.
+
+      A partir de agora, o Pulsan estará preparado para ajudar você
+      a navegar de uma forma mais acessível.
+    `;
+
+    const fala = new SpeechSynthesisUtterance(texto);
+    fala.lang = "pt-BR";
+    fala.rate = 0.88;
+    fala.pitch = 1;
+
+    fala.onstart = () => setFalandoTutorial(true);
+    fala.onend = () => setFalandoTutorial(false);
+    fala.onerror = () => setFalandoTutorial(false);
+
+    window.speechSynthesis.speak(fala);
+  }
+
+  function pararTutorialVoz() {
+    if ("speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
+    setFalandoTutorial(false);
+  }
+
+  function alternarOpcao(opcaoId) {
+    const ativo = Boolean(acessibilidade?.[opcaoId]);
+    const novoValor = !ativo;
+
+    alterarAcessibilidade(opcaoId, novoValor);
+
+    // A explicação começa somente quando a opção é ativada.
+    if (opcaoId === "voz" && novoValor) {
+      // Pequeno intervalo para a interface atualizar visualmente
+      // antes de iniciar a fala.
+      setTimeout(() => {
+        falarTutorialVoz();
+      }, 120);
+    }
+
+    if (opcaoId === "voz" && !novoValor) {
+      pararTutorialVoz();
+    }
+  }
 
   const opcoes = [
     {
@@ -191,9 +279,7 @@ function AcessibilidadeInicial({
               <button
                 key={opcao.id}
                 type="button"
-                onClick={() =>
-                  alterarAcessibilidade(opcao.id, !ativo)
-                }
+                onClick={() => alternarOpcao(opcao.id)}
                 aria-pressed={ativo}
                 style={{
                   textAlign: "left",
@@ -296,10 +382,56 @@ function AcessibilidadeInicial({
                     {ativo ? "✓" : ""}
                   </span>
                 </div>
+
+                {opcao.id === "voz" && ativo && (
+                  <div
+                    role="status"
+                    aria-live="polite"
+                    style={{
+                      marginTop: "12px",
+                      padding: "10px 12px",
+                      borderRadius: "12px",
+                      background: escuro
+                        ? "rgba(168,199,255,.10)"
+                        : "#FFFFFF",
+                      border: `1px solid ${
+                        escuro ? "rgba(168,199,255,.22)" : "#CFE0FA"
+                      }`,
+                      color: escuro ? "#DCE9FA" : "#496887",
+                      fontSize: "11px",
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    {falandoTutorial
+                      ? "🔊 O Pulsan está explicando como utilizar o recurso de voz..."
+                      : "✓ Recurso ativado. A explicação inicial foi concluída."}
+                  </div>
+                )}
               </button>
             );
           })}
         </div>
+
+        {falandoTutorial && (
+          <button
+            type="button"
+            onClick={pararTutorialVoz}
+            style={{
+              width: "100%",
+              marginTop: "14px",
+              border: `1px solid ${escuro ? "#416DA4" : "#D7E5FA"}`,
+              borderRadius: "14px",
+              padding: "11px 16px",
+              background: escuro ? "rgba(15,45,91,.72)" : "#F9FBFF",
+              color: escuro ? "#DCE9FA" : "#496887",
+              fontSize: "12px",
+              fontWeight: "800",
+              cursor: "pointer",
+            }}
+          >
+            ⏹ Parar explicação por voz
+          </button>
+        )}
 
         <div
           style={{
