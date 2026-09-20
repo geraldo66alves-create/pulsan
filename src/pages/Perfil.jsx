@@ -1321,13 +1321,6 @@ function Perfil({
                         ✏️ Editar meu perfil
                       </button>
 
-                      <button
-                        type="button"
-                        className="perfil-secondary"
-                        onClick={() => irPara("conversa")}
-                      >
-                        💬 Minhas conversas
-                      </button>
                     </div>
                   </>
                 ) : (

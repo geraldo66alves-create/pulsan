@@ -328,9 +328,96 @@ function Acessibilidade({
     configuracao.libras,
   ].filter(Boolean).length;
 
+
+  const estilosAltoContraste = `
+    .pulsan-pagina-acessibilidade {
+      transition: background-color .2s ease, color .2s ease;
+    }
+
+    .pulsan-pagina-acessibilidade.pulsan-acessibilidade-alto-contraste {
+      --pulsan-bg: #05070a !important;
+      --pulsan-card: #11161c !important;
+      --pulsan-texto: #ffffff !important;
+      --pulsan-texto-secundario: #e7edf3 !important;
+      --pulsan-primaria: #5ecbff !important;
+      --pulsan-borda: #d7e3ec !important;
+      background: #05070a !important;
+      color: #ffffff !important;
+    }
+
+    .pulsan-pagina-acessibilidade.pulsan-acessibilidade-alto-contraste section {
+      background: #11161c !important;
+      border: 2px solid #d7e3ec !important;
+      box-shadow: 0 0 0 1px #000000, 0 10px 28px rgba(0,0,0,.55);
+    }
+
+    .pulsan-pagina-acessibilidade.pulsan-acessibilidade-alto-contraste h1,
+    .pulsan-pagina-acessibilidade.pulsan-acessibilidade-alto-contraste h2,
+    .pulsan-pagina-acessibilidade.pulsan-acessibilidade-alto-contraste label,
+    .pulsan-pagina-acessibilidade.pulsan-acessibilidade-alto-contraste strong,
+    .pulsan-pagina-acessibilidade.pulsan-acessibilidade-alto-contraste p,
+    .pulsan-pagina-acessibilidade.pulsan-acessibilidade-alto-contraste span,
+    .pulsan-pagina-acessibilidade.pulsan-acessibilidade-alto-contraste button,
+    .pulsan-pagina-acessibilidade.pulsan-acessibilidade-alto-contraste select,
+    .pulsan-pagina-acessibilidade.pulsan-acessibilidade-alto-contraste option {
+      color: #ffffff !important;
+    }
+
+    .pulsan-pagina-acessibilidade.pulsan-acessibilidade-alto-contraste button {
+      background: #171e26 !important;
+      border: 2px solid #d7e3ec !important;
+      min-height: 52px;
+    }
+
+    .pulsan-pagina-acessibilidade.pulsan-acessibilidade-alto-contraste button:hover:not(:disabled),
+    .pulsan-pagina-acessibilidade.pulsan-acessibilidade-alto-contraste button[aria-pressed="true"] {
+      background: #5ecbff !important;
+      color: #031018 !important;
+      border-color: #ffffff !important;
+      box-shadow: 0 0 0 3px #000000, 0 0 0 5px #5ecbff !important;
+    }
+
+    .pulsan-pagina-acessibilidade.pulsan-acessibilidade-alto-contraste button:focus-visible,
+    .pulsan-pagina-acessibilidade.pulsan-acessibilidade-alto-contraste select:focus-visible {
+      outline: 4px solid #ffd84d !important;
+      outline-offset: 3px !important;
+    }
+
+    .pulsan-pagina-acessibilidade.pulsan-acessibilidade-alto-contraste select {
+      background: #05070a !important;
+      color: #ffffff !important;
+      border: 2px solid #d7e3ec !important;
+    }
+
+    .pulsan-pagina-acessibilidade.pulsan-acessibilidade-alto-contraste [role="note"],
+    .pulsan-pagina-acessibilidade.pulsan-acessibilidade-alto-contraste [aria-live="polite"] {
+      background: #171e26 !important;
+      color: #ffffff !important;
+      border: 1px solid #d7e3ec !important;
+    }
+
+    .pulsan-pagina-acessibilidade.pulsan-acessibilidade-alto-contraste video {
+      border: 2px solid #ffffff !important;
+      background: #000000 !important;
+    }
+
+    .pulsan-pagina-acessibilidade.pulsan-acessibilidade-alto-contraste button:disabled {
+      background: #303840 !important;
+      color: #b8c2cb !important;
+      border-color: #7e8a94 !important;
+      opacity: 1 !important;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .pulsan-pagina-acessibilidade {
+        transition: none !important;
+      }
+    }
+  `;
+
   return (
     <main
-      className="pulsan-pagina-acessibilidade"
+      className={`pulsan-pagina-acessibilidade ${configuracao.altoContraste ? "pulsan-acessibilidade-alto-contraste" : ""}`}
       style={{
         minHeight: "100vh",
         background: "var(--pulsan-bg, #fffdf9)",
@@ -338,6 +425,8 @@ function Acessibilidade({
         padding: "24px 18px 100px",
       }}
     >
+      <style>{estilosAltoContraste}</style>
+
       <div
         style={{
           maxWidth: "760px",
@@ -444,8 +533,35 @@ function Acessibilidade({
               aria-pressed={configuracao.altoContraste}
               style={estiloBotao}
             >
-              {configuracao.altoContraste ? "✓ " : ""}
+              <span
+                aria-hidden="true"
+                style={{
+                  display: "inline-flex",
+                  width: "24px",
+                  height: "24px",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginRight: "10px",
+                  borderRadius: "6px",
+                  background: configuracao.altoContraste ? "#5ecbff" : "transparent",
+                  color: configuracao.altoContraste ? "#031018" : "currentColor",
+                  border: "2px solid currentColor",
+                  fontWeight: "900",
+                }}
+              >
+                {configuracao.altoContraste ? "✓" : ""}
+              </span>
               Alto contraste
+              <span
+                style={{
+                  marginLeft: "auto",
+                  fontSize: "12px",
+                  fontWeight: "800",
+                  opacity: .9,
+                }}
+              >
+                {configuracao.altoContraste ? "ATIVADO" : "DESATIVADO"}
+              </span>
             </button>
 
             <button

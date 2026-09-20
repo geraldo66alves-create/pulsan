@@ -1,6 +1,68 @@
 import React, { useState } from "react";
 import { supabase } from "../lib/supabase";
 
+function Icon({ name, size = 18, strokeWidth = 1.9, className = "" }) {
+  const common = {
+    width: size,
+    height: size,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    className: `pulsan-svg-icon ${className}`.trim(),
+    "aria-hidden": "true",
+  };
+
+  const paths = {
+    message: (
+      <>
+        <path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5H8l-4 3v-6.1A7.5 7.5 0 0 1 4.5 4.5 7.5 7.5 0 0 1 12 2a7.5 7.5 0 0 1 8 9.5Z" />
+        <path d="M8 10h.01M12 10h.01M16 10h.01" strokeWidth="2.5" />
+      </>
+    ),
+    support: (
+      <>
+        <path d="M12 21s-7-4.35-9.2-9.15C1.2 8.35 3.05 5 6.65 5c2.05 0 3.5 1.18 4.35 2.48C11.85 6.18 13.3 5 15.35 5 18.95 5 20.8 8.35 19.2 11.85 17 16.65 12 21 12 21Z" />
+        <path d="M8.5 12.2h7M12 8.7v7" />
+      </>
+    ),
+    shield: (
+      <>
+        <path d="M12 3 20 6v5.5c0 4.7-3.1 7.8-8 9.5-4.9-1.7-8-4.8-8-9.5V6l8-3Z" />
+        <path d="m8.5 12 2.2 2.2 4.8-5" />
+      </>
+    ),
+    heart: (
+      <path d="M20.8 8.9c0 5-8.8 10-8.8 10s-8.8-5-8.8-10A4.7 4.7 0 0 1 12 6.3a4.7 4.7 0 0 1 8.8 2.6Z" />
+    ),
+    eye: (
+      <>
+        <path d="M2.5 12s3.4-6 9.5-6 9.5 6 9.5 6-3.4 6-9.5 6-9.5-6-9.5-6Z" />
+        <circle cx="12" cy="12" r="2.5" />
+      </>
+    ),
+    eyeOff: (
+      <>
+        <path d="m3 3 18 18" />
+        <path d="M10.6 6.2A10.8 10.8 0 0 1 12 6c6.1 0 9.5 6 9.5 6a18 18 0 0 1-3.2 3.7" />
+        <path d="M6.2 8.1C3.9 9.7 2.5 12 2.5 12s3.4 6 9.5 6a10.2 10.2 0 0 0 2-.2" />
+      </>
+    ),
+    arrowRight: <path d="M5 12h13M13 7l5 5-5 5" />,
+    arrowLeft: <path d="M19 12H6M11 7l-5 5 5 5" />,
+    lock: (
+      <>
+        <rect x="5" y="10" width="14" height="10" rx="2" />
+        <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+      </>
+    ),
+  };
+
+  return <svg {...common}>{paths[name] || paths.heart}</svg>;
+}
+
 function Login({ irPara }) {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
@@ -268,7 +330,7 @@ function Login({ irPara }) {
         localStorage.setItem("pulsanAcessoAdmin", "true");
 
         alert(
-          `Bem-vindo ao Pulsan, ${usuarioEncontrado.nome || "usuário"}! 💚`
+          `Bem-vindo ao Pulsan, ${usuarioEncontrado.nome || "usuário"}!`
         );
 
         setEmail("");
@@ -281,7 +343,7 @@ function Login({ irPara }) {
       localStorage.removeItem("pulsanAcessoAdmin");
 
       alert(
-        `Bem-vindo ao Pulsan, ${usuarioEncontrado.nome || "usuário"}! 💚`
+        `Bem-vindo ao Pulsan, ${usuarioEncontrado.nome || "usuário"}!`
       );
 
       setEmail("");
@@ -509,6 +571,12 @@ function Login({ irPara }) {
           margin-bottom: 38px;
         }
 
+        .pulsan-svg-icon {
+          flex: 0 0 auto;
+          display: inline-block;
+          vertical-align: middle;
+        }
+
         .pulsan-login-value {
           display: inline-flex;
           align-items: center;
@@ -637,6 +705,9 @@ function Login({ irPara }) {
         }
 
         .pulsan-login-show {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
           position: absolute;
           top: 50%;
           right: 10px;
@@ -689,6 +760,10 @@ function Login({ irPara }) {
         }
 
         .pulsan-login-register {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 5px;
           width: 100%;
           margin-top: 20px;
           padding: 12px;
@@ -704,6 +779,10 @@ function Login({ irPara }) {
         }
 
         .pulsan-login-back {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 5px;
           width: 100%;
           margin-top: 3px;
           padding: 8px;
@@ -929,10 +1008,10 @@ function Login({ irPara }) {
           </p>
 
           <div className="pulsan-login-values">
-            <span className="pulsan-login-value">💬 Escuta</span>
-            <span className="pulsan-login-value">🤝 Apoio</span>
-            <span className="pulsan-login-value">🔒 Segurança</span>
-            <span className="pulsan-login-value">💙 Acolhimento</span>
+            <span className="pulsan-login-value"><Icon name="message" size={16} /> Escuta</span>
+            <span className="pulsan-login-value"><Icon name="support" size={16} /> Apoio</span>
+            <span className="pulsan-login-value"><Icon name="shield" size={16} /> Segurança</span>
+            <span className="pulsan-login-value"><Icon name="heart" size={16} /> Acolhimento</span>
           </div>
 
           <div className="pulsan-login-commitment">
@@ -996,7 +1075,7 @@ function Login({ irPara }) {
                   onClick={() => setMostrarSenha(!mostrarSenha)}
                   disabled={carregando}
                 >
-                  {mostrarSenha ? "Ocultar" : "Mostrar"}
+                  {mostrarSenha ? <><Icon name="eyeOff" size={17} /> Ocultar</> : <><Icon name="eye" size={17} /> Mostrar</>}
                 </button>
               </div>
             </div>
@@ -1026,7 +1105,7 @@ function Login({ irPara }) {
             disabled={carregando}
           >
             Ainda não tenho uma conta{" "}
-            <strong>→ Criar conta</strong>
+            <strong><Icon name="arrowRight" size={16} /> Criar conta</strong>
           </button>
 
           <button
@@ -1035,11 +1114,11 @@ function Login({ irPara }) {
             onClick={() => irPara("inicio")}
             disabled={carregando}
           >
-            ← Voltar para o início
+            <><Icon name="arrowLeft" size={16} /> Voltar para o início</>
           </button>
 
           <div className="pulsan-login-security">
-            🔒 Sua privacidade e segurança são importantes para nós.
+            <Icon name="shield" size={16} /> Sua privacidade e segurança são importantes para nós.
           </div>
         </div>
       </section>

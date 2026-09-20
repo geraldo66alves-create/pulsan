@@ -3,6 +3,121 @@ import { supabase } from "../lib/supabase";
 
 const API_URL = "http://localhost:3001";
 
+function Icon({ name, size = 18, strokeWidth = 1.9, className = "" }) {
+  const common = {
+    width: size,
+    height: size,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    className: `pulsan-svg-icon ${className}`.trim(),
+    "aria-hidden": "true",
+  };
+
+  const paths = {
+    shield: (
+      <>
+        <path d="M12 3 5 6v5c0 4.6 2.8 8.2 7 10 4.2-1.8 7-5.4 7-10V6l-7-3Z" />
+        <path d="m9.2 12 1.8 1.8 3.8-4" />
+      </>
+    ),
+    heart: (
+      <>
+        <path d="M20.8 8.8c0 5.1-8.8 10-8.8 10s-8.8-4.9-8.8-10A4.8 4.8 0 0 1 12 6.2a4.8 4.8 0 0 1 8.8 2.6Z" />
+      </>
+    ),
+    users: (
+      <>
+        <circle cx="9" cy="8" r="3" />
+        <path d="M3.5 20c.5-3.2 2.3-5 5.5-5s5 1.8 5.5 5" />
+        <path d="M16 5.5a3 3 0 0 1 0 5.9M17 15c2.1.4 3.4 1.8 3.8 4" />
+      </>
+    ),
+    mailLock: (
+      <>
+        <rect x="3" y="5" width="18" height="14" rx="2.5" />
+        <path d="m3.5 7 8.5 6 8.5-6" />
+        <rect x="14.5" y="12.5" width="5" height="4.5" rx="1" />
+        <path d="M16 12.5v-1a1.5 1.5 0 0 1 3 0v1" />
+      </>
+    ),
+    student: (
+      <>
+        <path d="m3 9 9-5 9 5-9 5-9-5Z" />
+        <path d="M7 11.2V16c2.7 2 7.3 2 10 0v-4.8" />
+        <path d="M21 9v6" />
+      </>
+    ),
+    user: (
+      <>
+        <circle cx="12" cy="8" r="3.2" />
+        <path d="M5 20c.7-3.7 3-5.6 7-5.6s6.3 1.9 7 5.6" />
+      </>
+    ),
+    briefcase: (
+      <>
+        <rect x="3" y="7" width="18" height="13" rx="2.5" />
+        <path d="M8 7V5.5A1.5 1.5 0 0 1 9.5 4h5A1.5 1.5 0 0 1 16 5.5V7M3 12h18M10 12v2h4v-2" />
+      </>
+    ),
+    brain: (
+      <>
+        <path d="M9 4.5A3 3 0 0 0 6 7.4 3.2 3.2 0 0 0 4 10.3a3.4 3.4 0 0 0 2 3.1A3.3 3.3 0 0 0 9 17h1V6a3 3 0 0 0-1-1.5Z" />
+        <path d="M15 4.5A3 3 0 0 1 18 7.4a3.2 3.2 0 0 1 2 2.9 3.4 3.4 0 0 1-2 3.1 3.3 3.3 0 0 1-3 3.5h-1V6a3 3 0 0 1 1-1.5Z" />
+        <path d="M10 9H8.5M10 13H8M14 9h1.5M14 13h2" />
+      </>
+    ),
+    building: (
+      <>
+        <path d="M4 21V5a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v16M17 9h3v12M2 21h20" />
+        <path d="M8 7h2M13 7h2M8 11h2M13 11h2M8 15h2M13 15h2" />
+      </>
+    ),
+    camera: (
+      <>
+        <path d="M4 7h3l1.5-2h7L17 7h3a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z" />
+        <circle cx="12" cy="13" r="4" />
+      </>
+    ),
+    file: (
+      <>
+        <path d="M7 3h7l4 4v14H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" />
+        <path d="M14 3v5h5M9 13h6M9 17h5" />
+      </>
+    ),
+    paperclip: (
+      <>
+        <path d="m9.5 12.5 5.7-5.7a3 3 0 1 1 4.2 4.2l-7.5 7.5a5 5 0 0 1-7.1-7.1l7.4-7.4a2.8 2.8 0 0 1 4 4l-7.2 7.2a1.5 1.5 0 0 1-2.1-2.1l6.4-6.4" />
+      </>
+    ),
+    lock: (
+      <>
+        <rect x="5" y="10" width="14" height="10" rx="2" />
+        <path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v2" />
+      </>
+    ),
+    arrowLeft: (
+      <>
+        <path d="M19 12H5M11 18l-6-6 6-6" />
+      </>
+    ),
+    refresh: (
+      <>
+        <path d="M20 11a8 8 0 0 0-14.8-4L3 10M3 5v5h5" />
+        <path d="M4 13a8 8 0 0 0 14.8 4L21 14m0 5v-5h-5" />
+      </>
+    ),
+  };
+
+  return <svg {...common}>{paths[name] || paths.user}</svg>;
+}
+
+// A confirmação de e-mail usa o Site URL configurado no Supabase.
+// Isso é importante porque o cadastro pode ser iniciado em localhost,
+// mas o link recebido por e-mail pode ser aberto em outro dispositivo.
 function Cadastro({ irPara }) {
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
@@ -31,7 +146,7 @@ function Cadastro({ irPara }) {
   // SELECIONAR FOTO
   // =========================
 
-  function selecionarFoto(e) {
+  async function selecionarFoto(e) {
     const arquivo = e.target.files?.[0];
 
     if (!arquivo) return;
@@ -41,13 +156,67 @@ function Cadastro({ irPara }) {
       return;
     }
 
-    const leitor = new FileReader();
+    if (arquivo.size > 8 * 1024 * 1024) {
+      alert("A foto deve ter no máximo 8 MB.");
+      return;
+    }
 
-    leitor.onload = () => {
-      setFoto(leitor.result);
-    };
+    try {
+      // Reduzimos a imagem antes de salvar para evitar gravar arquivos
+      // enormes no banco. A foto continua sendo exibida normalmente no perfil.
+      const leitor = new FileReader();
 
-    leitor.readAsDataURL(arquivo);
+      leitor.onload = () => {
+        const imagem = new Image();
+
+        imagem.onload = () => {
+          const tamanhoMaximo = 900;
+          const escala = Math.min(
+            1,
+            tamanhoMaximo / Math.max(imagem.width, imagem.height)
+          );
+
+          const largura = Math.max(1, Math.round(imagem.width * escala));
+          const altura = Math.max(1, Math.round(imagem.height * escala));
+
+          const canvas = document.createElement("canvas");
+          canvas.width = largura;
+          canvas.height = altura;
+
+          const contexto = canvas.getContext("2d");
+          if (!contexto) {
+            alert("Não foi possível preparar a foto.");
+            return;
+          }
+
+          contexto.drawImage(imagem, 0, 0, largura, altura);
+
+          const fotoComprimida = canvas.toDataURL("image/jpeg", 0.82);
+
+          if (fotoComprimida.length > 900000) {
+            const fotoMenor = canvas.toDataURL("image/jpeg", 0.68);
+            setFoto(fotoMenor);
+          } else {
+            setFoto(fotoComprimida);
+          }
+        };
+
+        imagem.onerror = () => {
+          alert("Não foi possível carregar a foto selecionada.");
+        };
+
+        imagem.src = String(leitor.result || "");
+      };
+
+      leitor.onerror = () => {
+        alert("Não foi possível ler a foto selecionada.");
+      };
+
+      leitor.readAsDataURL(arquivo);
+    } catch (erro) {
+      console.error("Erro ao preparar foto:", erro);
+      alert("Não foi possível preparar a foto.");
+    }
   }
 
   // =========================
@@ -154,8 +323,45 @@ function Cadastro({ irPara }) {
       }
     }
 
-    if (senha.length < 6) {
-      alert("A senha precisa ter pelo menos 6 caracteres.");
+    const requisitosSenha = {
+      tamanho: senha.length >= 8,
+      maiuscula: /[A-Z]/.test(senha),
+      minuscula: /[a-z]/.test(senha),
+      numero: /\d/.test(senha),
+      especial: /[^A-Za-z0-9]/.test(senha),
+    };
+
+    const senhaMuitoComum = [
+      "12345678",
+      "123456789",
+      "1234567890",
+      "password",
+      "password123",
+      "senha123",
+      "qwerty123",
+      "qwertyui",
+      "abc12345",
+      "abcdefgh",
+    ].includes(senha.trim().toLowerCase());
+
+    const senhaForte =
+      requisitosSenha.tamanho &&
+      requisitosSenha.maiuscula &&
+      requisitosSenha.minuscula &&
+      requisitosSenha.numero &&
+      requisitosSenha.especial &&
+      !senhaMuitoComum;
+
+    if (!senhaForte) {
+      alert(
+        "Crie uma senha forte para continuar.\n\n" +
+          "Ela precisa ter:\n" +
+          "• pelo menos 8 caracteres;\n" +
+          "• uma letra maiúscula;\n" +
+          "• uma letra minúscula;\n" +
+          "• um número;\n" +
+          "• um caractere especial, como ! @ # $ %."
+      );
       return;
     }
 
@@ -178,10 +384,17 @@ function Cadastro({ irPara }) {
           email: emailNormalizado,
           password: senha,
           options: {
-            emailRedirectTo: window.location.origin,
+            // Não usamos window.location.origin aqui.
+            // Se o cadastro for feito em localhost, isso faria o link do
+            // e-mail apontar para localhost e falhar no celular.
+            // O Supabase usará o Site URL configurado no projeto,
+            // que deve ser a URL pública do Pulsan no Vercel.
             data: {
               nome: nome.trim(),
               tipo_usuario: tipo,
+              // A foto acompanha o cadastro para que o trigger do perfil
+              // possa gravá-la em public.perfis.foto_url.
+              foto_url: foto,
             },
           },
         });
@@ -197,6 +410,10 @@ function Cadastro({ irPara }) {
       if (!usuarioAuth) {
         throw new Error("O Supabase não retornou o usuário criado.");
       }
+
+      // A foto é enviada junto aos metadados do usuário no cadastro.
+      // O trigger public.criar_perfil_usuario() deve copiar foto_url
+      // para public.perfis.foto_url quando o usuário é criado.
 
       // ==========================================
       // PSICÓLOGO
@@ -264,9 +481,9 @@ function Cadastro({ irPara }) {
       const { error } = await supabase.auth.resend({
         type: "signup",
         email: emailConfirmacao,
-        options: {
-          emailRedirectTo: window.location.origin,
-        },
+        // O redirecionamento será controlado pelo Site URL do Supabase.
+        // Assim o link continua funcionando quando aberto em outro dispositivo.
+        options: {},
       });
 
       if (error) {
@@ -289,6 +506,35 @@ function Cadastro({ irPara }) {
       setCarregando(false);
     }
   }
+
+  const requisitosSenhaVisual = {
+    tamanho: senha.length >= 8,
+    maiuscula: /[A-Z]/.test(senha),
+    minuscula: /[a-z]/.test(senha),
+    numero: /\d/.test(senha),
+    especial: /[^A-Za-z0-9]/.test(senha),
+  };
+
+  const senhaMuitoComumVisual = [
+    "12345678",
+    "123456789",
+    "1234567890",
+    "password",
+    "password123",
+    "senha123",
+    "qwerty123",
+    "qwertyui",
+    "abc12345",
+    "abcdefgh",
+  ].includes(senha.trim().toLowerCase());
+
+  const senhaForteVisual =
+    requisitosSenhaVisual.tamanho &&
+    requisitosSenhaVisual.maiuscula &&
+    requisitosSenhaVisual.minuscula &&
+    requisitosSenhaVisual.numero &&
+    requisitosSenhaVisual.especial &&
+    !senhaMuitoComumVisual;
 
   return (
     <>
@@ -448,8 +694,9 @@ function Cadastro({ irPara }) {
           flex-wrap: wrap;
         }
 
-        .story-pill {
-          border: 1px solid rgba(255,255,255,.14);
+                .pulsan-svg-icon { display: inline-block; vertical-align: middle; flex: 0 0 auto; }
+
+        .story-pill {\n          border: 1px solid rgba(255,255,255,.14);
           background: rgba(255,255,255,.08);
           border-radius: 999px;
           padding: 8px 11px;
@@ -574,7 +821,7 @@ function Cadastro({ irPara }) {
           box-shadow: 0 7px 18px rgba(58,125,255,.10);
         }
 
-        .type-icon { font-size: 20px; display: block; margin-bottom: 5px; }
+        .type-icon { width: 28px; height: 28px; display: grid; place-items: center; margin-bottom: 5px; color: var(--pulsan-blue); }
         .type-title { font-weight: 800; font-size: 12px; display: block; }
         .type-desc { font-size: 10px; color: var(--pulsan-muted); display: block; margin-top: 3px; }
 
@@ -673,6 +920,65 @@ function Cadastro({ irPara }) {
           color: #536B88;
           font-size: 10px;
           line-height: 1.5;
+        }
+
+        .password-strength-box {
+          margin-top: -5px;
+          padding: 12px 14px;
+          border: 1px solid var(--pulsan-border);
+          border-radius: 14px;
+          background: #F8FBFF;
+        }
+
+        .password-strength-title {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+          margin-bottom: 8px;
+          color: var(--pulsan-text);
+          font-size: 11px;
+          font-weight: 800;
+        }
+
+        .password-strength-status {
+          font-size: 10px;
+          font-weight: 800;
+        }
+
+        .password-strength-status.ok {
+          color: #16845B;
+        }
+
+        .password-strength-status.pending {
+          color: #7B8BA0;
+        }
+
+        .password-requirements {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 6px 10px;
+        }
+
+        .password-requirement {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          color: #7B8BA0;
+          font-size: 10px;
+          line-height: 1.35;
+        }
+
+        .password-requirement.ok {
+          color: #16845B;
+          font-weight: 700;
+        }
+
+        .password-common-warning {
+          margin-top: 8px;
+          color: #A35A00;
+          font-size: 10px;
+          line-height: 1.4;
         }
 
         .terms-box {
@@ -902,6 +1208,7 @@ function Cadastro({ irPara }) {
           .form-grid { grid-template-columns: 1fr; }
           .type-options { grid-template-columns: 1fr 1fr; }
           .type-option { min-height: 78px; }
+          .password-requirements { grid-template-columns: 1fr; }
           .profile-photo-group { align-items: flex-start; }
           .photo-info { min-width: calc(100% - 80px); }
           .photo-upload-button { width: 100%; }
@@ -947,9 +1254,9 @@ function Cadastro({ irPara }) {
             </div>
 
             <div className="story-footer">
-              <span className="story-pill">🔒 Segurança</span>
-              <span className="story-pill">💙 Acolhimento</span>
-              <span className="story-pill">🤝 Respeito</span>
+              <span className="story-pill"><Icon name="shield" size={14} /> Segurança</span>
+              <span className="story-pill"><Icon name="heart" size={14} /> Acolhimento</span>
+              <span className="story-pill"><Icon name="users" size={14} /> Respeito</span>
             </div>
           </section>
 
@@ -980,7 +1287,7 @@ function Cadastro({ irPara }) {
                 </strong>
 
                 <div className="email-verification-help">
-                  <span>🔐</span>
+                  <span><Icon name="mailLock" size={18} /></span>
                   <span>
                     Abra a mensagem recebida e clique em
                     <strong> “Confirm your email address”</strong>.
@@ -1005,7 +1312,7 @@ function Cadastro({ irPara }) {
                 >
                   {carregando
                     ? "Enviando..."
-                    : "↻ Não recebi o e-mail — enviar novamente"}
+                    : <><Icon name="refresh" size={14} /> Não recebi o e-mail — enviar novamente</>}
                 </button>
 
                 <button
@@ -1018,7 +1325,7 @@ function Cadastro({ irPara }) {
                   }}
                   disabled={carregando}
                 >
-                  ← Voltar para o cadastro
+                  <><Icon name="arrowLeft" size={14} /> Voltar para o cadastro</>
                 </button>
               </section>
             ) : (
@@ -1053,10 +1360,10 @@ function Cadastro({ irPara }) {
                 <label>Como você quer entrar no Pulsan?</label>
                 <div className="type-options">
                   {[
-                    ["aluno", "🎓", "Aluno", "Sem critério adicional"],
-                    ["visitante", "👤", "Visitante", "Conheça o Pulsan"],
-                    ["colaborador", "💼", "Funcionário", "Conta corporativa"],
-                    ["psicologo", "🧠", "Psicólogo parceiro", "Verificação profissional"],
+                    ["aluno", "student", "Aluno", "Sem critério adicional"],
+                    ["visitante", "user", "Visitante", "Conheça o Pulsan"],
+                    ["colaborador", "briefcase", "Funcionário", "Conta corporativa"],
+                    ["psicologo", "brain", "Psicólogo parceiro", "Verificação profissional"],
                   ].map(([valor, icone, titulo, descricao]) => (
                     <button
                       key={valor}
@@ -1065,7 +1372,7 @@ function Cadastro({ irPara }) {
                       onClick={() => setTipo(valor)}
                       aria-pressed={tipo === valor}
                     >
-                      <span className="type-icon">{icone}</span>
+                      <span className="type-icon"><Icon name={icone} size={22} /></span>
                       <span className="type-title">{titulo}</span>
                       <span className="type-desc">{descricao}</span>
                     </button>
@@ -1074,7 +1381,7 @@ function Cadastro({ irPara }) {
 
                 {tipo === "colaborador" && (
                   <div style={{ marginTop: 12, color: "#6D7F99", fontSize: 11, lineHeight: 1.5 }}>
-                    🏢 Funcionários Brisanet devem usar e-mail corporativo
+                    <Icon name="building" size={14} /> Funcionários Brisanet devem usar e-mail corporativo
                     <strong> @grupobrisanet.com.br</strong>.
                   </div>
                 )}
@@ -1082,7 +1389,7 @@ function Cadastro({ irPara }) {
 
               <div className="profile-photo-group">
                 <div className="profile-photo-preview">
-                  {foto ? <img src={foto} alt="Prévia da foto de perfil" /> : <span>👤</span>}
+                  {foto ? <img src={foto} alt="Prévia da foto de perfil" /> : <Icon name="user" size={25} />}
                 </div>
                 <div className="photo-info">
                   <strong>Foto de perfil</strong>
@@ -1091,7 +1398,7 @@ function Cadastro({ irPara }) {
                     oferecer ajuda.
                   </small>
                 </div>
-                <label htmlFor="foto" className="photo-upload-button">📷 Escolher foto</label>
+                <label htmlFor="foto" className="photo-upload-button"><Icon name="camera" size={16} /> Escolher foto</label>
                 <input
                   id="foto"
                   type="file"
@@ -1104,7 +1411,7 @@ function Cadastro({ irPara }) {
               {tipo === "psicologo" && (
                 <div className="psychology-box">
                   <div className="psychology-header">
-                    <div className="psychology-icon">🧠</div>
+                    <div className="psychology-icon"><Icon name="brain" size={22} /></div>
                     <div>
                       <h2>Verificação profissional</h2>
                       <p>
@@ -1181,7 +1488,7 @@ function Cadastro({ irPara }) {
                     <div className="form-group">
                       <label>Documento comprobatório profissional</label>
                       <label htmlFor="documento-profissional" className="document-button">
-                        📄 Selecionar documento
+                        <Icon name="file" size={16} /> Selecionar documento
                       </label>
                       <input
                         id="documento-profissional"
@@ -1190,7 +1497,7 @@ function Cadastro({ irPara }) {
                         onChange={selecionarDocumento}
                         hidden
                       />
-                      {nomeDocumento && <div className="document-name">📎 {nomeDocumento}</div>}
+                      {nomeDocumento && <div className="document-name"><Icon name="paperclip" size={14} /> {nomeDocumento}</div>}
                       <small>
                         PDF, JPG, PNG ou WEBP · máximo de 5 MB.
                       </small>
@@ -1198,7 +1505,7 @@ function Cadastro({ irPara }) {
                   </div>
 
                   <div className="verification-note">
-                    🔒 O documento será utilizado somente para a verificação
+                    <Icon name="lock" size={14} /> O documento será utilizado somente para a verificação
                     profissional. O selo não será liberado automaticamente:
                     a aprovação será feita pela equipe responsável do Pulsan.
                   </div>
@@ -1231,6 +1538,46 @@ function Cadastro({ irPara }) {
                 </div>
               </div>
 
+              <div className="password-strength-box" aria-live="polite">
+                <div className="password-strength-title">
+                  <span><Icon name="lock" size={14} /> Segurança da senha</span>
+                  <span
+                    className={`password-strength-status ${
+                      senhaForteVisual ? "ok" : "pending"
+                    }`}
+                  >
+                    {senhaForteVisual ? "Senha forte" : "Em análise"}
+                  </span>
+                </div>
+
+                <div className="password-requirements">
+                  {[
+                    ["tamanho", "8 caracteres ou mais"],
+                    ["maiuscula", "Letra maiúscula"],
+                    ["minuscula", "Letra minúscula"],
+                    ["numero", "Número"],
+                    ["especial", "Caractere especial"],
+                  ].map(([chave, texto]) => (
+                    <div
+                      key={chave}
+                      className={`password-requirement ${
+                        requisitosSenhaVisual[chave] ? "ok" : ""
+                      }`}
+                    >
+                      <span>{requisitosSenhaVisual[chave] ? "✓" : "○"}</span>
+                      <span>{texto}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {senhaMuitoComumVisual && (
+                  <div className="password-common-warning">
+                    ⚠️ Essa senha é muito fácil de adivinhar. Escolha uma
+                    combinação diferente.
+                  </div>
+                )}
+              </div>
+
               <div className="terms-box">
                 <label className="terms-label">
                   <input
@@ -1254,7 +1601,7 @@ function Cadastro({ irPara }) {
               </div>
 
               <div className="security-line">
-                <span>🔒</span>
+                <span><Icon name="lock" size={15} /></span>
                 <span>Seus dados são protegidos. Sua participação na comunidade pode ser anônima.</span>
               </div>
 
@@ -1331,7 +1678,7 @@ function Cadastro({ irPara }) {
             </button>
 
             <button type="button" className="auth-back" onClick={() => irPara("inicio")}>
-              ← Voltar
+              <><Icon name="arrowLeft" size={14} /> Voltar</>
             </button>
           </section>
         </div>
