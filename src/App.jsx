@@ -525,7 +525,70 @@ function ComandoVozGlobal({ irPara, tema, alterarTema, acessibilidade, alterarAc
 // =====================================================
 
 function App() {
-  const [pagina, setPagina] = useState("inicio");
+  // =====================================================
+  // IDENTIFICAÇÃO E BLOQUEIO DA CONTA ADMINISTRATIVA
+  // =====================================================
+  function usuarioEhAdministradorInicial() {
+    if (typeof window === "undefined") return false;
+
+    // Chave criada no login administrativo.
+    if (localStorage.getItem("pulsanAcessoAdmin") === "true") {
+      return true;
+    }
+
+    // Chave de área de acesso definida pelo Login.
+    // "administrativo" significa que esta conta NÃO deve entrar
+    // na experiência normal do usuário.
+    if (localStorage.getItem("pulsanAreaAcesso") === "administrativo") {
+      return true;
+    }
+
+    // Compatibilidade com a identificação antiga da equipe Pulsan.
+    if (localStorage.getItem("pulsanEquipePulsan") === "true") {
+      return true;
+    }
+
+    const tipoSalvo = (
+      localStorage.getItem("pulsanTipo") || ""
+    ).toLowerCase().trim();
+
+    if (["admin", "administrador", "equipe_pulsan"].includes(tipoSalvo)) {
+      return true;
+    }
+
+    // Confere também os dados do usuário salvo pelo Login.
+    for (const chave of ["usuarioLogado", "pulsanUsuarioAtual"]) {
+      try {
+        const dado = localStorage.getItem(chave);
+        if (!dado) continue;
+
+        const usuario = JSON.parse(dado);
+        const tipo =
+          usuario?.tipo_usuario ||
+          usuario?.tipo ||
+          usuario?.user_metadata?.tipo_usuario ||
+          usuario?.user_metadata?.tipo ||
+          "";
+
+        if (
+          ["admin", "administrador", "equipe_pulsan"].includes(
+            String(tipo).toLowerCase().trim()
+          )
+        ) {
+          return true;
+        }
+      } catch {
+        // Mantém a verificação pelas outras chaves.
+      }
+    }
+
+    return false;
+  }
+
+  // A conta administrativa começa DIRETAMENTE no painel.
+  const [pagina, setPagina] = useState(() =>
+    usuarioEhAdministradorInicial() ? "painel-admin" : "inicio"
+  );
 
   function usuarioEstaLogado() {
     return Boolean(
@@ -548,6 +611,7 @@ function App() {
       "pulsanDocumentoProfissional",
       "pulsanNomeDocumento",
       "pulsanEquipePulsan",
+      "pulsanAcessoAdmin",
     ].forEach((chave) => localStorage.removeItem(chave));
 
     setPagina("inicio");
@@ -635,16 +699,7 @@ function App() {
   // =====================================================
 
   function usuarioEhEquipePulsan() {
-    const usuarioLogado =
-      localStorage.getItem("usuarioLogado");
-
-    const tipo = localStorage.getItem("pulsanTipo");
-
-    if (!usuarioLogado) {
-      return false;
-    }
-
-    return tipo === "equipe_pulsan";
+    return usuarioEhAdministradorInicial();
   }
 
   // =====================================================
@@ -677,21 +732,18 @@ function App() {
   // =====================================================
 
   useEffect(() => {
-    const equipePulsan =
-      usuarioEhEquipePulsan();
+    const administrador = usuarioEhEquipePulsan();
 
-    const paginasPermitidasEquipe = [
-      "painel-admin",
-      "alertas",
-      "gestao-psicologos",
-    ];
-
-    if (
-      equipePulsan &&
-      pagina !== "inicio" &&
-      !paginasPermitidasEquipe.includes(pagina)
-    ) {
+    // A conta administrativa NÃO possui acesso ao ambiente normal.
+    // Qualquer tentativa de abrir outra página volta para o painel.
+    if (administrador && pagina !== "painel-admin") {
       setPagina("painel-admin");
+      return;
+    }
+
+    // Uma conta comum nunca pode abrir o painel administrativo.
+    if (!administrador && pagina === "painel-admin") {
+      setPagina("inicio");
     }
   }, [pagina]);
 
@@ -725,19 +777,9 @@ function App() {
       return;
     }
 
-    if (
-      usuarioEhEquipePulsan() &&
-      novaPagina !== "inicio"
-    ) {
-      const paginasPermitidasEquipe = [
-        "painel-admin",
-        "alertas",
-        "gestao-psicologos",
-      ];
-
-      if (
-        !paginasPermitidasEquipe.includes(novaPagina)
-      ) {
+    // A conta administrativa só pode navegar dentro do Painel Administrativo.
+    if (usuarioEhEquipePulsan()) {
+      if (novaPagina !== "painel-admin") {
         setPagina("painel-admin");
 
         window.scrollTo({
@@ -751,6 +793,15 @@ function App() {
       }
     }
 
+    // Uma conta comum não pode acessar o Painel Administrativo.
+    if (
+      novaPagina === "painel-admin" &&
+      !usuarioEhEquipePulsan()
+    ) {
+      setPagina("inicio");
+      return;
+    }
+
     setPagina(novaPagina);
 
     window.scrollTo({
@@ -759,6 +810,23 @@ function App() {
         ? "auto"
         : "smooth",
     });
+  }
+
+  // =====================================================
+  // BLOQUEIO FINAL DA CONTA ADMINISTRATIVA
+  // =====================================================
+  // Mesmo que alguma navegação altere o estado momentaneamente,
+  // a conta administrativa só renderiza o PainelAdmin.
+  if (usuarioEhEquipePulsan()) {
+    return (
+      <PainelAdmin
+        irPara={irPara}
+        tema={tema}
+        alterarTema={alterarTema}
+        acessibilidade={acessibilidade}
+        alterarAcessibilidade={alterarAcessibilidade}
+      />
+    );
   }
 
   // =====================================================

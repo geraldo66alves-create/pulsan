@@ -63,219 +63,217 @@ function Solicitacoes({ irPara }) {
   // =====================================================
 
  async function carregarDados() {
-  const {
-    data: usuarioAuth,
-    error: erroUsuario,
-  } = await supabase.auth.getUser();
+  try {
+    const {
+      data: usuarioAuth,
+      error: erroUsuario,
+    } = await supabase.auth.getUser();
 
-  if (
-    erroUsuario ||
-    !usuarioAuth?.user
-  ) {
-    setSolicitacoes([]);
-    setConversas([]);
-    return;
-  }
-
-  const usuarioId =
-    usuarioAuth.user.id;
-
-  const {
-    data: solicitacoesBanco,
-    error: erroSolicitacoes,
-  } = await supabase
-    .from("solicitacoes_chat")
-    .select("*")
-    .eq("destinatario_id", usuarioId)
-    .eq("status", "pendente")
-    .order("criado_em", {
-      ascending: false,
-    });
-
-  if (erroSolicitacoes) {
-    console.error(
-      "Erro ao carregar solicitações:",
-      erroSolicitacoes
-    );
-  }
-
-  // Recupera o desabafo que originou cada solicitação.
-  // Assim, quem recebe consegue saber quem enviou e de qual
-  // desabafo partiu o pedido de conversa.
-  const idsDesabafos = (solicitacoesBanco || [])
-    .map((item) => item.desabafo_id)
-    .filter(Boolean);
-
-  let desabafosOrigem = [];
-
-  if (idsDesabafos.length > 0) {
-    const { data: postsBanco, error: erroPosts } = await supabase
-      .from("posts_ambiente")
-      .select("id, texto, nome_usuario, foto_usuario, usuario_id, criado_em")
-      .in("id", idsDesabafos);
-
-    if (erroPosts) {
-      console.error(
-        "Erro ao carregar o desabafo da solicitação:",
-        erroPosts
-      );
-    } else {
-      desabafosOrigem = postsBanco || [];
+    if (erroUsuario || !usuarioAuth?.user) {
+      setSolicitacoes([]);
+      setConversas([]);
+      return;
     }
-  }
 
-  const solicitacoesFormatadas =
-    (solicitacoesBanco || []).map((item) => {
-      const desabafoOrigem = desabafosOrigem.find(
-        (post) => String(post.id) === String(item.desabafo_id)
+    const usuarioId = usuarioAuth.user.id;
+
+    // =====================================================
+    // SOLICITAÇÕES PENDENTES
+    // =====================================================
+
+    const {
+      data: solicitacoesBanco,
+      error: erroSolicitacoes,
+    } = await supabase
+      .from("solicitacoes_chat")
+      .select("*")
+      .eq("destinatario_id", usuarioId)
+      .eq("status", "pendente")
+      .order("criado_em", { ascending: false });
+
+    if (erroSolicitacoes) {
+      console.error("Erro ao carregar solicitações:", erroSolicitacoes);
+      setSolicitacoes([]);
+    }
+
+    const listaSolicitacoes = solicitacoesBanco || [];
+
+    // O campo desabafo_id da tabela atual é UUID, enquanto
+    // posts_ambiente.id é bigint. Por isso, não fazemos um
+    // .in("id", desabafo_id) que causaria erro de tipo.
+    // A tela usa os dados que já estiverem gravados na solicitação.
+    const solicitacoesFormatadas = listaSolicitacoes.map((item) => ({
+      ...item,
+
+      solicitanteId: item.solicitante_id,
+      destinatarioId: item.destinatario_id,
+      publicacaoId: item.desabafo_id || "",
+
+      nomeSolicitante:
+        item.nome_solicitante ||
+        item.nomeSolicitante ||
+        item.nome ||
+        "Usuário",
+
+      fotoSolicitante:
+        item.foto_solicitante ||
+        item.fotoSolicitante ||
+        item.foto ||
+        "",
+
+      textoDesabafo:
+        item.texto_desabafo ||
+        item.textoDesabafo ||
+        item.motivo ||
+        "A pessoa deseja conversar com você.",
+
+      dataDesabafo: null,
+
+      data: item.criado_em
+        ? new Date(item.criado_em).toLocaleString("pt-BR")
+        : "Agora",
+
+      urgencia: item.urgencia || "normal",
+
+      mediaAvaliacoes:
+        item.media_avaliacoes ??
+        item.mediaAvaliacoes ??
+        item.avaliacao ??
+        "Novo",
+
+      quantidadeAvaliacoes:
+        item.quantidade_avaliacoes ??
+        item.quantidadeAvaliacoes ??
+        item.total_avaliacoes ??
+        0,
+
+      seloApoiador:
+        item.selo_apoiador ??
+        item.seloApoiador ??
+        false,
+
+      seloPsicologo:
+        item.selo_psicologo ??
+        item.seloPsicologo ??
+        false,
+    }));
+
+    setSolicitacoes(solicitacoesFormatadas);
+
+    // =====================================================
+    // CONVERSAS
+    // =====================================================
+
+    const {
+      data: conversasBanco,
+      error: erroConversas,
+    } = await supabase
+      .from("conversas")
+      .select("*")
+      .or(
+        `solicitante_id.eq.${usuarioId},destinatario_id.eq.${usuarioId}`
+      )
+      .in("status", ["ativa", "aceita"])
+      .order("iniciada_em", { ascending: false });
+
+    if (erroConversas) {
+      console.error("Erro ao carregar conversas:", erroConversas);
+      setConversas([]);
+      return;
+    }
+
+    const listaConversas = conversasBanco || [];
+
+    // Busca nome/foto dos participantes sem depender de localStorage.
+    const idsOutraPessoa = [
+      ...new Set(
+        listaConversas
+          .map((item) =>
+            String(item.solicitante_id) === String(usuarioId)
+              ? item.destinatario_id
+              : item.solicitante_id
+          )
+          .filter(Boolean)
+      ),
+    ];
+
+    let perfisOutraPessoa = [];
+
+    if (idsOutraPessoa.length > 0) {
+      const {
+        data: perfisBanco,
+        error: erroPerfis,
+      } = await supabase
+        .from("perfis")
+        .select("id, nome, foto_url")
+        .in("id", idsOutraPessoa);
+
+      if (erroPerfis) {
+        console.warn(
+          "Não foi possível carregar os perfis das conversas:",
+          erroPerfis
+        );
+      } else {
+        perfisOutraPessoa = perfisBanco || [];
+      }
+    }
+
+    const conversasFormatadas = listaConversas.map((item) => {
+      const outraPessoaId =
+        String(item.solicitante_id) === String(usuarioId)
+          ? item.destinatario_id
+          : item.solicitante_id;
+
+      const perfilOutraPessoa = perfisOutraPessoa.find(
+        (perfil) => String(perfil.id) === String(outraPessoaId)
       );
 
       return {
         ...item,
 
-        solicitanteId:
-          item.solicitante_id,
+        usuarioAId: item.solicitante_id,
+        usuarioBId: item.destinatario_id,
+        solicitacaoId: item.solicitacao_id,
 
-        destinatarioId:
-          item.destinatario_id,
+        outraPessoaId,
 
-        publicacaoId:
-          item.desabafo_id,
-
-        // Primeiro usa os dados gravados na solicitação.
-        // Se eles não existirem, usa os dados do desabafo de origem.
-        nomeSolicitante:
-          item.nome_solicitante ||
-          item.nomeSolicitante ||
-          item.nome ||
-          desabafoOrigem?.nome_usuario ||
+        nome:
+          perfilOutraPessoa?.nome ||
           "Usuário",
 
-        fotoSolicitante:
-          item.foto_solicitante ||
-          item.fotoSolicitante ||
-          item.foto ||
-          desabafoOrigem?.foto_usuario ||
+        foto:
+          perfilOutraPessoa?.foto_url ||
           "",
-
-        textoDesabafo:
-          item.texto_desabafo ||
-          item.textoDesabafo ||
-          desabafoOrigem?.texto ||
-          "O desabafo relacionado a esta solicitação não está disponível.",
-
-        dataDesabafo:
-          desabafoOrigem?.criado_em ||
-          null,
-
-        data:
-          item.criado_em
-            ? new Date(
-                item.criado_em
-              ).toLocaleString("pt-BR")
-            : "Agora",
-
-        urgencia:
-          item.urgencia ||
-          desabafoOrigem?.urgencia ||
-          "normal",
 
         mediaAvaliacoes:
           item.media_avaliacoes ??
           item.mediaAvaliacoes ??
-          item.avaliacao ??
           "Novo",
 
         quantidadeAvaliacoes:
           item.quantidade_avaliacoes ??
           item.quantidadeAvaliacoes ??
-          item.total_avaliacoes ??
-          0,
-
-        seloApoiador:
-          item.selo_apoiador ??
-          item.seloApoiador ??
-          false,
-
-        seloPsicologo:
-          item.selo_psicologo ??
-          item.seloPsicologo ??
-          false,
-      };
-    });
-
-  setSolicitacoes(
-    solicitacoesFormatadas
-  );
-
-  const {
-    data: conversasBanco,
-    error: erroConversas,
-  } = await supabase
-    .from("conversas")
-    .select("*")
-    .or(
-      `solicitante_id.eq.${usuarioId},destinatario_id.eq.${usuarioId}`
-    )
-    .in("status", [
-      "ativa",
-      "aceita",
-    ])
-    .order("iniciada_em", {
-      ascending: false,
-    });
-
-  if (erroConversas) {
-    console.error(
-      "Erro ao carregar conversas:",
-      erroConversas
-    );
-  }
-
-  const conversasFormatadas =
-    (conversasBanco || []).map(
-      (item) => ({
-        ...item,
-
-        usuarioAId:
-          item.solicitante_id,
-
-        usuarioBId:
-          item.destinatario_id,
-
-        solicitacaoId:
-          item.solicitacao_id,
-
-        nome:
-          "Usuário",
-
-        foto:
-          "",
-
-        mediaAvaliacoes:
-          "Novo",
-
-        quantidadeAvaliacoes:
           0,
 
         ultimaMensagem:
+          item.ultima_mensagem ||
+          item.ultimaMensagem ||
           "Conversa privada",
 
-        hora:
-          item.iniciada_em
-            ? new Date(
-                item.iniciada_em
-              ).toLocaleString("pt-BR")
-            : "Agora",
+        hora: item.iniciada_em
+          ? new Date(item.iniciada_em).toLocaleString("pt-BR")
+          : "Agora",
 
-        status:
-          item.status,
-      })
-    );
+        status: item.status,
+      };
+    });
 
-  setConversas(
-    conversasFormatadas
-  );
+    setConversas(conversasFormatadas);
+  } catch (erro) {
+    console.error("Erro inesperado ao carregar solicitações:", erro);
+    setSolicitacoes([]);
+    setConversas([]);
+  }
 }
   // =====================================================
   // ATUALIZAÇÃO
@@ -434,13 +432,26 @@ function Solicitacoes({ irPara }) {
 
     if (erroConversa) {
       console.error(
+        "Erro ao criar conversa:",
         erroConversa
       );
 
+      // Se a conversa não puder ser criada, desfazemos a aceitação
+      // para não deixar a solicitação em um estado inconsistente.
+      await supabase
+        .from("solicitacoes_chat")
+        .update({
+          status: "pendente",
+          atualizado_em: new Date().toISOString(),
+        })
+        .eq("id", solicitacao.id)
+        .eq("destinatario_id", meuUsuarioId);
+
       alert(
-        "Solicitação aceita, mas não foi possível abrir a conversa."
+        "Não foi possível abrir a conversa. A solicitação voltou para pendente."
       );
 
+      await carregarDados();
       return;
     }
 
@@ -485,58 +496,74 @@ function Solicitacoes({ irPara }) {
   // REJEITAR
   // =====================================================
 
-  function rejeitarSolicitacao(
-    solicitacao
-  ) {
-
-    const confirmar =
-      window.confirm(
-        "Deseja rejeitar esta solicitação?"
-      );
+  async function rejeitarSolicitacao(solicitacao) {
+    const confirmar = window.confirm(
+      "Deseja rejeitar esta solicitação?"
+    );
 
     if (!confirmar) {
       return;
     }
 
-    const todas =
-      JSON.parse(
-        localStorage.getItem(
-          "pulsanSolicitacoesChat"
-        ) || "[]"
+    const {
+      data: usuarioAuth,
+      error: erroUsuario,
+    } = await supabase.auth.getUser();
+
+    if (erroUsuario || !usuarioAuth?.user) {
+      alert("Faça login novamente.");
+      return;
+    }
+
+    const { error: erroAtualizacao } = await supabase
+      .from("solicitacoes_chat")
+      .update({
+        status: "recusada",
+        atualizado_em: new Date().toISOString(),
+      })
+      .eq("id", solicitacao.id)
+      .eq("destinatario_id", usuarioAuth.user.id);
+
+    if (erroAtualizacao) {
+      console.error(
+        "Erro ao rejeitar solicitação:",
+        erroAtualizacao
       );
 
-    const atualizadas =
-      todas.map(
-        (item) => {
+      alert(
+        "Não foi possível rejeitar a solicitação. Verifique as permissões do Supabase."
+      );
+      return;
+    }
 
-          if (
-            item.id ===
-            solicitacao.id
-          ) {
+    // Mantém o localStorage compatível com versões antigas do Pulsan.
+    try {
+      const todas = JSON.parse(
+        localStorage.getItem("pulsanSolicitacoesChat") || "[]"
+      );
 
-            return {
+      const atualizadas = todas.map((item) =>
+        String(item.id) === String(solicitacao.id)
+          ? {
               ...item,
-
-              status:
-                "recusada",
-
-              recusadaEm:
-                new Date().toISOString(),
-            };
-          }
-
-          return item;
-        }
+              status: "recusada",
+              recusadaEm: new Date().toISOString(),
+            }
+          : item
       );
 
-    localStorage.setItem(
-      "pulsanSolicitacoesChat",
-      JSON.stringify(
-        atualizadas
-      )
-    );
+      localStorage.setItem(
+        "pulsanSolicitacoesChat",
+        JSON.stringify(atualizadas)
+      );
+    } catch (erroLocal) {
+      console.warn(
+        "Não foi possível atualizar o cache local:",
+        erroLocal
+      );
+    }
 
-    carregarDados();
+    await carregarDados();
   }
 
   // =====================================================
@@ -585,7 +612,10 @@ function Solicitacoes({ irPara }) {
      String(
   conversa.solicitante_id ||
   conversa.usuarioAId
-) === String(meuId)
+) === String(
+  usuarioLogado.id ||
+  ""
+)
         ? "ajudado"
         : "ajudante"
     );

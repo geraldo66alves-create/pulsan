@@ -20,6 +20,9 @@ function Login({ irPara }) {
     try {
       const emailNormalizado = email.trim().toLowerCase();
 
+      // A autenticação real é feita pelo Supabase Auth.
+      // O localStorage é usado somente para dados de interface/navegação,
+      // nunca como fonte de autenticação ou senha.
       const { data, error } = await supabase.auth.signInWithPassword({
         email: emailNormalizado,
         password: senha,
@@ -28,9 +31,7 @@ function Login({ irPara }) {
       if (error) {
         console.error("Erro no login:", error);
 
-        if (
-          error.message.toLowerCase().includes("email not confirmed")
-        ) {
+        if (error.message?.toLowerCase().includes("email not confirmed")) {
           alert("Confirme seu e-mail antes de entrar na plataforma.");
         } else {
           alert("E-mail ou senha incorretos.");
@@ -39,13 +40,14 @@ function Login({ irPara }) {
         return;
       }
 
-      const usuarioAuth = data.user;
+      const usuarioAuth = data?.user;
 
       if (!usuarioAuth) {
         alert("Não foi possível identificar sua conta.");
         return;
       }
 
+      // Busca apenas o perfil ligado ao usuário autenticado.
       const { data: perfil, error: erroPerfil } = await supabase
         .from("perfis")
         .select("*")
@@ -54,12 +56,115 @@ function Login({ irPara }) {
 
       if (erroPerfil) {
         console.error("Erro ao buscar perfil:", erroPerfil);
+        alert("Não foi possível carregar os dados do seu perfil.");
+        return;
       }
 
-      const tipoUsuario =
+      /*
+       * O tipo do usuário é definido no metadata criado durante o cadastro.
+       * O perfil continua sendo usado para os dados públicos da conta.
+       *
+       * Importante: "tipo_usuario" não existe atualmente na tabela "perfis",
+       * portanto não dependemos dessa coluna para o login.
+       */
+      /*
+       * IDENTIFICAÇÃO DA CONTA ADMINISTRATIVA
+       *
+       * O administrador não pode depender de uma única chave.
+       * Contas criadas em versões diferentes do Pulsan podem ter
+       * a informação administrativa em campos diferentes do
+       * metadata do Supabase.
+       *
+       * A autenticação continua sendo feita pelo Supabase Auth.
+       * Aqui apenas identificamos o tipo/área da conta já autenticada.
+       */
+      const metadataUsuario = usuarioAuth.user_metadata || {};
+
+      const tipoUsuarioBruto =
+        metadataUsuario.tipo_usuario ||
+        metadataUsuario.tipo ||
         perfil?.tipo_usuario ||
-        usuarioAuth.user_metadata?.tipo_usuario ||
-        "aluno";
+        perfil?.tipo ||
+        "";
+
+      const areaAcessoBruta =
+        metadataUsuario.area_acesso ||
+        metadataUsuario.areaAcesso ||
+        metadataUsuario.area ||
+        perfil?.area_acesso ||
+        perfil?.areaAcesso ||
+        "";
+
+      const valorNormalizado = (valor) =>
+        String(valor || "")
+          .trim()
+          .toLowerCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .replace(/[-\s]+/g, "_");
+
+      const tipoNormalizado = valorNormalizado(tipoUsuarioBruto);
+      const areaNormalizada = valorNormalizado(areaAcessoBruta);
+
+      const ehAdministrador =
+        emailNormalizado === "admin.pulsan@gmail.com" ||
+        ["admin", "administrador", "equipe_pulsan", "equipe_pulsan_admin"].includes(
+          tipoNormalizado
+        ) ||
+        ["administrativo", "admin", "painel_admin", "painel_administrativo"].includes(
+          areaNormalizada
+        ) ||
+        metadataUsuario.is_admin === true ||
+        metadataUsuario.isAdmin === true ||
+        metadataUsuario.admin === true;
+
+      /*
+       * Para o restante da aplicação, o administrador recebe um
+       * tipo único e inequívoco. Isso evita que o App trate a conta
+       * administrativa como aluno/usuário comum.
+       */
+      const tipoUsuario = ehAdministrador
+        ? "admin"
+        : tipoUsuarioBruto || "aluno";
+
+      let dadosPsicologo = null;
+
+      // Para psicólogos, a situação de aprovação vem da tabela psicologos,
+      // vinculada ao auth.users por usuario_id. Assim, não dependemos de
+      // localStorage para decidir se o profissional foi aprovado.
+      if (tipoUsuario === "psicologo") {
+        const { data: psicologo, error: erroPsicologo } = await supabase
+          .from("psicologos")
+          .select(
+            "id, usuario_id, nome, email, telefone, crp, estado_crp, area_atuacao, verificado, ativo, disponivel"
+          )
+          .eq("usuario_id", usuarioAuth.id)
+          .maybeSingle();
+
+        if (erroPsicologo) {
+          console.error("Erro ao buscar cadastro do psicólogo:", erroPsicologo);
+        } else {
+          dadosPsicologo = psicologo;
+        }
+      }
+
+      const verificacaoPsicologo =
+        tipoUsuario === "psicologo"
+          ? dadosPsicologo?.verificado === true
+            ? "aprovado"
+            : usuarioAuth.user_metadata?.verificacao_psicologo || "pendente"
+          : perfil?.verificacao_psicologo ||
+            usuarioAuth.user_metadata?.verificacao_psicologo ||
+            "nao_enviado";
+
+      const psicologoParceiro =
+        tipoUsuario === "psicologo"
+          ? dadosPsicologo?.verificado === true &&
+            dadosPsicologo?.ativo !== false
+          : Boolean(
+              perfil?.psicologo_parceiro ||
+                usuarioAuth.user_metadata?.psicologo_parceiro
+            );
 
       const usuarioEncontrado = {
         id: usuarioAuth.id,
@@ -67,6 +172,7 @@ function Login({ irPara }) {
 
         nome:
           perfil?.nome ||
+          dadosPsicologo?.nome ||
           usuarioAuth.user_metadata?.nome ||
           usuarioAuth.user_metadata?.name ||
           "Usuário",
@@ -80,31 +186,34 @@ function Login({ irPara }) {
         tipo_usuario: tipoUsuario,
 
         crp:
+          dadosPsicologo?.crp ||
           perfil?.crp ||
           usuarioAuth.user_metadata?.crp ||
           "",
 
-        verificacao_psicologo:
-          perfil?.verificacao_psicologo ||
-          usuarioAuth.user_metadata?.verificacao_psicologo ||
-          "pendente",
-
-        psicologo_parceiro:
-          perfil?.psicologo_parceiro ||
-          usuarioAuth.user_metadata?.psicologo_parceiro ||
-          false,
-
-        documento:
-          perfil?.documento ||
-          usuarioAuth.user_metadata?.documento ||
+        estado_crp:
+          dadosPsicologo?.estado_crp ||
+          usuarioAuth.user_metadata?.estado_crp ||
           "",
 
-        nome_documento:
-          perfil?.nome_documento ||
-          usuarioAuth.user_metadata?.nome_documento ||
+        area_atuacao:
+          dadosPsicologo?.area_atuacao ||
+          usuarioAuth.user_metadata?.area_atuacao ||
           "",
+
+        verificacao_psicologo: verificacaoPsicologo,
+
+        psicologo_parceiro: psicologoParceiro,
+
+        // O documento profissional não é mais carregado nem salvo no
+        // localStorage. Documentos devem permanecer em armazenamento
+        // privado e ser acessados somente por fluxo autorizado.
+        documento: "",
+        nome_documento: "",
       };
 
+      // Mantém os dados necessários para as telas existentes.
+      // A sessão/autenticação continua sob responsabilidade do Supabase Auth.
       localStorage.setItem(
         "usuarioLogado",
         JSON.stringify(usuarioEncontrado)
@@ -115,107 +224,73 @@ function Login({ irPara }) {
         JSON.stringify(usuarioEncontrado)
       );
 
-      localStorage.setItem(
-        "pulsanNome",
-        usuarioEncontrado.nome
-      );
-
-      localStorage.setItem(
-        "pulsanEmail",
-        usuarioEncontrado.email
-      );
-
-      localStorage.setItem(
-        "pulsanFoto",
-        usuarioEncontrado.foto_url
-      );
-
-      localStorage.setItem(
-        "pulsanTipo",
-        usuarioEncontrado.tipo_usuario
-      );
+      localStorage.setItem("pulsanNome", usuarioEncontrado.nome);
+      localStorage.setItem("pulsanEmail", usuarioEncontrado.email);
+      localStorage.setItem("pulsanFoto", usuarioEncontrado.foto_url);
+      localStorage.setItem("pulsanTipo", usuarioEncontrado.tipo_usuario);
 
       if (usuarioEncontrado.tipo_usuario === "psicologo") {
-        localStorage.setItem(
-          "pulsanCRP",
-          usuarioEncontrado.crp
-        );
-
+        localStorage.setItem("pulsanCRP", usuarioEncontrado.crp);
         localStorage.setItem(
           "pulsanVerificacaoPsicologo",
           usuarioEncontrado.verificacao_psicologo
         );
-
         localStorage.setItem(
           "pulsanPsicologoParceiro",
-          usuarioEncontrado.psicologo_parceiro
-            ? "true"
-            : "false"
+          usuarioEncontrado.psicologo_parceiro ? "true" : "false"
         );
 
-        if (usuarioEncontrado.documento) {
-          localStorage.setItem(
-            "pulsanDocumentoProfissional",
-            usuarioEncontrado.documento
-          );
-        }
-
-        if (usuarioEncontrado.nome_documento) {
-          localStorage.setItem(
-            "pulsanNomeDocumento",
-            usuarioEncontrado.nome_documento
-          );
-        }
+        // Remove dados antigos eventualmente gravados por versões
+        // anteriores do cadastro/login.
+        localStorage.removeItem("pulsanDocumentoProfissional");
+        localStorage.removeItem("pulsanNomeDocumento");
       }
 
-      const ehAdministrador =
-        usuarioEncontrado.tipo_usuario === "admin" ||
-        usuarioEncontrado.tipo_usuario === "administrador" ||
-        usuarioEncontrado.tipo_usuario === "equipe_pulsan";
-
+      // Grava explicitamente a área da conta para o App.jsx.
+      // O administrador não entra no fluxo comum da plataforma.
       localStorage.setItem(
         "pulsanEquipePulsan",
         ehAdministrador ? "true" : "false"
       );
 
-      // Define a área de acesso da conta.
-      // Contas administrativas ficam exclusivamente na área administrativa.
       localStorage.setItem(
         "pulsanAreaAcesso",
         ehAdministrador ? "administrativo" : "usuario"
       );
 
+      localStorage.setItem(
+        "pulsanAcessoAdmin",
+        ehAdministrador ? "true" : "false"
+      );
+
       // A conta administrativa não utiliza o fluxo comum da plataforma.
-      // Ela não passa pela configuração inicial de acessibilidade e
-      // não deve ser encaminhada para ambiente, empresa ou outras páginas.
       if (ehAdministrador) {
         localStorage.setItem("pulsanAcessoAdmin", "true");
-      } else {
-        localStorage.removeItem("pulsanAcessoAdmin");
+
+        alert(
+          `Bem-vindo ao Pulsan, ${usuarioEncontrado.nome || "usuário"}! 💚`
+        );
+
+        setEmail("");
+        setSenha("");
+
+        irPara("painel-admin");
+        return;
       }
 
+      localStorage.removeItem("pulsanAcessoAdmin");
+
       alert(
-        `Bem-vindo ao Pulsan, ${
-          usuarioEncontrado.nome || "usuário"
-        }! 💚`
+        `Bem-vindo ao Pulsan, ${usuarioEncontrado.nome || "usuário"}! 💚`
       );
 
       setEmail("");
       setSenha("");
 
-      // ============================================================
-      // ACESSO ADMINISTRATIVO EXCLUSIVO
-      // ============================================================
-      // Se a conta for administrativa, o único destino permitido
-      // neste fluxo é o Painel Administrativo.
-      if (ehAdministrador) {
-        irPara("painel-admin");
-        return;
-      }
-
       // A configuração de acessibilidade é individual por conta.
-      // Assim, uma conta nova não herda a configuração de outra pessoa no mesmo navegador.
-      const chaveAcessibilidadeConta = `pulsanAcessibilidadeConfigurada_${usuarioEncontrado.id}`;
+      const chaveAcessibilidadeConta =
+        `pulsanAcessibilidadeConfigurada_${usuarioEncontrado.id}`;
+
       const acessibilidadeJaConfigurada =
         localStorage.getItem(chaveAcessibilidadeConta) === "true";
 
@@ -241,9 +316,7 @@ function Login({ irPara }) {
     } catch (erro) {
       console.error("Erro inesperado no login:", erro);
 
-      alert(
-        "Ocorreu um erro inesperado ao entrar na conta."
-      );
+      alert("Ocorreu um erro inesperado ao entrar na conta.");
     } finally {
       setCarregando(false);
     }

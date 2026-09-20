@@ -485,7 +485,7 @@ const sentimentos = [
       titulo: "Você não precisa dar conta de tudo.",
       descricao:
         "Seu valor não precisa ser medido pela quantidade de coisas que você consegue suportar.",
-      video: "/videos/pressao.mp4",
+      video: "/videos/sobrecarregado.mp4",
       audio: "/sons/sobrecarregado.mp3",
       reflexao:
         "O que você poderia deixar de carregar se aceitasse que não precisa resolver tudo sozinho?",

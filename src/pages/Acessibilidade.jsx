@@ -7,6 +7,18 @@ function Acessibilidade({
 }) {
   const [ouvindo, setOuvindo] = useState(false);
   const [toquesVoz, setToquesVoz] = useState(0);
+  const reconhecimentoRef = useRef(null);
+
+  const configuracao = {
+    altoContraste: false,
+    textoMaior: false,
+    botoesMaiores: false,
+    reduzirAnimacoes: false,
+    voz: false,
+    daltonismo: "normal",
+    libras: false,
+    ...(acessibilidade || {}),
+  };
   const ultimoToqueRef = useRef(0);
   const timerToquesRef = useRef(null);
 
@@ -36,7 +48,16 @@ function Acessibilidade({
       return;
     }
 
+    if (reconhecimentoRef.current) {
+      try {
+        reconhecimentoRef.current.abort();
+      } catch {
+        // Alguns navegadores podem lançar erro se o reconhecimento já terminou.
+      }
+    }
+
     const reconhecimento = new Reconhecimento();
+    reconhecimentoRef.current = reconhecimento;
 
     reconhecimento.lang = "pt-BR";
     reconhecimento.continuous = false;
@@ -55,8 +76,25 @@ function Acessibilidade({
         lerTexto(document.body.innerText);
       } else if (comando.includes("voltar")) {
         irPara("perfil");
-      } else if (comando.includes("abrir ambiente")) {
+      } else if (
+        comando.includes("abrir início") ||
+        comando.includes("abrir inicio") ||
+        comando === "início" ||
+        comando === "inicio"
+      ) {
+        irPara("inicio");
+      } else if (
+        comando.includes("abrir ambiente") ||
+        comando.includes("abrir desabafar")
+      ) {
         irPara("ambiente");
+      } else if (
+        comando.includes("abrir conversas") ||
+        comando.includes("abrir conversa") ||
+        comando.includes("abrir solicitações") ||
+        comando.includes("abrir solicitacoes")
+      ) {
+        irPara("solicitacoes");
       } else if (
         comando.includes("abrir reflexão") ||
         comando.includes("abrir reflexao")
@@ -64,10 +102,12 @@ function Acessibilidade({
         irPara("reflexao");
       } else if (comando.includes("abrir perfil")) {
         irPara("perfil");
+      } else if (comando.includes("abrir ajudar") || comando.includes("abrir ajuda")) {
+        irPara("ajudar");
       } else if (comando.includes("alto contraste")) {
         alterarAcessibilidade(
           "altoContraste",
-          !acessibilidade.altoContraste
+          !configuracao.altoContraste
         );
       } else if (
         comando.includes("texto maior") ||
@@ -75,12 +115,12 @@ function Acessibilidade({
       ) {
         alterarAcessibilidade(
           "textoMaior",
-          !acessibilidade.textoMaior
+          !configuracao.textoMaior
         );
       } else if (comando.includes("botões maiores") || comando.includes("botoes maiores")) {
         alterarAcessibilidade(
           "botoesMaiores",
-          !acessibilidade.botoesMaiores
+          !configuracao.botoesMaiores
         );
       } else if (
         comando.includes("reduzir animações") ||
@@ -88,11 +128,11 @@ function Acessibilidade({
       ) {
         alterarAcessibilidade(
           "reduzirAnimacoes",
-          !acessibilidade.reduzirAnimacoes
+          !configuracao.reduzirAnimacoes
         );
       } else {
         lerTexto(
-          "Comando não reconhecido. Diga ler página, voltar, abrir ambiente, abrir reflexão, abrir perfil, alto contraste, texto maior, botões maiores ou reduzir animações."
+          "Comando não reconhecido. Você pode dizer: ler página, voltar, abrir início, abrir ambiente, abrir conversas, abrir reflexão, abrir perfil, abrir ajuda, alto contraste, texto maior, botões maiores ou reduzir animações."
         );
       }
     };
@@ -104,9 +144,18 @@ function Acessibilidade({
 
     reconhecimento.onend = () => {
       setOuvindo(false);
+      if (reconhecimentoRef.current === reconhecimento) {
+        reconhecimentoRef.current = null;
+      }
     };
 
-    reconhecimento.start();
+    try {
+      reconhecimento.start();
+    } catch {
+      setOuvindo(false);
+      reconhecimentoRef.current = null;
+      alert("Não foi possível iniciar o comando por voz. Tente novamente.");
+    }
   }
 
   function falarComoAtivarPorTresToques() {
@@ -136,6 +185,14 @@ function Acessibilidade({
     }
 
     ultimoToqueRef.current = agora;
+
+    if (timerToquesRef.current) {
+      clearTimeout(timerToquesRef.current);
+    }
+
+    timerToquesRef.current = setTimeout(() => {
+      setToquesVoz(0);
+    }, 850);
   }
 
   useEffect(() => {
@@ -154,11 +211,24 @@ function Acessibilidade({
       if (timerToquesRef.current) {
         clearTimeout(timerToquesRef.current);
       }
+
+      if (reconhecimentoRef.current) {
+        try {
+          reconhecimentoRef.current.abort();
+        } catch {
+          // Reconhecimento já encerrado.
+        }
+        reconhecimentoRef.current = null;
+      }
+
+      if ("speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
     };
   }, []);
 
   function alternarVoz() {
-    const novoValor = !Boolean(acessibilidade?.voz);
+    const novoValor = !Boolean(configuracao.voz);
 
     alterarAcessibilidade("voz", novoValor);
 
@@ -194,7 +264,7 @@ function Acessibilidade({
   }
 
   useEffect(() => {
-    if (acessibilidade?.voz) return;
+    if (configuracao.voz) return;
 
     const handleTouch = () => {
       registrarToqueNaTela();
@@ -205,7 +275,7 @@ function Acessibilidade({
     return () => {
       window.removeEventListener("touchend", handleTouch);
     };
-  }, [acessibilidade?.voz]);
+  }, [configuracao.voz]);
 
   function voltar() {
     if ("speechSynthesis" in window) {
@@ -222,7 +292,7 @@ function Acessibilidade({
   function alternarLibras() {
     alterarAcessibilidade(
       "libras",
-      !acessibilidade.libras
+      !configuracao.libras
     );
   }
 
@@ -249,13 +319,13 @@ function Acessibilidade({
   }
 
   const totalAtivos = [
-    acessibilidade.altoContraste,
-    acessibilidade.textoMaior,
-    acessibilidade.botoesMaiores,
-    acessibilidade.reduzirAnimacoes,
-    acessibilidade.voz,
-    acessibilidade.daltonismo !== "normal",
-    acessibilidade.libras,
+    configuracao.altoContraste,
+    configuracao.textoMaior,
+    configuracao.botoesMaiores,
+    configuracao.reduzirAnimacoes,
+    configuracao.voz,
+    configuracao.daltonismo !== "normal",
+    configuracao.libras,
   ].filter(Boolean).length;
 
   return (
@@ -368,13 +438,13 @@ function Acessibilidade({
               onClick={() =>
                 alterarAcessibilidade(
                   "altoContraste",
-                  !acessibilidade.altoContraste
+                  !configuracao.altoContraste
                 )
               }
-              aria-pressed={acessibilidade.altoContraste}
+              aria-pressed={configuracao.altoContraste}
               style={estiloBotao}
             >
-              {acessibilidade.altoContraste ? "✓ " : ""}
+              {configuracao.altoContraste ? "✓ " : ""}
               Alto contraste
             </button>
 
@@ -383,13 +453,13 @@ function Acessibilidade({
               onClick={() =>
                 alterarAcessibilidade(
                   "textoMaior",
-                  !acessibilidade.textoMaior
+                  !configuracao.textoMaior
                 )
               }
-              aria-pressed={acessibilidade.textoMaior}
+              aria-pressed={configuracao.textoMaior}
               style={estiloBotao}
             >
-              {acessibilidade.textoMaior ? "✓ " : ""}
+              {configuracao.textoMaior ? "✓ " : ""}
               Texto maior
             </button>
 
@@ -398,13 +468,13 @@ function Acessibilidade({
               onClick={() =>
                 alterarAcessibilidade(
                   "botoesMaiores",
-                  !acessibilidade.botoesMaiores
+                  !configuracao.botoesMaiores
                 )
               }
-              aria-pressed={acessibilidade.botoesMaiores}
+              aria-pressed={configuracao.botoesMaiores}
               style={estiloBotao}
             >
-              {acessibilidade.botoesMaiores ? "✓ " : ""}
+              {configuracao.botoesMaiores ? "✓ " : ""}
               Botões maiores
             </button>
 
@@ -413,13 +483,13 @@ function Acessibilidade({
               onClick={() =>
                 alterarAcessibilidade(
                   "reduzirAnimacoes",
-                  !acessibilidade.reduzirAnimacoes
+                  !configuracao.reduzirAnimacoes
                 )
               }
-              aria-pressed={acessibilidade.reduzirAnimacoes}
+              aria-pressed={configuracao.reduzirAnimacoes}
               style={estiloBotao}
             >
-              {acessibilidade.reduzirAnimacoes ? "✓ " : ""}
+              {configuracao.reduzirAnimacoes ? "✓ " : ""}
               Reduzir animações
             </button>
           </div>
@@ -464,16 +534,21 @@ function Acessibilidade({
             <button
               type="button"
               onClick={alternarVoz}
-              aria-pressed={acessibilidade.voz}
+              aria-pressed={configuracao.voz}
+              aria-label={
+                configuracao.voz
+                  ? "Desativar leitura e comando por voz"
+                  : "Ativar leitura e comando por voz"
+              }
               style={estiloBotao}
             >
-              {acessibilidade.voz ? "✓ " : ""}
-              {acessibilidade.voz
+              {configuracao.voz ? "✓ " : ""}
+              {configuracao.voz
                 ? "Leitura e comando por voz ativados"
                 : "Ativar leitura e comando por voz"}
             </button>
 
-            {acessibilidade?.voz && (
+            {configuracao.voz && (
               <div
                 aria-live="polite"
                 style={{
@@ -492,11 +567,12 @@ function Acessibilidade({
             <button
               type="button"
               onClick={() => lerTexto(document.body.innerText)}
-              disabled={!acessibilidade?.voz}
+              disabled={!configuracao.voz}
+              aria-label="Ler página atual"
               style={{
                 ...estiloBotao,
-                opacity: acessibilidade?.voz ? 1 : 0.55,
-                cursor: acessibilidade?.voz ? "pointer" : "not-allowed",
+                opacity: configuracao.voz ? 1 : 0.55,
+                cursor: configuracao.voz ? "pointer" : "not-allowed",
               }}
             >
               🔊 Ler página atual
@@ -505,11 +581,12 @@ function Acessibilidade({
             <button
               type="button"
               onClick={iniciarComandoPorVoz}
-              disabled={!acessibilidade?.voz}
+              disabled={!configuracao.voz}
+              aria-label={ouvindo ? "Ouvindo comando por voz" : "Iniciar comando por voz"}
               style={{
                 ...estiloBotao,
-                opacity: acessibilidade?.voz ? 1 : 0.55,
-                cursor: acessibilidade?.voz ? "pointer" : "not-allowed",
+                opacity: configuracao.voz ? 1 : 0.55,
+                cursor: configuracao.voz ? "pointer" : "not-allowed",
               }}
             >
               🎙️
@@ -552,7 +629,7 @@ function Acessibilidade({
 
           <select
             id="modo-daltonismo"
-            value={acessibilidade.daltonismo || "normal"}
+            value={configuracao.daltonismo || "normal"}
             onChange={alternarDaltonismo}
             style={{
               width: "100%",
@@ -592,14 +669,14 @@ function Acessibilidade({
           <button
             type="button"
             onClick={alternarLibras}
-            aria-pressed={acessibilidade.libras}
+            aria-pressed={configuracao.libras}
             style={estiloBotao}
           >
-            {acessibilidade.libras ? "✓ " : ""}
+            {configuracao.libras ? "✓ " : ""}
             Ativar modo Libras
           </button>
 
-          {acessibilidade.libras && (
+          {configuracao.libras && (
             <div
               style={{
                 marginTop: "18px",

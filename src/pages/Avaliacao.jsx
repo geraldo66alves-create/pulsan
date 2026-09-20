@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { supabase } from "../lib/supabase";
 
 function Avaliacao({ irPara }) {
   // =====================================================
@@ -30,37 +31,60 @@ function Avaliacao({ irPara }) {
   }
 
   // =====================================================
-  // USUÁRIO ATUAL
+  // USUÁRIO ATUAL — SUPABASE COMO FONTE DE VERDADE
   // =====================================================
 
-  let usuario = {};
+  const [usuarioId, setUsuarioId] = useState("");
+  const [nomeUsuario, setNomeUsuario] = useState("Usuário");
+  const [carregandoUsuario, setCarregandoUsuario] = useState(true);
+  const [estrelas, setEstrelas] = useState(0);
+  const [enviado, setEnviado] = useState(false);
+  const [mensagem, setMensagem] = useState("");
+  const [hover, setHover] = useState(0);
 
-  try {
-    usuario =
-      JSON.parse(
-        localStorage.getItem(
-          "usuarioLogado"
-        ) || "{}"
-      ) || {};
-  } catch {
-    usuario = {};
-  }
+  useEffect(() => {
+    let ativo = true;
 
-  const usuarioId =
-    usuario.id ||
-    usuario.email ||
-    localStorage.getItem(
-      "pulsanUsuarioId"
-    ) ||
-    "usuario";
+    async function carregarUsuario() {
+      try {
+        const { data, error } = await supabase.auth.getUser();
 
-  const nomeUsuario =
-    usuario.nome ||
-    usuario.name ||
-    localStorage.getItem(
-      "pulsanNome"
-    ) ||
-    "Usuário";
+        if (error || !data?.user) {
+          throw error || new Error("Usuário não autenticado.");
+        }
+
+        if (!ativo) return;
+
+        setUsuarioId(data.user.id);
+
+        const { data: perfil } = await supabase
+          .from("perfis")
+          .select("nome")
+          .eq("id", data.user.id)
+          .maybeSingle();
+
+        setNomeUsuario(
+          perfil?.nome ||
+          data.user.user_metadata?.nome ||
+          "Usuário"
+        );
+      } catch (erro) {
+        console.error("Erro ao identificar usuário:", erro);
+        if (ativo) {
+          setUsuarioId("");
+          setNomeUsuario("Usuário");
+        }
+      } finally {
+        if (ativo) setCarregandoUsuario(false);
+      }
+    }
+
+    carregarUsuario();
+
+    return () => {
+      ativo = false;
+    };
+  }, []);
 
   // =====================================================
   // IDENTIFICAR QUEM AJUDOU
@@ -70,11 +94,11 @@ function Avaliacao({ irPara }) {
     solicitacao.ajudanteId ||
     solicitacao.apoiadorId ||
     solicitacao.helperId ||
+    solicitacao.avaliadoId ||
     conversa.ajudanteId ||
     conversa.apoiadorId ||
-    localStorage.getItem(
-      "pulsanAjudanteId"
-    ) ||
+    conversa.avaliadoId ||
+    localStorage.getItem("pulsanAjudanteId") ||
     "";
 
   const ajudanteNome =
@@ -82,9 +106,7 @@ function Avaliacao({ irPara }) {
     solicitacao.apoiadorNome ||
     conversa.ajudanteNome ||
     conversa.apoiadorNome ||
-    localStorage.getItem(
-      "pulsanNomeOutraPessoa"
-    ) ||
+    localStorage.getItem("pulsanNomeOutraPessoa") ||
     "Apoiador";
 
   const ajudanteFoto =
@@ -92,26 +114,8 @@ function Avaliacao({ irPara }) {
     solicitacao.apoiadorFoto ||
     conversa.ajudanteFoto ||
     conversa.apoiadorFoto ||
-    localStorage.getItem(
-      "pulsanFotoOutraPessoa"
-    ) ||
+    localStorage.getItem("pulsanFotoOutraPessoa") ||
     "";
-
-  // =====================================================
-  // ESTADO
-  // =====================================================
-
-  const [estrelas, setEstrelas] =
-    useState(0);
-
-  const [enviado, setEnviado] =
-    useState(false);
-
-  const [mensagem, setMensagem] =
-    useState("");
-
-  const [hover, setHover] =
-    useState(0);
 
   // =====================================================
   // TEXTO DA ESTRELA
@@ -142,593 +146,117 @@ function Avaliacao({ irPara }) {
   }
 
   // =====================================================
-  // OBTER USUÁRIOS
+  // REGISTRAR AVALIAÇÃO NO SUPABASE
   // =====================================================
 
-  function obterUsuarios() {
-    try {
-      const dados =
-        JSON.parse(
-          localStorage.getItem(
-            "pulsanUsuarios"
-          ) || "[]"
-        );
-
-      return Array.isArray(dados)
-        ? dados
-        : [];
-    } catch {
-      return [];
-    }
-  }
-
-  // =====================================================
-  // SALVAR USUÁRIOS
-  // =====================================================
-
-  function salvarUsuarios(usuarios) {
-    localStorage.setItem(
-      "pulsanUsuarios",
-      JSON.stringify(
-        usuarios
-      )
-    );
-  }
-
-  // =====================================================
-  // ATUALIZAR USUÁRIO LOGADO
-  // =====================================================
-
-  function atualizarUsuarioLogado(
-    dadosAtualizados
-  ) {
-    try {
-      const atual =
-        JSON.parse(
-          localStorage.getItem(
-            "usuarioLogado"
-          ) || "{}"
-        ) || {};
-
-      const novoUsuario = {
-        ...atual,
-        ...dadosAtualizados,
-      };
-
-      localStorage.setItem(
-        "usuarioLogado",
-        JSON.stringify(
-          novoUsuario
-        )
-      );
-    } catch (erro) {
-      console.log(
-        "Erro ao atualizar usuário:",
-        erro
-      );
-    }
-  }
-
-  // =====================================================
-  // REGISTRAR AVALIAÇÃO
-  // =====================================================
-
-  function enviarAvaliacao() {
+  async function enviarAvaliacao() {
     if (estrelas < 1) {
-      alert(
-        "Escolha de 1 a 5 estrelas para continuar."
-      );
-
+      alert("Escolha de 1 a 5 estrelas para continuar.");
       return;
     }
 
-    // -----------------------------------------------
-    // ID ÚNICO DA CONVERSA
-    // -----------------------------------------------
+    if (carregandoUsuario) {
+      return;
+    }
+
+    if (!usuarioId) {
+      alert("Sua sessão não foi identificada. Entre novamente no Pulsan para avaliar.");
+      return;
+    }
 
     const conversaId =
       conversa.id ||
+      solicitacao.conversaId ||
       solicitacao.id ||
-      localStorage.getItem(
-        "pulsanConversaId"
-      ) ||
-      "conversa";
+      localStorage.getItem("pulsanConversaId") ||
+      "";
 
-    // -----------------------------------------------
-    // VERIFICAR AVALIAÇÕES EXISTENTES
-    // -----------------------------------------------
-
-    let avaliacoes = [];
-
-    try {
-      avaliacoes =
-        JSON.parse(
-          localStorage.getItem(
-            "pulsanAvaliacoes"
-          ) || "[]"
-        );
-
-      if (
-        !Array.isArray(
-          avaliacoes
-        )
-      ) {
-        avaliacoes = [];
-      }
-    } catch {
-      avaliacoes = [];
-    }
-
-    // -----------------------------------------------
-    // IMPEDIR DUPLICIDADE
-    // -----------------------------------------------
-
-    const avaliacaoExistente =
-      avaliacoes.find(
-        (item) =>
-          String(
-            item.conversaId
-          ) ===
-            String(
-              conversaId
-            ) &&
-          String(
-            item.avaliadorId
-          ) ===
-            String(
-              usuarioId
-            )
-      );
-
-    if (avaliacaoExistente) {
-      alert(
-        "Você já avaliou esta conversa."
-      );
-
-      setEnviado(true);
-
+    if (!conversaId || conversaId === "conversa") {
+      alert("Não foi possível identificar a conversa que será avaliada.");
       return;
     }
 
-    // -----------------------------------------------
-    // NOVA AVALIAÇÃO
-    // -----------------------------------------------
-
-    const novaAvaliacao = {
-      id:
-        "avaliacao-" +
-        Date.now(),
-
-      conversaId:
-
-        conversaId,
-
-      avaliadorId:
-        String(
-          usuarioId
-        ),
-
-      avaliadorNome:
-        nomeUsuario,
-
-      avaliadoId:
-        String(
-          ajudanteId ||
-            "ajudante"
-        ),
-
-      avaliadoNome:
-        ajudanteNome,
-
-      estrelas:
-        estrelas,
-
-      comentario:
-        mensagem.trim(),
-
-      data:
-        new Date().toISOString(),
-    };
-
-    avaliacoes.push(
-      novaAvaliacao
-    );
-
-    localStorage.setItem(
-      "pulsanAvaliacoes",
-      JSON.stringify(
-        avaliacoes
-      )
-    );
-
-    // =================================================
-    // BUSCAR TODAS AS AVALIAÇÕES DO AJUDANTE
-    // =================================================
-
-    const avaliacoesDoAjudante =
-      avaliacoes.filter(
-        (item) =>
-          String(
-            item.avaliadoId
-          ) ===
-          String(
-            ajudanteId ||
-              "ajudante"
-          )
-      );
-
-    // =================================================
-    // CALCULAR MÉDIA
-    // =================================================
-
-    const somaEstrelas =
-      avaliacoesDoAjudante.reduce(
-        (
-          total,
-          item
-        ) =>
-          total +
-          Number(
-            item.estrelas ||
-              0
-          ),
-        0
-      );
-
-    const quantidade =
-      avaliacoesDoAjudante.length;
-
-    const media =
-      quantidade > 0
-        ? somaEstrelas /
-          quantidade
-        : 0;
-
-    const mediaArredondada =
-      Number(
-        media.toFixed(2)
-      );
-
-    // =================================================
-    // BUSCAR DADOS DO AJUDANTE
-    // =================================================
-
-    const usuarios =
-      obterUsuarios();
-
-    const indiceAjudante =
-      usuarios.findIndex(
-        (item) =>
-          String(
-            item.id ||
-              item.email ||
-              ""
-          ) ===
-          String(
-            ajudanteId
-          )
-      );
-
-    let dadosAjudante = null;
-
-    if (
-      indiceAjudante >=
-      0
-    ) {
-      dadosAjudante =
-        usuarios[
-          indiceAjudante
-        ];
-    } else {
-      dadosAjudante = {
-        id:
-          ajudanteId ||
-          "ajudante",
-        nome:
-          ajudanteNome,
-        foto:
-          ajudanteFoto,
-        avaliacoes: [],
-        pontos: 0,
-        ajudas: 0,
-      };
+    if (!ajudanteId || ajudanteId === "ajudante") {
+      alert("Não foi possível identificar a pessoa que recebeu a avaliação.");
+      return;
     }
-
-    // =================================================
-    // PONTOS
-    // =================================================
-
-    const pontosAtuais =
-      Number(
-        dadosAjudante.pontos ||
-          0
-      );
-
-    // 10 pontos por avaliação
-    let pontosGanhos = 10;
-
-    // bônus de 5 estrelas
-    if (estrelas === 5) {
-      pontosGanhos += 5;
-    }
-
-    const novosPontos =
-      pontosAtuais +
-      pontosGanhos;
-
-    // =================================================
-    // QUANTIDADE DE AJUDAS
-    // =================================================
-
-    const ajudasAtuais =
-      Number(
-        dadosAjudante.ajudas ||
-          0
-      );
-
-    const novasAjudas =
-      ajudasAtuais + 1;
-
-    // =================================================
-    // VERIFICAÇÃO
-    // =================================================
-
-    const verificado =
-      quantidade >= 10 &&
-      mediaArredondada >=
-        4.5;
-
-    // =================================================
-    // ATUALIZAR AVALIAÇÕES DO PERFIL
-    // =================================================
-
-    const avaliacoesPerfil =
-      Array.isArray(
-        dadosAjudante.avaliacoes
-      )
-        ? [
-            ...dadosAjudante.avaliacoes,
-            {
-              estrelas:
-                estrelas,
-              avaliadorId:
-                String(
-                  usuarioId
-                ),
-              conversaId:
-                conversaId,
-              data:
-                new Date().toISOString(),
-            },
-          ]
-        : [
-            {
-              estrelas:
-                estrelas,
-              avaliadorId:
-                String(
-                  usuarioId
-                ),
-              conversaId:
-                conversaId,
-              data:
-                new Date().toISOString(),
-            },
-          ];
-
-    // =================================================
-    // NOVOS DADOS
-    // =================================================
-
-    const ajudanteAtualizado = {
-      ...dadosAjudante,
-
-      avaliacoes:
-        avaliacoesPerfil,
-
-      quantidadeAvaliacoes:
-        quantidade,
-
-      somaEstrelas:
-        somaEstrelas,
-
-      mediaEstrelas:
-        mediaArredondada,
-
-      pontos:
-        novosPontos,
-
-      ajudas:
-        novasAjudas,
-
-      verificado:
-        verificado,
-
-      seloVerificado:
-        verificado,
-
-      selo:
-        verificado
-          ? "Verificado pelo Pulsan"
-          : null,
-    };
-
-    // =================================================
-    // SALVAR NO BANCO LOCAL
-    // =================================================
-
-    if (
-      indiceAjudante >=
-      0
-    ) {
-      usuarios[
-        indiceAjudante
-      ] =
-        ajudanteAtualizado;
-    } else {
-      usuarios.push(
-        ajudanteAtualizado
-      );
-    }
-
-    salvarUsuarios(
-      usuarios
-    );
-
-    // =================================================
-    // CASO O USUÁRIO ATUAL SEJA O AJUDANTE
-    // =================================================
-
-    if (
-      String(
-        ajudanteId
-      ) ===
-      String(
-        usuarioId
-      )
-    ) {
-      atualizarUsuarioLogado({
-        avaliacoes:
-          avaliacoesPerfil,
-
-        quantidadeAvaliacoes:
-          quantidade,
-
-        somaEstrelas:
-          somaEstrelas,
-
-        mediaEstrelas:
-          mediaArredondada,
-
-        pontos:
-          novosPontos,
-
-        ajudas:
-          novasAjudas,
-
-        verificado:
-          verificado,
-
-        seloVerificado:
-          verificado,
-
-        selo:
-          verificado
-            ? "Verificado pelo Pulsan"
-            : null,
-      });
-    }
-
-    // =================================================
-    // ATUALIZAR DADOS DA OUTRA PESSOA
-    // =================================================
-
-    localStorage.setItem(
-      "pulsanMediaOutraPessoa",
-      mediaArredondada.toFixed(
-        2
-      )
-    );
-
-    localStorage.setItem(
-      "pulsanAvaliacoesOutraPessoa",
-      String(
-        quantidade
-      )
-    );
-
-    localStorage.setItem(
-      "pulsanSeloApoiadorOutraPessoa",
-      String(
-        verificado
-      )
-    );
-
-    // =================================================
-    // MARCAR CONVERSA COMO AVALIADA
-    // =================================================
-
-    localStorage.setItem(
-      "pulsanAvaliacaoFeita-" +
-        conversaId,
-      "true"
-    );
-
-    // =================================================
-    // ATUALIZAR CONVERSA
-    // =================================================
 
     try {
-      const conversas =
-        JSON.parse(
-          localStorage.getItem(
-            "pulsanConversas"
-          ) || "[]"
-        );
+      // A avaliação precisa ser conferida no banco, não apenas no navegador.
+      const { data: existente, error: erroBusca } = await supabase
+        .from("avaliacoes")
+        .select("id")
+        .eq("conversa_id", conversaId)
+        .eq("avaliador_id", usuarioId)
+        .maybeSingle();
 
-      if (
-        Array.isArray(
-          conversas
-        )
-      ) {
-        const atualizadas =
-          conversas.map(
-            (item) => {
-              if (
-                String(
-                  item.id
-                ) ===
-                String(
-                  conversaId
-                )
-              ) {
-                return {
-                  ...item,
-
-                  status:
-                    "finalizada",
-
-                  avaliacaoFeita:
-                    true,
-
-                  avaliacao:
-                    estrelas,
-
-                  avaliadoEm:
-                    new Date().toISOString(),
-                };
-              }
-
-              return item;
-            }
-          );
-
-        localStorage.setItem(
-          "pulsanConversas",
-          JSON.stringify(
-            atualizadas
-          )
-        );
+      if (erroBusca) {
+        console.error("Erro ao verificar avaliação existente:", erroBusca);
+        throw erroBusca;
       }
-    } catch {
-      // não interromper
-    }
 
-    // =================================================
-    // MOSTRAR RESULTADO
-    // =================================================
+      if (existente) {
+        alert("Você já avaliou esta conversa.");
+        setEnviado(true);
+        return;
+      }
 
-    setEnviado(true);
+      const { error: erroInsercao } = await supabase
+        .from("avaliacoes")
+        .insert({
+          conversa_id: conversaId,
+          avaliador_id: usuarioId,
+          avaliado_id: ajudanteId,
+          estrelas,
+          comentario: mensagem.trim() || null,
+          criada_em: new Date().toISOString(),
+        });
 
-    if (verificado) {
-      setTimeout(() => {
-        alert(
-          "🎉 Parabéns!\n\n" +
-          "Este apoiador atingiu " +
-          "10 avaliações com média igual ou superior a 4,5 estrelas.\n\n" +
-          "✓ Verificado pelo Pulsan!"
-        );
-      }, 200);
+      if (erroInsercao) {
+        // Se houver uma restrição UNIQUE no banco, uma segunda tentativa
+        // também será impedida no servidor.
+        if (String(erroInsercao.code) === "23505") {
+          alert("Você já avaliou esta conversa.");
+          setEnviado(true);
+          return;
+        }
+
+        console.error("Erro ao salvar avaliação:", erroInsercao);
+        throw erroInsercao;
+      }
+
+      // A finalização da conversa também fica no banco.
+      const { error: erroConversa } = await supabase
+        .from("conversas")
+        .update({
+          status: "finalizada",
+          avaliacao_feita: true,
+          avaliacao: estrelas,
+          avaliado_em: new Date().toISOString(),
+        })
+        .eq("id", conversaId);
+
+      if (erroConversa) {
+        // A avaliação já foi salva. Não desfazemos a avaliação por uma
+        // falha secundária na atualização da conversa.
+        console.warn("Avaliação salva, mas a conversa não foi atualizada:", erroConversa);
+      }
+
+      // Não usamos mais localStorage como banco de avaliações, pontos ou selo.
+      // Esses dados devem ser calculados a partir das avaliações persistidas.
+      localStorage.setItem(
+        "pulsanAvaliacaoFeita-" + conversaId,
+        "true"
+      );
+
+      setEnviado(true);
+    } catch (erro) {
+      console.error("Erro ao enviar avaliação:", erro);
+      alert(
+        `Não foi possível enviar a avaliação.\\n\\n${
+          erro?.message || "Verifique sua conexão e tente novamente."
+        }`
+      );
     }
   }
 
@@ -1220,7 +748,7 @@ function Avaliacao({ irPara }) {
             enviarAvaliacao
           }
           disabled={
-            estrelas === 0
+            estrelas === 0 || carregandoUsuario
           }
           style={{
             width:
@@ -1232,7 +760,7 @@ function Avaliacao({ irPara }) {
             padding:
               "14px",
             background:
-              estrelas > 0
+              estrelas > 0 && !carregandoUsuario
                 ? "#20adb0"
                 : "#d9e6e4",
             color:
@@ -1242,7 +770,7 @@ function Avaliacao({ irPara }) {
             fontSize:
               "15px",
             cursor:
-              estrelas > 0
+              estrelas > 0 && !carregandoUsuario
                 ? "pointer"
                 : "not-allowed",
             boxShadow:
@@ -1251,7 +779,7 @@ function Avaliacao({ irPara }) {
                 : "none",
           }}
         >
-          ⭐ Enviar avaliação
+          {carregandoUsuario ? "⏳ Identificando sua sessão..." : "⭐ Enviar avaliação"}
         </button>
 
       </div>

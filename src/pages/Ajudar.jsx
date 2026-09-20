@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 function Ajudar({ irPara }) {
   // =========================================================
@@ -1224,6 +1224,17 @@ function Ajudar({ irPara }) {
             0 8px 20px rgba(0,0,0,0.06);
         }
 
+        .sentimento-button:focus-visible,
+        .som-card:focus-visible,
+        .conteudo-opcao:focus-visible,
+        button:focus-visible,
+        a:focus-visible,
+        input:focus-visible {
+          outline: 3px solid
+            var(--pulsan-primaria, #20adb0);
+          outline-offset: 3px;
+        }
+
         .sentimento-button.ativo {
           background:
             var(--pulsan-primaria, #20adb0);
@@ -2329,6 +2340,23 @@ function Ajudar({ irPara }) {
                 <article
                   className="conteudo-opcao"
                   style={cardStyle}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(event) => {
+                    if (
+                      event.key === "Enter" ||
+                      event.key === " "
+                    ) {
+                      event.preventDefault();
+                      const elemento =
+                        document.getElementById(
+                          "videos-area"
+                        );
+                      elemento?.scrollIntoView({
+                        behavior: "smooth",
+                      });
+                    }
+                  }}
                   onClick={() => {
                     const elemento =
                       document.getElementById(
@@ -2361,6 +2389,17 @@ function Ajudar({ irPara }) {
                 <article
                   className="conteudo-opcao"
                   style={cardStyle}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(event) => {
+                    if (
+                      event.key === "Enter" ||
+                      event.key === " "
+                    ) {
+                      event.preventDefault();
+                      mostrarPensamento();
+                    }
+                  }}
                   onClick={
                     mostrarPensamento
                   }
@@ -2387,6 +2426,23 @@ function Ajudar({ irPara }) {
                 <article
                   className="conteudo-opcao"
                   style={cardStyle}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(event) => {
+                    if (
+                      event.key === "Enter" ||
+                      event.key === " "
+                    ) {
+                      event.preventDefault();
+                      const elemento =
+                        document.getElementById(
+                          "sons-area"
+                        );
+                      elemento?.scrollIntoView({
+                        behavior: "smooth",
+                      });
+                    }
+                  }}
                   onClick={() => {
                     const elemento =
                       document.getElementById(

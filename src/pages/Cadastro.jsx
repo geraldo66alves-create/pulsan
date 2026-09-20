@@ -23,6 +23,10 @@ function Cadastro({ irPara }) {
   const [aceitouTermos, setAceitouTermos] = useState(false);
   const [mostrarTermos, setMostrarTermos] = useState(false);
 
+  // Confirmação de e-mail
+  const [emailEnviado, setEmailEnviado] = useState(false);
+  const [emailConfirmacao, setEmailConfirmacao] = useState("");
+
   // =========================
   // SELECIONAR FOTO
   // =========================
@@ -97,7 +101,6 @@ function Cadastro({ irPara }) {
       return;
     }
 
-    // Verificação dos campos básicos
     if (
       !nome.trim() ||
       !email.trim() ||
@@ -112,7 +115,6 @@ function Cadastro({ irPara }) {
 
     const emailNormalizado = email.trim().toLowerCase();
 
-    // Funcionário Brisanet
     if (
       tipo === "colaborador" &&
       !emailNormalizado.endsWith("@grupobrisanet.com.br")
@@ -123,7 +125,6 @@ function Cadastro({ irPara }) {
       return;
     }
 
-    // Psicólogo
     if (tipo === "psicologo") {
       if (!telefone.trim()) {
         alert("Informe seu telefone.");
@@ -153,7 +154,6 @@ function Cadastro({ irPara }) {
       }
     }
 
-    // Senha
     if (senha.length < 6) {
       alert("A senha precisa ter pelo menos 6 caracteres.");
       return;
@@ -168,7 +168,9 @@ function Cadastro({ irPara }) {
       setCarregando(true);
 
       // ==========================================
-      // CADASTRO SEGURO PELO SUPABASE AUTH
+      // CRIA A CONTA NO SUPABASE AUTH
+      // A conta só poderá entrar depois da confirmação
+      // do endereço de e-mail.
       // ==========================================
 
       const { data: cadastroAuth, error: erroAuth } =
@@ -176,6 +178,7 @@ function Cadastro({ irPara }) {
           email: emailNormalizado,
           password: senha,
           options: {
+            emailRedirectTo: window.location.origin,
             data: {
               nome: nome.trim(),
               tipo_usuario: tipo,
@@ -184,7 +187,9 @@ function Cadastro({ irPara }) {
         });
 
       if (erroAuth) {
-        throw new Error(erroAuth.message || "Não foi possível criar a conta.");
+        throw new Error(
+          erroAuth.message || "Não foi possível criar a conta."
+        );
       }
 
       const usuarioAuth = cadastroAuth?.user;
@@ -193,21 +198,19 @@ function Cadastro({ irPara }) {
         throw new Error("O Supabase não retornou o usuário criado.");
       }
 
-      // Garante que esta conta passe pela configuração de acessibilidade no primeiro login.
-      localStorage.removeItem(`pulsanAcessibilidadeConfigurada_${usuarioAuth.id}`);
-      // Remove também a chave antiga/global, caso exista de uma versão anterior.
-      localStorage.removeItem("pulsanAcessibilidadeConfigurada");
-
-      // O perfil é criado automaticamente pelo trigger do Supabase.
-      // Não inserir novamente em "perfis", pois isso causa duplicate key.
-
+      // ==========================================
+      // PSICÓLOGO
+      // A solicitação fica registrada como pendente.
+      // A entrada na plataforma continua bloqueada até
+      // o e-mail ser confirmado.
+      // ==========================================
 
       if (tipo === "psicologo") {
         const resposta = await fetch(`${API_URL}/api/psicologos`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            id: usuarioAuth.id,
+            usuario_id: usuarioAuth.id,
             nome: nome.trim(),
             email: emailNormalizado,
             telefone: telefone.trim(),
@@ -217,74 +220,70 @@ function Cadastro({ irPara }) {
           }),
         });
 
-        const resultado = await resposta.json();
+        const resultado = await resposta.json().catch(() => ({}));
 
         if (!resposta.ok) {
           throw new Error(
-            resultado?.erro || resultado?.error || "Não foi possível registrar o psicólogo."
+            resultado?.erro ||
+              resultado?.error ||
+              "A conta foi criada, mas não foi possível registrar a solicitação do psicólogo."
           );
         }
       }
 
-      // Mantém somente dados não sensíveis da sessão local.
-      localStorage.setItem("pulsanNome", nome.trim());
-      localStorage.setItem("pulsanEmail", emailNormalizado);
-      localStorage.setItem("pulsanFoto", foto);
-      localStorage.setItem("pulsanTipo", tipo);
-      localStorage.setItem(
-        "pulsanUsuarioAtual",
-        JSON.stringify({
-          id: usuarioAuth.id,
-          nome: nome.trim(),
-          email: emailNormalizado,
-          tipo_usuario: tipo,
-          foto_url: foto,
-          termos_aceitos: true,
-          data_aceite_termos: new Date().toISOString(),
-          versao_termos: "1.0",
-        })
+      // Não gravamos a sessão local aqui.
+      // O usuário ainda precisa confirmar o e-mail.
+      setEmailConfirmacao(emailNormalizado);
+      setEmailEnviado(true);
+
+      alert(
+        `Cadastro iniciado!\n\nEnviamos um e-mail de confirmação para:\n${emailNormalizado}\n\nAbra o e-mail e clique em "Confirm your email address". Depois, volte ao Pulsan e faça login.`
       );
-
-      if (tipo === "psicologo") {
-        localStorage.setItem("pulsanCRP", crp.trim());
-        localStorage.setItem("pulsanEstadoCRP", estadoCrp);
-        localStorage.setItem("pulsanAreaAtuacao", areaAtuacao);
-        localStorage.setItem("pulsanTelefone", telefone.trim());
-        localStorage.setItem("pulsanPsicologoParceiro", "false");
-        localStorage.setItem("pulsanVerificacaoPsicologo", "pendente");
-        localStorage.setItem("pulsanDocumentoProfissional", documento);
-        localStorage.setItem("pulsanNomeDocumento", nomeDocumento);
-      } else {
-        localStorage.removeItem("pulsanCRP");
-        localStorage.removeItem("pulsanEstadoCRP");
-        localStorage.removeItem("pulsanAreaAtuacao");
-        localStorage.removeItem("pulsanTelefone");
-        localStorage.removeItem("pulsanPsicologoParceiro");
-        localStorage.removeItem("pulsanVerificacaoPsicologo");
-        localStorage.removeItem("pulsanDocumentoProfissional");
-        localStorage.removeItem("pulsanNomeDocumento");
-      }
-
-      // ==========================================
-      // MENSAGEM
-      // ==========================================
-
-      if (tipo === "psicologo") {
-        alert(
-          "Cadastro realizado! 🧠\n\nSua solicitação para ser Psicólogo Parceiro Pulsan foi enviada para análise da equipe responsável."
-        );
-      } else {
-        alert("Conta criada com sucesso! 💚");
-      }
-
-      // Vai para login
-      irPara("login");
     } catch (erro) {
       console.error("Erro no cadastro:", erro);
 
       alert(
-        "Não foi possível concluir o cadastro.\n\n" +
-          (erro?.message || "Verifique se o servidor está funcionando.")
+        "Não foi possível iniciar o cadastro.\n\n" +
+          (erro?.message || "Verifique sua conexão e tente novamente.")
+      );
+    } finally {
+      setCarregando(false);
+    }
+  }
+
+  // ==========================================
+  // REENVIAR E-MAIL DE CONFIRMAÇÃO
+  // ==========================================
+
+  async function reenviarEmailConfirmacao() {
+    if (carregando || !emailConfirmacao) return;
+
+    try {
+      setCarregando(true);
+
+      const { error } = await supabase.auth.resend({
+        type: "signup",
+        email: emailConfirmacao,
+        options: {
+          emailRedirectTo: window.location.origin,
+        },
+      });
+
+      if (error) {
+        throw new Error(
+          error.message || "Não foi possível reenviar o e-mail de confirmação."
+        );
+      }
+
+      alert(
+        `Um novo e-mail de confirmação foi enviado para ${emailConfirmacao}.\n\nVerifique também a pasta de spam, promoções ou lixo eletrônico.`
+      );
+    } catch (erro) {
+      console.error("Erro ao reenviar confirmação:", erro);
+
+      alert(
+        "Não foi possível reenviar o e-mail.\n\n" +
+          (erro?.message || "Tente novamente em alguns instantes.")
       );
     } finally {
       setCarregando(false);
@@ -780,6 +779,91 @@ function Cadastro({ irPara }) {
         .terms-modal-card h3 { margin-bottom: 6px; color: var(--pulsan-deep); font-size: 14px; }
         .terms-modal-card p { color: #63758D; font-size: 13px; line-height: 1.6; }
 
+
+        .email-verification-card {
+          padding: 28px;
+          border: 1px solid var(--pulsan-border);
+          border-radius: 24px;
+          background:
+            radial-gradient(circle at 100% 0%, rgba(168,199,255,.22), transparent 32%),
+            linear-gradient(180deg, #FBFDFF 0%, #F5F9FF 100%);
+          box-shadow: 0 12px 30px rgba(15,45,91,.07);
+          text-align: center;
+        }
+
+        .email-verification-icon {
+          width: 66px;
+          height: 66px;
+          margin: 0 auto 15px;
+          display: grid;
+          place-items: center;
+          border-radius: 21px;
+          background: var(--pulsan-soft);
+          border: 1px solid #D4E5FA;
+          font-size: 29px;
+        }
+
+        .email-verification-eyebrow {
+          color: var(--pulsan-blue);
+          font-size: 11px;
+          font-weight: 800;
+          text-transform: uppercase;
+          letter-spacing: .11em;
+          margin-bottom: 8px;
+        }
+
+        .email-verification-card h2 {
+          margin: 0 0 10px;
+          color: var(--pulsan-deep);
+          font-size: 27px;
+          letter-spacing: -.03em;
+        }
+
+        .email-verification-card > p {
+          margin: 0;
+          color: var(--pulsan-muted);
+          font-size: 13px;
+          line-height: 1.55;
+        }
+
+        .email-verification-email {
+          display: block;
+          margin: 7px 0 23px;
+          color: var(--pulsan-text);
+          font-size: 14px;
+          overflow-wrap: anywhere;
+        }
+
+        .email-verification-help {
+          display: flex;
+          align-items: flex-start;
+          gap: 8px;
+          margin: 15px 0;
+          padding: 12px;
+          border-radius: 13px;
+          background: rgba(234,243,255,.65);
+          color: #63758D;
+          font-size: 11px;
+          line-height: 1.5;
+          text-align: left;
+        }
+
+        .resend-code-button {
+          width: 100%;
+          border: 0;
+          background: transparent;
+          color: var(--pulsan-blue);
+          cursor: pointer;
+          font-size: 12px;
+          font-weight: 800;
+          padding: 13px 8px 8px;
+        }
+
+        .resend-code-button:disabled {
+          opacity: .6;
+          cursor: not-allowed;
+        }
+
         @media (max-width: 900px) {
           .pulsan-cadastro-page { padding: 20px; align-items: flex-start; }
           .cadastro-shell { grid-template-columns: 1fr; max-width: 720px; margin: 12px auto; }
@@ -822,6 +906,7 @@ function Cadastro({ irPara }) {
           .photo-info { min-width: calc(100% - 80px); }
           .photo-upload-button { width: 100%; }
           .psychology-box { padding: 15px; }
+          .email-verification-card { padding: 20px; }
           .terms-modal-card { padding: 20px; border-radius: 18px; }
         }
 
@@ -878,7 +963,66 @@ function Cadastro({ irPara }) {
               </p>
             </div>
 
-            <form className="auth-form" onSubmit={cadastrar}>
+
+            {emailEnviado ? (
+              <section className="email-verification-card" aria-labelledby="email-verification-title">
+                <div className="email-verification-icon">✉️</div>
+                <div className="email-verification-eyebrow">Confirmação de segurança</div>
+
+                <h2 id="email-verification-title">Confirme seu e-mail</h2>
+
+                <p>
+                  Enviamos um e-mail de confirmação para:
+                </p>
+
+                <strong className="email-verification-email">
+                  {emailConfirmacao}
+                </strong>
+
+                <div className="email-verification-help">
+                  <span>🔐</span>
+                  <span>
+                    Abra a mensagem recebida e clique em
+                    <strong> “Confirm your email address”</strong>.
+                    Depois da confirmação, você poderá entrar no Pulsan com
+                    seu e-mail e senha.
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  className="auth-button"
+                  onClick={() => irPara("login")}
+                >
+                  Já confirmei meu e-mail
+                </button>
+
+                <button
+                  type="button"
+                  className="resend-code-button"
+                  onClick={reenviarEmailConfirmacao}
+                  disabled={carregando}
+                >
+                  {carregando
+                    ? "Enviando..."
+                    : "↻ Não recebi o e-mail — enviar novamente"}
+                </button>
+
+                <button
+                  type="button"
+                  className="auth-back"
+                  onClick={() => {
+                    if (carregando) return;
+                    setEmailEnviado(false);
+                    setEmailConfirmacao("");
+                  }}
+                  disabled={carregando}
+                >
+                  ← Voltar para o cadastro
+                </button>
+              </section>
+            ) : (
+              <form className="auth-form" onSubmit={cadastrar}>
               <div className="form-grid">
                 <div className="form-group">
                   <label htmlFor="nome">Nome</label>
@@ -1118,6 +1262,9 @@ function Cadastro({ irPara }) {
                 {carregando ? "Criando seu espaço..." : "Criar meu espaço"}
               </button>
             </form>
+            )}
+
+
 
             {mostrarTermos && (
               <div className="terms-modal">

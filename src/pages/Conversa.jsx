@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
 import "../tema.css";
 
-export default function Conversa({ irPara, tema = "claro" }) {
+function ConversaPrincipal({ irPara, tema = "claro" }) {
   const [tela, setTela] = useState("lista");
   const [usuario, setUsuario] = useState(null);
 
@@ -17,10 +17,14 @@ export default function Conversa({ irPara, tema = "claro" }) {
   const [novaMensagem, setNovaMensagem] = useState("");
   const [carregandoMensagens, setCarregandoMensagens] = useState(false);
   const [enviando, setEnviando] = useState(false);
+  const [finalizando, setFinalizando] = useState(false);
   const [erro, setErro] = useState("");
 
   const fimMensagensRef = useRef(null);
+  const mensagensContainerRef = useRef(null);
   const inputRef = useRef(null);
+  const canalListaRef = useRef(null);
+  const canalMensagensRef = useRef(null);
 
   const modoEscuro = tema === "escuro";
 
@@ -54,7 +58,6 @@ export default function Conversa({ irPara, tema = "claro" }) {
 
         if (error) {
           console.warn("Usuário Supabase não encontrado:", error);
-          return;
         }
 
         if (ativo && data?.user) {
@@ -63,6 +66,8 @@ export default function Conversa({ irPara, tema = "claro" }) {
             id: data.user.id,
             email: data.user.email || anterior?.email || "",
           }));
+        } else if (ativo && !data?.user) {
+          setUsuario(null);
         }
       } catch (erro) {
         console.error("Erro ao carregar usuário:", erro);
@@ -129,7 +134,7 @@ export default function Conversa({ irPara, tema = "claro" }) {
         --------------------------------------------- */
 
         const idsDesabafos = listaPedidos
-          .map((item) => item.desabafo_id)
+          .map((item) => item.desabafo_post_id)
           .filter(Boolean);
 
         const idsSolicitantes = listaPedidos
@@ -138,6 +143,7 @@ export default function Conversa({ irPara, tema = "claro" }) {
 
         let posts = [];
         let perfisSolicitantes = [];
+        let avaliacoesSolicitantes = [];
 
         if (idsDesabafos.length > 0) {
           const {
@@ -160,19 +166,32 @@ export default function Conversa({ irPara, tema = "claro" }) {
           posts = postsData || [];
         }
 
-        // A identidade exibida na solicitação é SEMPRE a de quem
-        // ofereceu ajuda (solicitante_id). O desabafo é carregado
-        // separadamente e pertence ao destinatário da solicitação.
+        // A identidade exibida na solicitação é a de quem ofereceu ajuda.
+        // Os dados vêm de uma função pública controlada que retorna apenas
+        // os campos de perfil necessários para a conversa.
         if (idsSolicitantes.length > 0) {
+          const idsUnicos = [...new Set(idsSolicitantes)];
+
           const { data: perfisData, error: erroPerfis } = await supabase
-            .from("perfis")
-            .select("*")
-            .in("id", [...new Set(idsSolicitantes)]);
+            .rpc("obter_perfis_publicos_conversa", {
+              p_ids: idsUnicos,
+            });
 
           if (erroPerfis) {
-            console.warn("Erro ao carregar perfis dos solicitantes:", erroPerfis);
+            console.warn("Erro ao carregar perfis públicos dos solicitantes:", erroPerfis);
           } else {
             perfisSolicitantes = perfisData || [];
+          }
+
+          const { data: avaliacoesData, error: erroAvaliacoes } = await supabase
+            .rpc("obter_avaliacoes_publicas_conversa", {
+              p_ids: idsUnicos,
+            });
+
+          if (erroAvaliacoes) {
+            console.warn("Erro ao carregar avaliações dos solicitantes:", erroAvaliacoes);
+          } else {
+            avaliacoesSolicitantes = avaliacoesData || [];
           }
         }
 
@@ -183,7 +202,7 @@ export default function Conversa({ irPara, tema = "claro" }) {
         const solicitacoesFormatadas = listaPedidos.map(
           (pedido) => {
             const post = posts.find(
-              (item) => item.id === pedido.desabafo_id
+              (item) => item.id === pedido.desabafo_post_id
             );
 
             const perfilSolicitante = perfisSolicitantes.find(
@@ -196,24 +215,28 @@ export default function Conversa({ irPara, tema = "claro" }) {
 
             const seloExplicito =
               perfilSolicitante?.selo ||
-              perfilSolicitante?.selo_nome ||
-              perfilSolicitante?.badge ||
-              perfilSolicitante?.badge_nome ||
               "";
+
+            const avaliacaoSolicitante = avaliacoesSolicitantes.find(
+              (item) => String(item.avaliado_id) === String(pedido.solicitante_id)
+            );
+
+            const mediaAvaliacoes = avaliacaoSolicitante?.media != null
+              ? Number(avaliacaoSolicitante.media).toFixed(1)
+              : "Novo";
+
+            const quantidadeAvaliacoes = Number(
+              avaliacaoSolicitante?.quantidade || 0
+            );
 
             return {
               ...pedido,
               nome:
                 perfilSolicitante?.nome ||
-                pedido.nome_solicitante ||
-                pedido.nome_usuario ||
-                "Pessoa anônima",
-              foto:
-                perfilSolicitante?.foto_url ||
-                perfilSolicitante?.foto ||
-                pedido.foto_solicitante ||
-                pedido.foto_usuario ||
-                "",
+                (psicologoAprovado ? "Psicólogo parceiro" : "Apoiador"),
+              foto: perfilSolicitante?.foto_url || "",
+              mediaAvaliacoes,
+              quantidadeAvaliacoes,
               possuiSelo: Boolean(psicologoAprovado || seloExplicito),
               tipoSelo: psicologoAprovado
                 ? "psicologo"
@@ -269,17 +292,31 @@ export default function Conversa({ irPara, tema = "claro" }) {
           .filter(Boolean);
 
         let perfisOutrasPessoas = [];
+        let avaliacoesOutrasPessoas = [];
 
         if (idsOutrasPessoas.length > 0) {
+          const idsUnicosOutras = [...new Set(idsOutrasPessoas)];
+
           const { data: perfisData, error: erroPerfisRecentes } = await supabase
-            .from("perfis")
-            .select("*")
-            .in("id", [...new Set(idsOutrasPessoas)]);
+            .rpc("obter_perfis_publicos_conversa", {
+              p_ids: idsUnicosOutras,
+            });
 
           if (erroPerfisRecentes) {
-            console.warn("Erro ao carregar perfis das conversas recentes:", erroPerfisRecentes);
+            console.warn("Erro ao carregar perfis públicos das conversas recentes:", erroPerfisRecentes);
           } else {
             perfisOutrasPessoas = perfisData || [];
+          }
+
+          const { data: avaliacoesData, error: erroAvaliacoesRecentes } = await supabase
+            .rpc("obter_avaliacoes_publicas_conversa", {
+              p_ids: idsUnicosOutras,
+            });
+
+          if (erroAvaliacoesRecentes) {
+            console.warn("Erro ao carregar avaliações das conversas recentes:", erroAvaliacoesRecentes);
+          } else {
+            avaliacoesOutrasPessoas = avaliacoesData || [];
           }
         }
 
@@ -339,28 +376,42 @@ export default function Conversa({ irPara, tema = "claro" }) {
 
           const outraPessoaSelo =
             perfilOutraPessoa?.selo ||
-            perfilOutraPessoa?.selo_nome ||
-            perfilOutraPessoa?.badge ||
-            perfilOutraPessoa?.badge_nome ||
             "";
+
+          const avaliacaoOutraPessoa = avaliacoesOutrasPessoas.find(
+            (item) => String(item.avaliado_id) === String(outraPessoaId)
+          );
+
+          const souAutorDoDesabafo =
+            String(conversa.destinatario_id) === String(usuarioId);
 
           return {
             ...conversa,
             outraPessoaId,
-            nome:
-              perfilOutraPessoa?.nome ||
-              conversa.nome_outra_pessoa ||
-              conversa.nome_usuario ||
-              "Pessoa anônima",
-            foto:
-              perfilOutraPessoa?.foto_url ||
-              perfilOutraPessoa?.foto ||
-              conversa.foto_outra_pessoa ||
-              conversa.foto_usuario ||
-              "",
-            possuiSelo: Boolean(outraPessoaPsicologo || outraPessoaSelo),
-            tipoSelo: outraPessoaPsicologo ? "psicologo" : outraPessoaSelo ? "confianca" : "",
-            textoSelo: outraPessoaPsicologo ? "Psicólogo parceiro" : outraPessoaSelo || "Apoiador de confiança",
+            // Quem publicou o desabafo permanece anônimo para quem ofereceu ajuda.
+            nome: souAutorDoDesabafo
+              ? (outraPessoaPsicologo
+                  ? "Psicólogo parceiro"
+                  : (perfilOutraPessoa?.nome || "Pessoa anônima"))
+              : "Anônimo",
+            foto: souAutorDoDesabafo
+              ? (perfilOutraPessoa?.foto_url || "")
+              : "",
+            mediaAvaliacoes: souAutorDoDesabafo && avaliacaoOutraPessoa?.media != null
+              ? Number(avaliacaoOutraPessoa.media).toFixed(1)
+              : "Novo",
+            quantidadeAvaliacoes: souAutorDoDesabafo
+              ? Number(avaliacaoOutraPessoa?.quantidade || 0)
+              : 0,
+            possuiSelo: souAutorDoDesabafo
+              ? Boolean(outraPessoaPsicologo || outraPessoaSelo)
+              : false,
+            tipoSelo: souAutorDoDesabafo
+              ? (outraPessoaPsicologo ? "psicologo" : outraPessoaSelo ? "confianca" : "")
+              : "",
+            textoSelo: souAutorDoDesabafo
+              ? (outraPessoaPsicologo ? "Psicólogo parceiro" : outraPessoaSelo || "Apoiador de confiança")
+              : "",
             preview:
               ultimaMensagemReal?.mensagem ||
               conversa.ultima_mensagem ||
@@ -368,6 +419,7 @@ export default function Conversa({ irPara, tema = "claro" }) {
               "Conversa em andamento.",
             ultimaMensagemEm,
             mensagemNova,
+            desabafo_post_id: conversa.desabafo_post_id || null,
           };
         });
 
@@ -384,6 +436,30 @@ export default function Conversa({ irPara, tema = "claro" }) {
           setRecentes(recentesFormatadas);
           setNotificacoesSolicitacoes(existemSolicitacoesNovas);
           setNotificacoesRecentes(existemMensagensNovas);
+
+          // Se outra tela encontrou uma conversa ativa para um desabafo,
+          // abre essa conversa diretamente sem criar uma nova solicitação.
+          const abrirId = localStorage.getItem("pulsanAbrirConversaId");
+          if (abrirId) {
+            const conversaParaAbrir = recentesFormatadas.find(
+              (item) => String(item.id) === String(abrirId)
+            );
+
+            if (conversaParaAbrir) {
+              setConversaAtual(conversaParaAbrir);
+              setTela("chat");
+              setErro("");
+              localStorage.setItem(
+                "pulsanConversaAtual",
+                JSON.stringify(conversaParaAbrir)
+              );
+              localStorage.removeItem("pulsanAbrirConversaId");
+              localStorage.setItem(
+                "pulsanIdDesabafoConversa",
+                String(conversaParaAbrir.desabafo_post_id || "")
+              );
+            }
+          }
         }
       } catch (erro) {
         console.error(
@@ -405,20 +481,89 @@ export default function Conversa({ irPara, tema = "claro" }) {
 
     carregarLista();
 
-    /*
-      Atualização periódica simples.
-      Não usamos Realtime aqui para manter essa versão
-      mais estável.
-    */
+    // =====================================================
+    // TEMPO REAL — solicitações e conversas
+    // =====================================================
+    // Em vez de consultar o banco a cada poucos segundos,
+    // o Supabase avisa quando uma solicitação/conversa mudou.
+    const canal = supabase
+      .channel(`pulsan-lista-${usuarioId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "solicitacoes_chat",
+          filter: `destinatario_id=eq.${usuarioId}`,
+        },
+        () => {
+          carregarLista();
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "solicitacoes_chat",
+          filter: `solicitante_id=eq.${usuarioId}`,
+        },
+        () => {
+          carregarLista();
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "conversas",
+          filter: `solicitante_id=eq.${usuarioId}`,
+        },
+        () => {
+          carregarLista();
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "conversas",
+          filter: `destinatario_id=eq.${usuarioId}`,
+        },
+        () => {
+          carregarLista();
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "mensagens_conversa",
+        },
+        () => {
+          // Atualiza Recentes imediatamente quando qualquer mensagem
+          // de uma conversa do usuário for gravada.
+          carregarLista();
+        }
+      )
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          console.info("Pulsan: tempo real das conversas conectado.");
+        }
+      });
 
-    const intervalo = setInterval(
-      carregarLista,
-      5000
-    );
+    canalListaRef.current = canal;
 
     return () => {
       ativo = false;
-      clearInterval(intervalo);
+
+      if (canalListaRef.current) {
+        supabase.removeChannel(canalListaRef.current);
+        canalListaRef.current = null;
+      }
     };
   }, [usuarioId]);
 
@@ -445,20 +590,19 @@ export default function Conversa({ irPara, tema = "claro" }) {
         } = await supabase
           .from("mensagens_conversa")
           .select("*")
-          .eq(
-            "conversa_id",
-            conversaAtual.id
-          )
-          .order("criada_em", {
-            ascending: true,
-          });
+          .eq("conversa_id", conversaAtual.id);
 
         if (error) {
           throw error;
         }
 
         if (ativo) {
-          setMensagens(data || []);
+          const ordenadas = [...(data || [])].sort((a, b) => {
+            const aData = a?.criada_em || a?.criado_em || a?.created_at || 0;
+            const bData = b?.criada_em || b?.criado_em || b?.created_at || 0;
+            return new Date(aData).getTime() - new Date(bData).getTime();
+          });
+          setMensagens(ordenadas);
         }
       } catch (erro) {
         console.error(
@@ -480,8 +624,133 @@ export default function Conversa({ irPara, tema = "claro" }) {
 
     carregarMensagens();
 
+    // =====================================================
+    // TEMPO REAL — mensagens da conversa aberta
+    // =====================================================
+    // Na tela de lista não existe uma conversa selecionada ainda.
+    // Portanto, não criamos um canal com conversaAtual nula.
+    if (!conversaAtual?.id) {
+      return () => {
+        ativo = false;
+      };
+    }
+
+    const idConversa = String(conversaAtual.id);
+
+    const canal = supabase
+      .channel(`pulsan-mensagens-${idConversa}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "mensagens_conversa",
+          filter: `conversa_id=eq.${idConversa}`,
+        },
+        (payload) => {
+          const nova = payload?.new;
+          if (!nova?.id) return;
+
+          setMensagens((anteriores) => {
+            if (anteriores.some((item) => String(item.id) === String(nova.id))) {
+              return anteriores;
+            }
+
+            return [...anteriores, nova].sort((a, b) => {
+              const aData = a?.criada_em || a?.criado_em || a?.created_at || 0;
+              const bData = b?.criada_em || b?.criado_em || b?.created_at || 0;
+              return new Date(aData).getTime() - new Date(bData).getTime();
+            });
+          });
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "mensagens_conversa",
+          filter: `conversa_id=eq.${idConversa}`,
+        },
+        (payload) => {
+          const atualizada = payload?.new;
+          if (!atualizada?.id) return;
+
+          setMensagens((anteriores) =>
+            anteriores.map((item) =>
+              String(item.id) === String(atualizada.id)
+                ? atualizada
+                : item
+            )
+          );
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "DELETE",
+          schema: "public",
+          table: "mensagens_conversa",
+          filter: `conversa_id=eq.${idConversa}`,
+        },
+        (payload) => {
+          const removida = payload?.old;
+          if (!removida?.id) return;
+
+          setMensagens((anteriores) =>
+            anteriores.filter(
+              (item) => String(item.id) !== String(removida.id)
+            )
+          );
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "conversas",
+          filter: `id=eq.${idConversa}`,
+        },
+        (payload) => {
+          const conversaAtualizada = payload?.new;
+          if (!conversaAtualizada?.id) return;
+
+          if (String(conversaAtualizada.status || "").toLowerCase() === "finalizada") {
+            setConversaAtual((anterior) =>
+              anterior
+                ? { ...anterior, ...conversaAtualizada, status: "finalizada" }
+                : anterior
+            );
+            setRecentes((anteriores) =>
+              anteriores.filter((item) => String(item.id) !== String(idConversa))
+            );
+            setMensagens((anteriores) => anteriores);
+            setErro("Esta conversa foi finalizada.");
+          } else {
+            setConversaAtual((anterior) =>
+              anterior
+                ? { ...anterior, ...conversaAtualizada }
+                : anterior
+            );
+          }
+        }
+      )
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          console.info("Pulsan: tempo real do chat conectado.");
+        }
+      });
+
+    canalMensagensRef.current = canal;
+
     return () => {
       ativo = false;
+
+      if (canalMensagensRef.current) {
+        supabase.removeChannel(canalMensagensRef.current);
+        canalMensagensRef.current = null;
+      }
     };
   }, [conversaAtual?.id]);
 
@@ -490,9 +759,24 @@ export default function Conversa({ irPara, tema = "claro" }) {
   ========================================================= */
 
   useEffect(() => {
-    fimMensagensRef.current?.scrollIntoView({
-      behavior: "smooth",
-      block: "end",
+    const container = mensagensContainerRef.current;
+    if (!container) return;
+
+    // Mantém o scroll dentro do painel de mensagens.
+    // Assim o envio/recebimento não move a página inteira.
+    requestAnimationFrame(() => {
+      // O composer fica fixo sobre a tela. Rolamos apenas a área
+      // das mensagens até o final, deixando a última mensagem
+      // visível logo acima do campo de envio.
+      const destino = Math.max(
+        0,
+        container.scrollHeight - container.clientHeight + 18
+      );
+
+      container.scrollTo({
+        top: destino,
+        behavior: "smooth",
+      });
     });
   }, [mensagens]);
 
@@ -501,6 +785,16 @@ export default function Conversa({ irPara, tema = "claro" }) {
   ========================================================= */
 
   function abrirConversa(conversa) {
+    if (!conversa?.id) return;
+
+    if (String(conversa.status || "").toLowerCase() === "finalizada") {
+      setErro("Esta conversa já foi finalizada e não está mais disponível para novas mensagens.");
+      setRecentes((anteriores) =>
+        anteriores.filter((item) => String(item.id) !== String(conversa.id))
+      );
+      return;
+    }
+
     const dados = {
       ...conversa,
       id: conversa.id,
@@ -540,20 +834,13 @@ export default function Conversa({ irPara, tema = "claro" }) {
       JSON.stringify(dados)
     );
 
-    localStorage.setItem(
-      "pulsanNomeOutraPessoa",
-      conversa.nome || "Pessoa anônima"
-    );
+    localStorage.removeItem("pulsanNomeOutraPessoa");
+    localStorage.removeItem("pulsanFotoOutraPessoa");
 
-    localStorage.setItem(
-      "pulsanFotoOutraPessoa",
-      conversa.foto || ""
-    );
-
-    if (conversa.desabafo_id) {
+    if (conversa.desabafo_post_id) {
       localStorage.setItem(
         "pulsanIdDesabafoConversa",
-        conversa.desabafo_id
+        conversa.desabafo_post_id
       );
     }
 
@@ -627,7 +914,7 @@ export default function Conversa({ irPara, tema = "claro" }) {
     try {
       setErro("");
 
-      if (!pedido.desabafo_id) {
+      if (!pedido.desabafo_post_id) {
         throw new Error("Esta solicitação não está vinculada a um desabafo.");
       }
 
@@ -635,7 +922,7 @@ export default function Conversa({ irPara, tema = "claro" }) {
       const { data: post, error: erroPost } = await supabase
         .from("posts_ambiente")
         .select("id, usuario_id, texto")
-        .eq("id", pedido.desabafo_id)
+        .eq("id", pedido.desabafo_post_id)
         .maybeSingle();
 
       if (erroPost) throw erroPost;
@@ -647,7 +934,7 @@ export default function Conversa({ irPara, tema = "claro" }) {
 
       const { data: solicitacaoAtual, error: erroSolicitacao } = await supabase
         .from("solicitacoes_chat")
-        .select("id, solicitante_id, destinatario_id, desabafo_id, status")
+        .select("id, solicitante_id, destinatario_id, desabafo_post_id, status")
         .eq("id", pedido.id)
         .eq("destinatario_id", usuarioId)
         .eq("status", "pendente")
@@ -686,6 +973,7 @@ export default function Conversa({ irPara, tema = "claro" }) {
             solicitante_id: aceita.solicitante_id,
             destinatario_id: aceita.destinatario_id,
             solicitacao_id: aceita.id,
+            desabafo_post_id: aceita.desabafo_post_id,
             status: "ativa",
             iniciada_em: new Date().toISOString(),
           })
@@ -707,38 +995,38 @@ export default function Conversa({ irPara, tema = "claro" }) {
         preview: "Conversa iniciada a partir do seu desabafo.",
         ultimaMensagemEm: conversa.iniciada_em || new Date().toISOString(),
         mensagemNova: false,
-        desabafo_id: aceita.desabafo_id,
+        desabafo_post_id: aceita.desabafo_post_id,
         desabafo: post.texto || pedido.desabafo || "",
       };
 
-      // Contexto disponível caso a tela de chat seja aberta depois.
+      // Contexto completo para a tela de chat.
       localStorage.setItem("pulsanConversaAtual", JSON.stringify(dadosRecentes));
-      localStorage.setItem("pulsanNomeOutraPessoa", dadosRecentes.nome);
-      localStorage.setItem("pulsanFotoOutraPessoa", dadosRecentes.foto);
+      localStorage.setItem("pulsanNomeOutraPessoa", pedido.nome || "Apoiador");
+      localStorage.setItem("pulsanFotoOutraPessoa", pedido.foto || "");
+      localStorage.setItem("pulsanMediaOutraPessoa", String(pedido.mediaAvaliacoes || "Novo"));
+      localStorage.setItem("pulsanQuantidadeAvaliacoesOutraPessoa", String(pedido.quantidadeAvaliacoes || 0));
+      localStorage.setItem("pulsanSeloOutraPessoa", pedido.textoSelo || "");
       localStorage.setItem("pulsanPapelConversa", "autor-desabafo");
-      localStorage.setItem("pulsanIdDesabafoConversa", String(aceita.desabafo_id || ""));
+      localStorage.setItem("pulsanIdDesabafoConversa", String(aceita.desabafo_post_id || ""));
       localStorage.setItem("pulsanDesabafoConversa", dadosRecentes.desabafo);
 
       setSolicitacoes((anteriores) => anteriores.filter((item) => item.id !== pedido.id));
-      setNotificacoesSolicitacoes(
-        solicitacoes.some(
-          (item) => item.id !== pedido.id && !item.foiVista
-        )
-      );
+      setNotificacoesSolicitacoes((valorAnterior) => {
+        const restantes = solicitacoes.filter(
+          (item) => item.id !== pedido.id
+        );
+        return restantes.some((item) => !item.foiVista);
+      });
 
-      // A conversa aceita aparece imediatamente no topo de Recentes.
+      // A conversa entra em Recentes e abre imediatamente o chat.
       setRecentes((anteriores) => [
         dadosRecentes,
         ...anteriores.filter((item) => String(item.id) !== String(conversa.id)),
       ]);
 
-      setTela("lista");
-
-      window.setTimeout(() => {
-        document
-          .querySelector(".pulsan-panel-recent")
-          ?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 80);
+      setConversaAtual(dadosRecentes);
+      setMensagens([]);
+      setTela("chat");
     } catch (erro) {
       console.error("Erro ao aceitar solicitação:", erro);
       setErro(erro?.message || "Não foi possível aceitar esta solicitação.");
@@ -760,14 +1048,14 @@ export default function Conversa({ irPara, tema = "claro" }) {
     try {
       setErro("");
 
-      if (!pedido.desabafo_id) {
+      if (!pedido.desabafo_post_id) {
         throw new Error("Esta solicitação não está vinculada a um desabafo.");
       }
 
       const { data: post, error: erroPost } = await supabase
         .from("posts_ambiente")
         .select("id, usuario_id")
-        .eq("id", pedido.desabafo_id)
+        .eq("id", pedido.desabafo_post_id)
         .maybeSingle();
 
       if (erroPost) throw erroPost;
@@ -785,11 +1073,12 @@ export default function Conversa({ irPara, tema = "claro" }) {
       if (error) throw error;
 
       setSolicitacoes((anteriores) => anteriores.filter((item) => item.id !== pedido.id));
-      setNotificacoesSolicitacoes(
-        solicitacoes.some(
-          (item) => item.id !== pedido.id && !item.foiVista
-        )
-      );
+      setNotificacoesSolicitacoes((valorAnterior) => {
+        const restantes = solicitacoes.filter(
+          (item) => item.id !== pedido.id
+        );
+        return restantes.some((item) => !item.foiVista);
+      });
     } catch (erro) {
       console.error("Erro ao recusar solicitação:", erro);
       setErro(erro?.message || "Não foi possível recusar esta solicitação.");
@@ -799,6 +1088,70 @@ export default function Conversa({ irPara, tema = "claro" }) {
   /* =========================================================
      ENVIAR MENSAGEM
   ========================================================= */
+
+  async function analisarMensagemAntesDeEnviar(texto) {
+    const apiUrl =
+      import.meta.env.VITE_API_URL ||
+      (window.location.hostname === "localhost"
+        ? "http://localhost:3001"
+        : "");
+
+    if (!apiUrl) {
+      return { permitido: true };
+    }
+
+    try {
+      const resposta = await fetch(`${apiUrl}/api/analisar-mensagem`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          texto,
+          usuario_id: usuarioId,
+          conversa_id: conversaAtual?.id || null,
+        }),
+      });
+
+      if (!resposta.ok) {
+        console.warn("Não foi possível analisar a mensagem no servidor.");
+        return { permitido: true };
+      }
+
+      const resultado = await resposta.json();
+
+      if (
+        resultado?.permitido === false ||
+        resultado?.bloqueado === true ||
+        resultado?.moderado === true
+      ) {
+        return {
+          permitido: false,
+          motivo:
+            resultado?.motivo ||
+            resultado?.mensagem ||
+            "Essa mensagem não pode ser enviada.",
+        };
+      }
+
+      return resultado || { permitido: true };
+    } catch (erro) {
+      console.warn("Falha na análise da mensagem:", erro);
+      return { permitido: true };
+    }
+  }
+
+  async function inserirMensagemComCompatibilidade(texto) {
+    return await supabase
+      .from("mensagens_conversa")
+      .insert({
+        conversa_id: conversaAtual.id,
+        remetente_id: usuarioId,
+        mensagem: texto,
+      })
+      .select("*")
+      .single();
+  }
 
   async function enviarMensagem(event) {
     if (event) {
@@ -820,28 +1173,49 @@ export default function Conversa({ irPara, tema = "claro" }) {
       setEnviando(true);
       setErro("");
 
-      const {
-        data,
-        error,
-      } = await supabase
-        .from("mensagens_conversa")
-        .insert({
-          conversa_id: conversaAtual.id,
-          remetente_id: usuarioId,
-          mensagem: texto,
-        })
-        .select("*")
-        .single();
+      const { data: conversaVerificada, error: erroConversaVerificada } = await supabase
+        .from("conversas")
+        .select("id, status, solicitante_id, destinatario_id")
+        .eq("id", conversaAtual.id)
+        .maybeSingle();
+
+      if (erroConversaVerificada) throw erroConversaVerificada;
+
+      if (!conversaVerificada) {
+        throw new Error("Esta conversa não foi encontrada.");
+      }
+
+      if (String(conversaVerificada.status || "").toLowerCase() === "finalizada") {
+        setConversaAtual((anterior) =>
+          anterior ? { ...anterior, status: "finalizada" } : anterior
+        );
+        throw new Error("Esta conversa já foi finalizada.");
+      }
+
+      const analise = await analisarMensagemAntesDeEnviar(texto);
+
+      if (analise?.permitido === false) {
+        setErro(
+          analise.motivo ||
+            "Essa mensagem não pode ser enviada. Tente reformular com respeito."
+        );
+        return;
+      }
+
+      const { data, error } =
+        await inserirMensagemComCompatibilidade(texto);
 
       if (error) {
         throw error;
       }
 
       if (data) {
-        setMensagens((anteriores) => [
-          ...anteriores,
-          data,
-        ]);
+        setMensagens((anteriores) => {
+          if (anteriores.some((item) => String(item.id) === String(data.id))) {
+            return anteriores;
+          }
+          return [...anteriores, data];
+        });
       }
 
       setNovaMensagem("");
@@ -856,10 +1230,102 @@ export default function Conversa({ irPara, tema = "claro" }) {
       );
 
       setErro(
-        "Não foi possível enviar a mensagem."
+        erro?.message ||
+          "Não foi possível enviar a mensagem."
       );
     } finally {
       setEnviando(false);
+    }
+  }
+
+  /* =========================================================
+     FINALIZAR CONVERSA / AVALIAR QUEM SOLICITOU
+
+     Quem publicou o desabafo (destinatario_id) encerra a conversa.
+     A pessoa que solicitou o chat (solicitante_id) é quem será
+     avaliada na próxima tela e receberá os pontos após a avaliação.
+  ========================================================= */
+
+  async function finalizarConversa() {
+    if (finalizando || !conversaAtual?.id || !usuarioId) return;
+
+    const souAutorDoDesabafo =
+      String(conversaAtual.destinatario_id) === String(usuarioId);
+
+    if (!souAutorDoDesabafo) {
+      setErro(
+        "A finalização e a avaliação ficam disponíveis para quem publicou o desabafo."
+      );
+      return;
+    }
+
+    const solicitanteId =
+      conversaAtual.solicitante_id ||
+      conversaAtual.outraPessoaId ||
+      "";
+
+    if (!solicitanteId) {
+      setErro("Não foi possível identificar quem solicitou o chat.");
+      return;
+    }
+
+    if (
+      !window.confirm(
+        "Encerrar esta conversa?\n\n" +
+        "Na próxima etapa você poderá avaliar a pessoa que pediu o chat. " +
+        "Depois da avaliação, ela receberá os pontos da ajuda."
+      )
+    ) {
+      return;
+    }
+
+    try {
+      setFinalizando(true);
+      setErro("");
+
+      const dadosAvaliacao = {
+        ...conversaAtual,
+        id: conversaAtual.id,
+        ajudanteId: solicitanteId,
+        avaliadoId: solicitanteId,
+        ajudanteNome: conversaAtual.nome || "Apoiador",
+        ajudanteFoto: conversaAtual.foto || "",
+        avaliadorId: usuarioId,
+        finalizacaoSolicitadaEm: new Date().toISOString(),
+      };
+
+      localStorage.setItem(
+        "pulsanConversaAtual",
+        JSON.stringify(dadosAvaliacao)
+      );
+      localStorage.setItem(
+        "pulsanSolicitacaoAtual",
+        JSON.stringify({
+          ...dadosAvaliacao,
+          conversaId: conversaAtual.id,
+          solicitante_id: solicitanteId,
+          destinatario_id: usuarioId,
+        })
+      );
+      localStorage.setItem("pulsanAjudanteId", String(solicitanteId));
+      localStorage.setItem("pulsanNomeOutraPessoa", conversaAtual.nome || "Apoiador");
+      localStorage.setItem("pulsanFotoOutraPessoa", conversaAtual.foto || "");
+      localStorage.setItem("pulsanPapelConversa", "autor-desabafo");
+      localStorage.setItem("pulsanAvaliacaoConversaPendente", "true");
+      localStorage.setItem("pulsanConversaId", String(conversaAtual.id));
+
+      // A conversa só passa para finalizada depois que a avaliação for salva.
+      if (typeof irPara === "function") {
+        irPara("avaliacao");
+      }
+    } catch (erroFinalizacao) {
+      console.error("Erro ao preparar finalização da conversa:", erroFinalizacao);
+      setErro(
+        erroFinalizacao?.message ||
+          "Não foi possível abrir a etapa de avaliação."
+      );
+    } finally {
+      setFinalizando(false);
     }
   }
 
@@ -872,6 +1338,8 @@ export default function Conversa({ irPara, tema = "claro" }) {
     setConversaAtual(null);
     setMensagens([]);
     setErro("");
+    localStorage.removeItem("pulsanAvaliacaoConversaPendente");
+    localStorage.removeItem("pulsanConversaId");
   }
 
   /* =========================================================
@@ -1018,6 +1486,20 @@ export default function Conversa({ irPara, tema = "claro" }) {
                               💭 A partir de um desabafo
                             </span>
 
+                            <div className="pulsan-person-meta">
+                              <span>
+                                ⭐ {pedido.mediaAvaliacoes || "Novo"}
+                                {Number(pedido.quantidadeAvaliacoes || 0) > 0
+                                  ? ` • ${pedido.quantidadeAvaliacoes} ${Number(pedido.quantidadeAvaliacoes) === 1 ? "avaliação" : "avaliações"}`
+                                  : " • ainda sem avaliações"}
+                              </span>
+                              {pedido.possuiSelo && (
+                                <span className="pulsan-meta-seal">
+                                  {pedido.tipoSelo === "psicologo" ? "🧠" : "🏅"} {pedido.textoSelo}
+                                </span>
+                              )}
+                            </div>
+
                             <div className="pulsan-request-desabafo">
                               <span>💭 SEU DESABAFO</span>
                               <p>{pedido.desabafo}</p>
@@ -1122,6 +1604,20 @@ export default function Conversa({ irPara, tema = "claro" }) {
                               )}
                             </div>
 
+                            <div className="pulsan-person-meta recent-meta">
+                              <span>
+                                ⭐ {conversa.mediaAvaliacoes || "Novo"}
+                                {Number(conversa.quantidadeAvaliacoes || 0) > 0
+                                  ? ` • ${conversa.quantidadeAvaliacoes} ${Number(conversa.quantidadeAvaliacoes) === 1 ? "avaliação" : "avaliações"}`
+                                  : ""}
+                              </span>
+                              {conversa.possuiSelo && (
+                                <span className="pulsan-meta-seal">
+                                  {conversa.tipoSelo === "psicologo" ? "🧠" : "🏅"} {conversa.textoSelo}
+                                </span>
+                              )}
+                            </div>
+
                             <p>{conversa.preview}</p>
 
                             <span className="pulsan-card-action">
@@ -1204,11 +1700,7 @@ export default function Conversa({ irPara, tema = "claro" }) {
         <div className="pulsan-chat-person">
 
           <strong>
-            {conversaAtual?.nome ||
-              localStorage.getItem(
-                "pulsanNomeOutraPessoa"
-              ) ||
-              "Pessoa anônima"}
+            {conversaAtual?.nome || "Pessoa anônima"}
           </strong>
 
           <span>
@@ -1275,7 +1767,10 @@ export default function Conversa({ irPara, tema = "claro" }) {
 
         {/* MENSAGENS */}
 
-        <div className="pulsan-messages">
+        <div
+          ref={mensagensContainerRef}
+          className="pulsan-messages"
+        >
 
           {carregandoMensagens ? (
             <div className="pulsan-chat-empty">
@@ -1320,8 +1815,14 @@ export default function Conversa({ irPara, tema = "claro" }) {
                   item.texto ||
                   "";
 
+                const dataMensagem =
+                  item.criada_em ||
+                  item.criado_em ||
+                  item.created_at ||
+                  null;
+
                 const minha =
-                  remetenteId === usuarioId;
+                  String(remetenteId) === String(usuarioId);
 
                 return (
                   <div
@@ -1342,10 +1843,10 @@ export default function Conversa({ irPara, tema = "claro" }) {
                         {texto}
                       </span>
 
-                      {item.criada_em && (
+                      {dataMensagem && (
                         <small>
                           {new Date(
-                            item.criada_em
+                            dataMensagem
                           ).toLocaleTimeString(
                             "pt-BR",
                             {
@@ -1373,38 +1874,114 @@ export default function Conversa({ irPara, tema = "claro" }) {
 
       {/* CAMPO DE MENSAGEM */}
 
-      <form
-        className="pulsan-composer"
-        onSubmit={enviarMensagem}
-      >
-
-        <input
-          ref={inputRef}
-          type="text"
-          value={novaMensagem}
-          onChange={(event) =>
-            setNovaMensagem(
-              event.target.value
-            )
-          }
-          placeholder="Escreva uma mensagem de apoio..."
-          maxLength={2000}
-          autoComplete="off"
-        />
-
-        <button
-          type="submit"
-          disabled={
-            !novaMensagem.trim() ||
-            enviando
-          }
-          aria-label="Enviar mensagem"
+      <div className="pulsan-composer-wrap">
+        <form
+          className="pulsan-composer"
+          onSubmit={enviarMensagem}
         >
-          {enviando ? "…" : "➤"}
-        </button>
+          <div className="pulsan-composer-topline">
+            <span className="pulsan-composer-heart">✦</span>
+            <span>Uma palavra de cada vez. Você está em um espaço seguro.</span>
+            <span className="pulsan-composer-live">● AO VIVO</span>
+          </div>
 
-      </form>
+          <div className="pulsan-composer-row">
+            <input
+              ref={inputRef}
+              type="text"
+              value={novaMensagem}
+              onChange={(event) =>
+                setNovaMensagem(event.target.value)
+              }
+              placeholder="Escreva uma mensagem de apoio..."
+              maxLength={2000}
+              autoComplete="off"
+            />
+
+            <button
+              type="submit"
+              disabled={
+                !novaMensagem.trim() ||
+                enviando ||
+                String(conversaAtual?.status || "").toLowerCase() === "finalizada"
+              }
+              aria-label="Enviar mensagem"
+              className={novaMensagem.trim() ? "has-text" : ""}
+            >
+              {enviando ? "…" : "➤"}
+            </button>
+          </div>
+        </form>
+
+        {String(conversaAtual?.destinatario_id) === String(usuarioId) &&
+          String(conversaAtual?.status || "").toLowerCase() !== "finalizada" && (
+          <button
+            type="button"
+            className="pulsan-btn-finalizar-chat"
+            onClick={finalizarConversa}
+            disabled={finalizando}
+          >
+            <span className="pulsan-finalizar-icon">✓</span>
+            <span className="pulsan-finalizar-texto">
+              <strong>{finalizando ? "Abrindo avaliação..." : "Finalizar conversa"}</strong>
+              <small>Avalie quem pediu o chat e ajude a reconhecer esse apoio.</small>
+            </span>
+            <span className="pulsan-finalizar-arrow">→</span>
+          </button>
+        )}
+
+        {String(conversaAtual?.status || "").toLowerCase() === "finalizada" ? (
+          <div className="pulsan-helper-status">
+            <span>💚</span>
+            <span>Esta conversa foi finalizada. Obrigado por fazer parte do espaço de apoio do Pulsan.</span>
+          </div>
+        ) : String(conversaAtual?.destinatario_id) !== String(usuarioId) && (
+          <div className="pulsan-helper-status">
+            <span>💙</span>
+            <span>Você está aqui para ouvir, acolher e apoiar.</span>
+          </div>
+        )}
+      </div>
     </div>
+  );
+}
+
+class ConversaErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { erro: null };
+  }
+
+  static getDerivedStateFromError(erro) {
+    return { erro };
+  }
+
+  componentDidCatch(erro, info) {
+    console.error("Erro na aba Conversas do Pulsan:", erro, info);
+  }
+
+  render() {
+    if (this.state.erro) {
+      return (
+        <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, background: "#F7FAFF", color: "#0F2D5B", fontFamily: "Arial, sans-serif" }}>
+          <div style={{ maxWidth: 520, width: "100%", background: "#FFFFFF", borderRadius: 24, padding: 28, boxShadow: "0 18px 50px rgba(15,45,91,.10)", border: "1px solid rgba(58,125,255,.12)" }}>
+            <div style={{ fontSize: 34, marginBottom: 12 }}>💙</div>
+            <h2 style={{ margin: "0 0 8px" }}>Não foi possível abrir as conversas</h2>
+            <p style={{ margin: "0 0 18px", lineHeight: 1.5, color: "#647895" }}>A tela encontrou um erro inesperado. Recarregue a página. Se continuar, abra o console do navegador para vermos o erro exato.</p>
+            <button type="button" onClick={() => window.location.reload()} style={{ border: 0, borderRadius: 12, padding: "11px 18px", background: "#3A7DFF", color: "#fff", fontWeight: 700, cursor: "pointer" }}>Recarregar</button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+export default function Conversa(props) {
+  return (
+    <ConversaErrorBoundary>
+      <ConversaPrincipal {...props} />
+    </ConversaErrorBoundary>
   );
 }
 
@@ -2099,6 +2676,39 @@ const CSS = `
   overflow: hidden;
 }
 
+.pulsan-person-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  margin: 7px 0 10px;
+  color: var(--pulsan-text-soft);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.pulsan-meta-seal {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #eef5ff;
+  color: #315f9f;
+  border: 1px solid rgba(58,125,255,.14);
+}
+
+.pulsan-dark .pulsan-meta-seal {
+  background: #17365f;
+  color: #dbe9ff;
+  border-color: rgba(168,199,255,.18);
+}
+
+.pulsan-person-meta.recent-meta {
+  margin-top: 4px;
+  margin-bottom: 7px;
+}
+
 .pulsan-request-actions {
   display: flex;
   gap: 8px;
@@ -2408,20 +3018,16 @@ const CSS = `
 /* MAIN */
 
 .pulsan-chat-main {
-  width:
-    min(
-      900px,
-      calc(100% - 28px)
-    );
-
+  width: min(900px, calc(100% - 28px));
+  height: calc(100vh - 68px);
+  min-height: 0;
   margin: 0 auto;
-
-  flex: 1;
-
-  padding:
-    18px
-    0
-    110px;
+  flex: 1 1 auto;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 18px 0 155px;
 }
 
 /* SEGURANÇA */
@@ -2525,15 +3131,39 @@ const CSS = `
 /* MENSAGENS */
 
 .pulsan-messages {
+  flex: 1 1 auto;
+  min-height: 0;
   display: flex;
-
   flex-direction: column;
-
-  gap: 9px;
+  gap: 11px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 18px 8px 105px;
+  margin: 0 -8px;
+  overscroll-behavior: contain;
+  scroll-behavior: smooth;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(58,125,255,.35) transparent;
 }
 
-.pulsan-message-row {
+.pulsan-messages::-webkit-scrollbar { width: 6px; }
+.pulsan-messages::-webkit-scrollbar-track { background: transparent; }
+.pulsan-messages::-webkit-scrollbar-thumb { background: rgba(58,125,255,.28); border-radius: 999px; }
+.pulsan-messages::-webkit-scrollbar-thumb:hover { background: rgba(58,125,255,.48); }
+
+ .pulsan-message-row {
   display: flex;
+  width: 100%;
+  padding: 0 4px;
+}
+
+.pulsan-message-row.other {
+  padding-right: 14%;
+}
+
+.pulsan-message-row.mine {
+  justify-content: flex-end;
+  padding-left: 14%;
 }
 
 .pulsan-message-row.mine {
@@ -2541,27 +3171,19 @@ const CSS = `
 }
 
 .pulsan-message-bubble {
-  max-width:
-    min(
-      75%,
-      560px
-    );
-
-  padding:
-    11px
-    14px;
-
-  border-radius: 19px;
-
+  position: relative;
+  max-width: min(75%, 560px);
+  padding: 12px 15px 9px;
+  border-radius: 20px;
   background: #fff;
+  border: 1px solid rgba(58,125,255,.10);
+  box-shadow: 0 7px 20px rgba(15,45,91,.07);
+  animation: pulsanMessageIn .24s ease-out;
+}
 
-  border:
-    1px solid
-    rgba(58,125,255,.10);
-
-  box-shadow:
-    0 5px 15px
-    rgba(15,45,91,.05);
+@keyframes pulsanMessageIn {
+  from { opacity: 0; transform: translateY(6px) scale(.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .pulsan-message-row.mine
@@ -2577,12 +3199,45 @@ const CSS = `
 
   border: 0;
 
-  border-bottom-right-radius: 6px;
+  border-bottom-right-radius: 7px;
+  box-shadow: 0 8px 22px rgba(58,125,255,.22);
 }
 
 .pulsan-message-row.other
 .pulsan-message-bubble {
-  border-bottom-left-radius: 6px;
+  color: #0F2D5B;
+  background: #FFFFFF;
+  border-bottom-left-radius: 7px;
+}
+
+.pulsan-message-row.other
+.pulsan-message-bubble span {
+  color: #0F2D5B;
+}
+
+.pulsan-message-row.other
+.pulsan-message-bubble small {
+  color: #617590;
+}
+
+.pulsan-dark
+.pulsan-message-row.other
+.pulsan-message-bubble {
+  color: #EAF3FF;
+  background: #102744;
+  border-color: rgba(168,199,255,.14);
+}
+
+.pulsan-dark
+.pulsan-message-row.other
+.pulsan-message-bubble span {
+  color: #EAF3FF;
+}
+
+.pulsan-dark
+.pulsan-message-row.other
+.pulsan-message-bubble small {
+  color: #A9BAD2;
 }
 
 .pulsan-message-bubble > span {
@@ -2656,78 +3311,79 @@ const CSS = `
   line-height: 1.5;
 }
 
-/* COMPOSER */
+/* COMPOSER + FINALIZAÇÃO */
 
-.pulsan-composer {
+.pulsan-composer-wrap {
   position: fixed;
-
   z-index: 20;
-
   left: 50%;
-
-  bottom: 14px;
-
-  transform:
-    translateX(-50%);
-
-  width:
-    min(
-      860px,
-      calc(100% - 26px)
-    );
-
+  bottom: 84px;
+  transform: translateX(-50%);
+  width: min(860px, calc(100% - 26px));
   display: flex;
-
-  gap: 8px;
-
-  padding: 8px;
-
-  border-radius: 21px;
-
-  background:
-    rgba(255,255,255,.94);
-
-  border:
-    1px solid
-    rgba(58,125,255,.13);
-
-  box-shadow:
-    0 15px 40px
-    rgba(15,45,91,.14);
-
-  backdrop-filter:
-    blur(15px);
+  flex-direction: column;
+  gap: 7px;
 }
 
-.pulsan-dark
 .pulsan-composer {
-  background:
-    rgba(16,39,68,.95);
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 7px 8px 8px;
+  border-radius: 22px;
+  background: rgba(255,255,255,.96);
+  border: 1px solid rgba(58,125,255,.14);
+  box-shadow: 0 15px 40px rgba(15,45,91,.16);
+  backdrop-filter: blur(16px);
+}
+
+.pulsan-dark .pulsan-composer {
+  background: rgba(16,39,68,.97);
+}
+
+.pulsan-composer-topline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 5px 0;
+  color: #7890ad;
+  font-size: 9px;
+  line-height: 1.2;
+}
+
+.pulsan-composer-heart {
+  color: var(--pulsan-blue);
+  animation: pulsanSpark 2.2s ease-in-out infinite;
+}
+
+.pulsan-composer-live {
+  margin-left: auto;
+  color: #35a77a;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: .07em;
+}
+
+.pulsan-composer-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .pulsan-composer input {
   flex: 1;
-
   min-width: 0;
-
   border: 0;
-
   outline: 0;
-
   background: transparent;
-
-  padding:
-    10px
-    12px;
-
-  color:
-    var(--pulsan-deep);
-
+  padding: 10px 12px;
+  color: var(--pulsan-deep);
   font-size: 13px;
 }
 
-.pulsan-dark
-.pulsan-composer input {
+.pulsan-dark .pulsan-composer input {
   color: #edf5ff;
 }
 
@@ -2735,41 +3391,141 @@ const CSS = `
   color: #8b9bb0;
 }
 
-.pulsan-composer button {
-  width: 43px;
-  height: 43px;
-
-  flex:
-    0 0
-    43px;
-
+.pulsan-composer-row > button {
+  width: 45px;
+  height: 45px;
+  flex: 0 0 45px;
   border: 0;
-
-  border-radius: 15px;
-
-  background:
-    var(--pulsan-blue);
-
+  border-radius: 16px;
+  background: linear-gradient(135deg, #3A7DFF, #6d9dff);
   color: white;
-
   font-size: 19px;
-
   cursor: pointer;
-
-  transition:
-    transform .15s,
-    opacity .15s;
+  transition: transform .18s, opacity .18s, box-shadow .18s;
+  box-shadow: 0 7px 18px rgba(58,125,255,.20);
 }
 
-.pulsan-composer button:hover:not(:disabled) {
-  transform:
-    scale(1.04);
+.pulsan-composer-row > button.has-text {
+  animation: pulsanSendReady 1.8s ease-in-out infinite;
 }
 
-.pulsan-composer button:disabled {
+.pulsan-composer-row > button:hover:not(:disabled) {
+  transform: translateY(-2px) scale(1.04);
+}
+
+.pulsan-composer-row > button:disabled {
   opacity: .45;
-
   cursor: not-allowed;
+  box-shadow: none;
+}
+
+.pulsan-btn-finalizar-chat {
+  width: 100%;
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 13px;
+  border: 1px solid rgba(58,125,255,.13);
+  border-radius: 18px;
+  background: linear-gradient(100deg, rgba(255,255,255,.98), rgba(234,243,255,.96));
+  color: var(--pulsan-deep);
+  cursor: pointer;
+  box-shadow: 0 9px 24px rgba(15,45,91,.10);
+  text-align: left;
+  transition: transform .18s, box-shadow .18s, border-color .18s;
+}
+
+.pulsan-btn-finalizar-chat:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 13px 28px rgba(58,125,255,.16);
+  border-color: rgba(58,125,255,.30);
+}
+
+.pulsan-btn-finalizar-chat:disabled {
+  opacity: .65;
+  cursor: wait;
+}
+
+.pulsan-dark .pulsan-btn-finalizar-chat {
+  background: linear-gradient(100deg, #102744, #14345a);
+  color: #edf5ff;
+  border-color: rgba(168,199,255,.16);
+}
+
+.pulsan-finalizar-icon {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #3A7DFF, #7b63ff);
+  color: #fff;
+  font-size: 15px;
+  box-shadow: 0 6px 14px rgba(58,125,255,.22);
+}
+
+.pulsan-finalizar-texto {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pulsan-finalizar-texto strong {
+  font-size: 11px;
+}
+
+.pulsan-finalizar-texto small {
+  color: #7186a1;
+  font-size: 9px;
+  line-height: 1.3;
+}
+
+.pulsan-dark .pulsan-finalizar-texto small {
+  color: #a9bad2;
+}
+
+.pulsan-finalizar-arrow {
+  margin-left: auto;
+  color: var(--pulsan-blue);
+  font-size: 18px;
+}
+
+.pulsan-helper-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 30px;
+  border-radius: 13px;
+  background: rgba(234,243,255,.90);
+  color: #6d829f;
+  font-size: 9px;
+  box-shadow: 0 7px 18px rgba(15,45,91,.06);
+}
+
+.pulsan-dark .pulsan-helper-status {
+  background: rgba(16,39,68,.95);
+  color: #a9bad2;
+}
+
+@keyframes pulsanSpark {
+  0%, 100% { transform: scale(1); opacity: .75; }
+  50% { transform: scale(1.18); opacity: 1; }
+}
+
+@keyframes pulsanSendReady {
+  0%, 100% { box-shadow: 0 7px 18px rgba(58,125,255,.20); }
+  50% { box-shadow: 0 7px 23px rgba(58,125,255,.42); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulsan-composer-heart,
+  .pulsan-composer-row > button.has-text {
+    animation: none;
+  }
 }
 
 /* =========================================================
@@ -2993,19 +3749,283 @@ const CSS = `
   }
 
   .pulsan-chat-main {
-    width:
-      calc(100% - 20px);
+    width: calc(100% - 20px);
+    height: calc(100vh - 68px);
+    padding-bottom: 140px;
+  }
+
+  .pulsan-messages {
+    padding-bottom: 105px;
   }
 
   .pulsan-message-bubble {
     max-width: 84%;
   }
 
-  .pulsan-composer {
-    bottom: 9px;
+  .pulsan-composer-wrap {
+    bottom: 78px;
+    width: calc(100% - 18px);
+  }
 
-    width:
-      calc(100% - 18px);
+  .pulsan-composer {
+    border-radius: 18px;
+  }
+
+  .pulsan-composer-topline {
+    font-size: 8px;
+  }
+
+  .pulsan-composer-row > button {
+    width: 43px;
+    height: 43px;
+    flex-basis: 43px;
+    border-radius: 14px;
+  }
+
+  .pulsan-btn-finalizar-chat {
+    min-height: 50px;
+    border-radius: 16px;
+    padding: 8px 10px;
+  }
+
+  .pulsan-finalizar-icon {
+    width: 31px;
+    height: 31px;
+    flex-basis: 31px;
+  }
+
+  .pulsan-finalizar-texto strong {
+    font-size: 10px;
+  }
+
+  .pulsan-finalizar-texto small {
+    font-size: 8px;
   }
 }
+
+/* =========================================================
+   PULSAN — FUNDO EMOCIONAL + BALÕES ORGANIZADOS
+========================================================= */
+
+.pulsan-chat-page {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  min-height: 100dvh;
+  background:
+    radial-gradient(circle at 8% 18%, rgba(168,199,255,.28) 0, rgba(168,199,255,0) 24%),
+    radial-gradient(circle at 91% 24%, rgba(126,102,255,.14) 0, rgba(126,102,255,0) 22%),
+    radial-gradient(circle at 48% 88%, rgba(92,211,177,.10) 0, rgba(92,211,177,0) 25%),
+    linear-gradient(145deg, #f6f9ff 0%, #edf4ff 46%, #f8fbff 100%);
+}
+
+.pulsan-chat-page::before,
+.pulsan-chat-page::after {
+  content: "";
+  position: fixed;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: 50%;
+  filter: blur(2px);
+}
+
+/* brilho suave no canto superior */
+.pulsan-chat-page::before {
+  width: 330px;
+  height: 330px;
+  top: 80px;
+  left: -150px;
+  background: radial-gradient(circle, rgba(58,125,255,.16), transparent 68%);
+  animation: pulsanBackgroundFloat 9s ease-in-out infinite;
+}
+
+/* brilho suave no canto inferior */
+.pulsan-chat-page::after {
+  width: 390px;
+  height: 390px;
+  right: -190px;
+  bottom: 70px;
+  background: radial-gradient(circle, rgba(111,91,255,.13), transparent 68%);
+  animation: pulsanBackgroundFloat 11s ease-in-out infinite reverse;
+}
+
+@keyframes pulsanBackgroundFloat {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(16px, -12px, 0) scale(1.05); }
+}
+
+/* Pequenos pontos de luz lembrando acolhimento/esperança */
+.pulsan-chat-main::before {
+  content: "✦   ·   ✦        ·        ✦";
+  position: absolute;
+  top: 145px;
+  right: 7%;
+  color: rgba(58,125,255,.20);
+  font-size: 12px;
+  letter-spacing: 18px;
+  pointer-events: none;
+  animation: pulsanTwinkle 4s ease-in-out infinite;
+}
+
+@keyframes pulsanTwinkle {
+  0%, 100% { opacity: .35; transform: translateY(0); }
+  50% { opacity: .9; transform: translateY(-5px); }
+}
+
+.pulsan-dark {
+  background:
+    radial-gradient(circle at 8% 18%, rgba(58,125,255,.16) 0, rgba(58,125,255,0) 25%),
+    radial-gradient(circle at 90% 25%, rgba(123,99,255,.12) 0, rgba(123,99,255,0) 23%),
+    radial-gradient(circle at 48% 90%, rgba(64,190,155,.07) 0, rgba(64,190,155,0) 26%),
+    linear-gradient(145deg, #07182e 0%, #0a213d 50%, #081a31 100%);
+}
+
+.pulsan-dark .pulsan-chat-main::before {
+  color: rgba(168,199,255,.24);
+}
+
+/* Área das mensagens como um pequeno espaço próprio */
+.pulsan-messages {
+  position: relative;
+  z-index: 1;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.18), rgba(255,255,255,0));
+  border-radius: 28px;
+  padding: 18px 14px 190px;
+  margin: 0 -14px;
+}
+
+.pulsan-dark .pulsan-messages {
+  background: linear-gradient(180deg, rgba(18,48,80,.18), rgba(18,48,80,0));
+}
+
+/* QUEM RECEBE: sempre à esquerda */
+.pulsan-message-row.other {
+  justify-content: flex-start;
+  padding-right: 22%;
+  padding-left: 4px;
+}
+
+/* QUEM ENVIA: sempre à direita */
+.pulsan-message-row.mine {
+  justify-content: flex-end;
+  padding-left: 22%;
+  padding-right: 4px;
+}
+
+.pulsan-message-bubble {
+  max-width: min(68%, 540px);
+  position: relative;
+  border-radius: 22px;
+  padding: 13px 16px 9px;
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+
+.pulsan-message-bubble:hover {
+  transform: translateY(-1px);
+}
+
+/* Balão recebido */
+.pulsan-message-row.other .pulsan-message-bubble {
+  background: rgba(255,255,255,.97);
+  color: #0F2D5B;
+  border: 1px solid rgba(58,125,255,.12);
+  border-bottom-left-radius: 7px;
+  box-shadow: 0 8px 25px rgba(15,45,91,.09);
+}
+
+/* pequeno detalhe visual do balão recebido */
+.pulsan-message-row.other .pulsan-message-bubble::before {
+  content: "";
+  position: absolute;
+  left: -7px;
+  bottom: 0;
+  width: 15px;
+  height: 15px;
+  background: #fff;
+  clip-path: polygon(100% 0, 100% 100%, 0 100%);
+  filter: drop-shadow(-1px 1px 0 rgba(58,125,255,.08));
+}
+
+/* Balão enviado */
+.pulsan-message-row.mine .pulsan-message-bubble {
+  background: linear-gradient(135deg, #3A7DFF 0%, #596FFF 55%, #7562F5 100%);
+  color: #fff;
+  border: 0;
+  border-bottom-right-radius: 7px;
+  box-shadow: 0 10px 28px rgba(58,125,255,.25);
+}
+
+.pulsan-message-row.mine .pulsan-message-bubble::after {
+  content: "";
+  position: absolute;
+  right: -7px;
+  bottom: 0;
+  width: 15px;
+  height: 15px;
+  background: #685fff;
+  clip-path: polygon(0 0, 100% 100%, 0 100%);
+}
+
+.pulsan-message-row.mine .pulsan-message-bubble span {
+  color: #fff;
+}
+
+.pulsan-message-row.mine .pulsan-message-bubble small {
+  color: rgba(255,255,255,.78);
+}
+
+.pulsan-message-row.other .pulsan-message-bubble span {
+  color: #0F2D5B;
+}
+
+.pulsan-message-row.other .pulsan-message-bubble small {
+  color: #68809d;
+}
+
+/* No escuro, o balão recebido continua claramente separado */
+.pulsan-dark .pulsan-message-row.other .pulsan-message-bubble {
+  background: rgba(20,48,80,.98);
+  color: #EAF3FF;
+  border-color: rgba(168,199,255,.16);
+  box-shadow: 0 8px 25px rgba(0,0,0,.20);
+}
+
+.pulsan-dark .pulsan-message-row.other .pulsan-message-bubble::before {
+  background: #143050;
+}
+
+.pulsan-dark .pulsan-message-row.other .pulsan-message-bubble span {
+  color: #EAF3FF;
+}
+
+.pulsan-dark .pulsan-message-row.other .pulsan-message-bubble small {
+  color: #A9BAD2;
+}
+
+/* separação visual entre blocos de mensagens */
+.pulsan-message-row + .pulsan-message-row {
+  margin-top: 2px;
+}
+
+/* Quando a pessoa troca de lado, cria uma pausa maior */
+.pulsan-message-row.mine + .pulsan-message-row.other,
+.pulsan-message-row.other + .pulsan-message-row.mine {
+  margin-top: 8px;
+}
+
+@media (max-width: 680px) {
+  .pulsan-message-row.other {
+    padding-right: 12%;
+  }
+
+  .pulsan-message-row.mine {
+    padding-left: 12%;
+  }
+
+  .pulsan-message-bubble {
+    max-width: 78%;
+  }
+}
+
 `;

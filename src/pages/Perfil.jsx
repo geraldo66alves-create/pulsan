@@ -66,7 +66,7 @@ function Perfil({
 
         const { data, error } = await supabase
           .from("perfis")
-          .select("nome, foto")
+          .select("nome, foto_url")
           .eq("id", user.id)
           .maybeSingle();
 
@@ -75,7 +75,7 @@ function Perfil({
         }
 
         const nomeBanco = data?.nome || user.user_metadata?.nome;
-        const fotoBanco = data?.foto || user.user_metadata?.foto || "";
+        const fotoBanco = data?.foto_url || user.user_metadata?.foto_url || user.user_metadata?.foto || localStorage.getItem("pulsanFoto") || "";
 
         setEmail(user.email || "");
         setNovoEmail(user.email || "");
@@ -104,8 +104,12 @@ function Perfil({
   }, []);
 
   useEffect(() => {
-    function carregarEstatisticas() {
+    let ativo = true;
+
+    async function carregarEstatisticas() {
       try {
+        // Mantém as avaliações antigas do cache local para não alterar
+        // a aparência/funcionamento já existente do perfil.
         const avaliacoes =
           JSON.parse(localStorage.getItem("pulsanAvaliacoes") || "[]");
 
@@ -121,18 +125,63 @@ function Perfil({
               ).toFixed(1)
             : "—";
 
-        setQuantidadeAvaliacoes(quantidade);
-        setMedia(mediaCalculada);
-        setQuantidadeAjudas(
-          Number(localStorage.getItem("pulsanAjudas") || 0)
-        );
-        setPontos(Number(localStorage.getItem("pulsanPontos") || 0));
+        if (ativo) {
+          setQuantidadeAvaliacoes(quantidade);
+          setMedia(mediaCalculada);
+        }
+
+        // Os pontos e a quantidade de ajudas vêm do Supabase.
+        // O ID do Supabase Auth é a fonte de verdade para evitar
+        // divergência com o usuarioId salvo no localStorage.
+        const {
+          data: { user },
+          error: erroUsuario,
+        } = await supabase.auth.getUser();
+
+        if (erroUsuario) {
+          console.warn("Não foi possível identificar o usuário:", erroUsuario);
+        }
+
+        if (!user) {
+          if (ativo) {
+            setQuantidadeAjudas(0);
+            setPontos(0);
+          }
+          return;
+        }
+
+        const { data: dadosPontos, error: erroPontos } = await supabase
+          .from("pontos_pulsan")
+          .select("pontos, ajudas")
+          .eq("usuario_id", user.id)
+          .maybeSingle();
+
+        if (erroPontos) {
+          console.warn("Não foi possível carregar os pontos do Pulsan:", erroPontos);
+          return;
+        }
+
+        if (!ativo) return;
+
+        const pontosBanco = Number(dadosPontos?.pontos ?? 0);
+        const ajudasBanco = Number(dadosPontos?.ajudas ?? 0);
+
+        setPontos(pontosBanco);
+        setQuantidadeAjudas(ajudasBanco);
+
+        // Atualiza também o cache local para outras telas que ainda o utilizem.
+        localStorage.setItem("pulsanPontos", String(pontosBanco));
+        localStorage.setItem("pulsanAjudas", String(ajudasBanco));
       } catch (e) {
         console.warn("Erro ao carregar estatísticas:", e);
       }
     }
 
     carregarEstatisticas();
+
+    return () => {
+      ativo = false;
+    };
   }, []);
 
   const possuiSeloApoiador =
@@ -236,7 +285,7 @@ function Perfil({
         .from("perfis")
         .update({
           nome: nomeLimpo,
-          foto: novaFoto || null,
+          foto_url: novaFoto || null,
         })
         .eq("id", user.id);
 
@@ -273,6 +322,19 @@ function Perfil({
         localStorage.removeItem("pulsanFoto");
       }
 
+      // Mantém também a foto no metadata do usuário para que o perfil
+      // continue conseguindo recuperá-la mesmo antes de uma nova leitura.
+      try {
+        await supabase.auth.updateUser({
+          data: {
+            nome: nomeLimpo,
+            foto_url: novaFoto || "",
+          },
+        });
+      } catch (erroMetadata) {
+        console.warn("Não foi possível atualizar a foto no metadata:", erroMetadata);
+      }
+
       // Mantém os dados que outras telas do Pulsan podem utilizar.
       try {
         const usuarioLogado = JSON.parse(
@@ -285,6 +347,7 @@ function Perfil({
           nome: nomeLimpo,
           email: emailLimpo,
           foto: novaFoto || "",
+          foto_url: novaFoto || "",
         };
 
         localStorage.setItem(

@@ -74,6 +74,8 @@ const PUBLICO_DATA = [
 ];
 
 function Inicio({ irPara }) {
+  // Página pública/landing: mantém a identidade visual clara do Pulsan.
+  // A navegação e os botões continuam sendo controlados pelo App.jsx.
   const [activeSobre, setActiveSobre] = useState(0);
   const [activeStep, setActiveStep] = useState(0);
   const [flipped, setFlipped] = useState({});
@@ -249,13 +251,13 @@ function Inicio({ irPara }) {
             <span className="hero-card-lock">🔒</span>
           </div>
 
-          <div className="hero-bubble bubble-one">
+          <div className="hero-bubble bubble-one" aria-live="polite">
             {typedOne}
             {phase === "one" && <span className="type-cursor" aria-hidden="true" />}
           </div>
 
           {showTwo && (
-            <div className="hero-bubble bubble-two">
+            <div className="hero-bubble bubble-two" aria-live="polite">
               {typedTwo}
               {phase === "two" && <span className="type-cursor" aria-hidden="true" />}
             </div>
@@ -413,6 +415,7 @@ function Inicio({ irPara }) {
               className={`publico-flip${flipped[index] ? " is-flipped" : ""}`}
               onClick={() => toggleFlip(index)}
               aria-label={`Ver depoimento sobre ${item.titulo}`}
+              aria-expanded={Boolean(flipped[index])}
             >
               <div className="publico-flip-inner">
                 <div className="publico-card publico-front">
@@ -566,18 +569,13 @@ function Inicio({ irPara }) {
 
       <style>{`
 
-        * {
+        .inicio-page,
+        .inicio-page * {
           box-sizing: border-box;
         }
 
-        html {
+        .inicio-page {
           scroll-behavior: smooth;
-        }
-
-        body {
-          margin: 0;
-          padding: 0;
-          overflow-x: hidden;
         }
 
         .inicio-page {

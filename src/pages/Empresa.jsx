@@ -1,588 +1,520 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { supabase } from "../lib/supabase";
 
 function Empresa({ irPara }) {
-  // =====================================================
-  // ESTADOS
-  // =====================================================
-
   const [texto, setTexto] = useState("");
+  const [publicacoes, setPublicacoes] = useState([]);
+  const [apoios, setApoios] = useState({});
+  const [comentariosAbertos, setComentariosAbertos] = useState({});
+  const [novoComentario, setNovoComentario] = useState({});
+  const [solicitacoes, setSolicitacoes] = useState({});
+  const [carregando, setCarregando] = useState(true);
+  const [publicando, setPublicando] = useState(false);
 
-  const [publicacoes, setPublicacoes] =
-    useState(() => {
-      const salvas =
-        JSON.parse(
-          localStorage.getItem(
-            "pulsanPublicacoes"
-          ) || "[]"
-        );
+  const limite = 1000;
+  const API_URL =
+    import.meta.env.VITE_API_URL || "http://localhost:3001";
 
-      return salvas.filter(
-        (item) =>
-          item.ambiente ===
-            "empresa" ||
-          item.tipoAmbiente ===
-            "empresa"
-      );
-    });
+  const [usuarioAtual, setUsuarioAtual] = useState(null);
 
-  const [apoios, setApoios] =
-    useState({});
+  useEffect(() => {
+    let canalPosts = null;
+    let montado = true;
 
-  const [comentariosAbertos, setComentariosAbertos] =
-    useState({});
+    async function carregarDados() {
+      setCarregando(true);
 
-  const [novoComentario, setNovoComentario] =
-    useState({});
+      const { data: authData, error: authError } =
+        await supabase.auth.getUser();
 
-  const [solicitacoes, setSolicitacoes] =
-    useState({});
+      if (authError || !authData?.user) {
+        if (montado) {
+          setUsuarioAtual(null);
+          setPublicacoes([]);
+          setCarregando(false);
+        }
+        return;
+      }
 
+      const usuario = authData.user;
+      if (montado) setUsuarioAtual(usuario);
 
-  // =====================================================
-  // DADOS DO USUÁRIO
-  // =====================================================
+      const { data: posts, error: postsError } = await supabase
+        .from("posts_ambiente")
+        .select(
+          "id, usuario_id, texto, criado_em, apoiadores, nome_usuario, ambiente, classificacao, alerta, ativo"
+        )
+        .eq("ambiente", "empresa")
+        .or("ativo.is.null,ativo.eq.true")
+        .order("criado_em", { ascending: false });
+
+      if (postsError) {
+        console.error("Erro ao carregar publicações da empresa:", postsError);
+        if (montado) {
+          setPublicacoes([]);
+          setCarregando(false);
+        }
+        return;
+      }
+
+      const ids = (posts || []).map((post) => post.id);
+
+      let comentariosPorPost = {};
+      if (ids.length > 0) {
+        const { data: comentarios, error: comentariosError } =
+          await supabase
+            .from("comentarios_ambiente")
+            .select("id, post_id, usuario_id, texto, criado_em, ativo")
+            .in("post_id", ids)
+            .or("ativo.is.null,ativo.eq.true")
+            .order("criado_em", { ascending: true });
+
+        if (comentariosError) {
+          console.error(
+            "Erro ao carregar comentários da empresa:",
+            comentariosError
+          );
+        } else {
+          (comentarios || []).forEach((comentario) => {
+            if (!comentariosPorPost[comentario.post_id]) {
+              comentariosPorPost[comentario.post_id] = [];
+            }
+
+            comentariosPorPost[comentario.post_id].push({
+              id: comentario.id,
+              texto: comentario.texto,
+              usuarioId: comentario.usuario_id,
+              data: comentario.criado_em
+                ? new Date(comentario.criado_em).toLocaleDateString("pt-BR")
+                : "Agora",
+              hora: comentario.criado_em
+                ? new Date(comentario.criado_em).toLocaleTimeString("pt-BR", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
+                : "",
+            });
+          });
+        }
+      }
+
+      const mapaApoios = {};
+      const publicacoesFormatadas = (posts || []).map((post) => {
+        const apoiadores = Array.isArray(post.apoiadores)
+          ? post.apoiadores
+          : [];
+
+        mapaApoios[post.id] = apoiadores.includes(usuario.id);
+
+        return {
+          ...post,
+          autor: "Anônimo",
+          anonimato: true,
+          tipoAmbiente: "empresa",
+          apoios: apoiadores.length,
+          apoiado: apoiadores.includes(usuario.id),
+          comentarios: comentariosPorPost[post.id] || [],
+          data: post.criado_em
+            ? new Date(post.criado_em).toLocaleDateString("pt-BR")
+            : "Agora",
+          hora: post.criado_em
+            ? new Date(post.criado_em).toLocaleTimeString("pt-BR", {
+                hour: "2-digit",
+                minute: "2-digit",
+              })
+            : "",
+        };
+      });
+
+      if (montado) {
+        setApoios(mapaApoios);
+        setPublicacoes(publicacoesFormatadas);
+        setCarregando(false);
+      }
+
+      canalPosts = supabase
+        .channel("empresa-posts-e-comentarios")
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "posts_ambiente",
+          },
+          () => {
+            carregarDados();
+          }
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "comentarios_ambiente",
+          },
+          () => {
+            carregarDados();
+          }
+        )
+        .subscribe();
+    }
+
+    carregarDados();
+
+    return () => {
+      montado = false;
+      if (canalPosts) {
+        supabase.removeChannel(canalPosts);
+      }
+    };
+  }, []);
 
   const nomeUsuario =
-    localStorage.getItem(
-      "pulsanNome"
-    ) || "Usuário";
+    localStorage.getItem("pulsanNome") || "Usuário";
 
   const fotoUsuario =
-    localStorage.getItem(
-      "pulsanFoto"
-    ) || "";
+    localStorage.getItem("pulsanFoto") || "";
 
   const tipoUsuario =
-    localStorage.getItem(
-      "pulsanTipo"
-    ) || "";
+    localStorage.getItem("pulsanTipo") || "";
 
   const seloUsuario =
-    localStorage.getItem(
-      "pulsanSelo"
-    ) || "";
+    localStorage.getItem("pulsanSelo") || "";
 
-
-  // =====================================================
-  // PUBLICAR DESABAFO EMPRESA
-  // =====================================================
-
-  function publicar(e) {
+  async function publicar(e) {
     e.preventDefault();
 
-    const textoLimpo =
-      texto.trim();
+    const textoLimpo = texto.trim();
 
     if (!textoLimpo) {
-      alert(
-        "Escreva algo antes de publicar."
-      );
+      alert("Escreva algo antes de publicar.");
       return;
     }
 
+    if (publicando) return;
 
-    // =================================================
-    // PEGAR TODAS AS PUBLICAÇÕES
-    // =================================================
+    if (!usuarioAtual) {
+      alert("Faça login para publicar.");
+      return;
+    }
 
-    const todasPublicacoes =
-      JSON.parse(
-        localStorage.getItem(
-          "pulsanPublicacoes"
-        ) || "[]"
-      );
+    setPublicando(true);
 
-
-    // =================================================
-    // NOVA PUBLICAÇÃO
-    //
-    // NÃO SALVAMOS:
-    // nome
-    // foto
-    // e-mail
-    //
-    // A publicação continua anônima.
-    // =================================================
-
-    const novaPublicacao = {
-      id: Date.now(),
-
-      texto:
-        textoLimpo,
-
-      autor:
-        "Anônimo",
-
-      anonimato:
-        true,
-
-      ambiente:
-        "empresa",
-
-      tipoAmbiente:
-        "empresa",
-
-      apoios:
-        0,
-
-      apoiado:
-        false,
-
-      comentarios:
-        [],
-
-      data:
-        new Date().toLocaleDateString(
-          "pt-BR"
-        ),
-
-      hora:
-        new Date().toLocaleTimeString(
-          "pt-BR",
-          {
-            hour: "2-digit",
-            minute: "2-digit",
-          }
-        ),
-    };
-
-
-    // =================================================
-    // SALVAR
-    // =================================================
-
-    const atualizadas = [
-      novaPublicacao,
-      ...todasPublicacoes,
-    ];
-
-
-    localStorage.setItem(
-      "pulsanPublicacoes",
-      JSON.stringify(
-        atualizadas
-      )
-    );
-
-
-    // Atualiza somente as publicações
-    // do ambiente empresa.
-
-    setPublicacoes(
-      atualizadas.filter(
-        (item) =>
-          item.ambiente ===
-            "empresa" ||
-          item.tipoAmbiente ===
-            "empresa"
-      )
-    );
-
-
-    setTexto("");
-
-
-    alert(
-      "Sua publicação foi enviada anonimamente. 💚"
-    );
-
-
-    // Volta para o ambiente.
-
-    irPara("ambiente");
-  }
-
-
-  // =====================================================
-  // APOIAR
-  // =====================================================
-
-  function apoiar(publicacao) {
-    const jaApoiou =
-      apoios[
-        publicacao.id
-      ] || false;
-
-
-    const todasPublicacoes =
-      JSON.parse(
-        localStorage.getItem(
-          "pulsanPublicacoes"
-        ) || "[]"
-      );
-
-
-    const atualizadas =
-      todasPublicacoes.map(
-        (item) => {
-
-          if (
-            item.id !==
-            publicacao.id
-          ) {
-            return item;
-          }
-
-
-          const quantidade =
-            Number(
-              item.apoios || 0
-            );
-
-
-          return {
-            ...item,
-
-            apoios:
-              jaApoiou
-                ? Math.max(
-                    0,
-                    quantidade - 1
-                  )
-                : quantidade + 1,
-
-            apoiado:
-              !jaApoiou,
-          };
+    try {
+      const respostaIA = await fetch(
+        `${API_URL}/api/analisar-desabafo`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            texto: textoLimpo,
+            ambiente: "empresa",
+          }),
         }
       );
 
+      if (!respostaIA.ok) {
+        throw new Error("Falha na análise de segurança.");
+      }
 
-    localStorage.setItem(
-      "pulsanPublicacoes",
-      JSON.stringify(
-        atualizadas
-      )
-    );
+      const analiseIA = await respostaIA.json();
 
+      if (analiseIA?.publicarPermitido === false) {
+        alert(
+          analiseIA.motivoModeracao ||
+            "Seu texto contém linguagem ofensiva ou inadequada. Revise a mensagem e tente novamente."
+        );
+        return;
+      }
 
-    setPublicacoes(
-      atualizadas.filter(
-        (item) =>
-          item.ambiente ===
-            "empresa" ||
-          item.tipoAmbiente ===
-            "empresa"
-      )
-    );
-
-
-    setApoios(
-      (anteriores) => ({
-        ...anteriores,
-
-        [publicacao.id]:
-          !jaApoiou,
-      })
-    );
-  }
-
-
-  // =====================================================
-  // ABRIR COMENTÁRIOS
-  // =====================================================
-
-  function abrirComentarios(
-    id
-  ) {
-    setComentariosAbertos(
-      (anteriores) => ({
-        ...anteriores,
-
-        [id]:
-          !anteriores[id],
-      })
-    );
-  }
-
-
-  // =====================================================
-  // ALTERAR COMENTÁRIO
-  // =====================================================
-
-  function alterarComentario(
-    id,
-    valor
-  ) {
-    setNovoComentario(
-      (anteriores) => ({
-        ...anteriores,
-
-        [id]:
-          valor,
-      })
-    );
-  }
-
-
-  // =====================================================
-  // ADICIONAR COMENTÁRIO
-  // =====================================================
-
-  function adicionarComentario(
-    e,
-    publicacao
-  ) {
-    e.preventDefault();
-
-    const textoComentario =
-      novoComentario[
-        publicacao.id
+      const classificacaoPermitida = [
+        "normal",
+        "intermediario",
+        "grave",
+        "urgente",
       ];
 
+      const classificacao = classificacaoPermitida.includes(
+        analiseIA?.classificacao
+      )
+        ? analiseIA.classificacao
+        : "normal";
 
-    if (
-      !textoComentario ||
-      !textoComentario.trim()
-    ) {
+      const { error } = await supabase
+        .from("posts_ambiente")
+        .insert({
+          usuario_id: usuarioAtual.id,
+          texto: textoLimpo,
+          ambiente: "empresa",
+          classificacao,
+          alerta: Boolean(analiseIA?.alerta),
+          nome_usuario: "Anônimo",
+          prioridade: classificacao,
+          categoria: "empresa",
+          sentimento: null,
+          urgencia: classificacao,
+          ativo: true,
+        });
+
+      if (error) {
+        console.error("Erro ao publicar no Supabase:", error);
+        alert("Não foi possível publicar agora. Tente novamente.");
+        return;
+      }
+
+      setTexto("");
+      alert("Sua publicação foi enviada anonimamente. 💚");
+      irPara("ambiente");
+    } catch (erro) {
+      console.error("Erro ao publicar desabafo:", erro);
+      alert(
+        "Não foi possível verificar seu desabafo no momento. Tente novamente."
+      );
+    } finally {
+      setPublicando(false);
+    }
+  }
+
+  async function apoiar(publicacao) {
+    if (!usuarioAtual) {
+      alert("Faça login para apoiar uma publicação.");
       return;
     }
 
+    const atuais = Array.isArray(publicacao.apoiadores)
+      ? publicacao.apoiadores
+      : [];
 
-    const todasPublicacoes =
-      JSON.parse(
-        localStorage.getItem(
-          "pulsanPublicacoes"
-        ) || "[]"
+    const jaApoiou = atuais.includes(usuarioAtual.id);
+
+    const novosApoiadores = jaApoiou
+      ? atuais.filter((id) => id !== usuarioAtual.id)
+      : [...atuais, usuarioAtual.id];
+
+    const { error } = await supabase
+      .from("posts_ambiente")
+      .update({
+        apoiadores: novosApoiadores,
+      })
+      .eq("id", publicacao.id);
+
+    if (error) {
+      console.error("Erro ao registrar apoio:", error);
+      alert("Não foi possível registrar o apoio agora.");
+      return;
+    }
+
+    setApoios((anteriores) => ({
+      ...anteriores,
+      [publicacao.id]: !jaApoiou,
+    }));
+
+    setPublicacoes((anteriores) =>
+      anteriores.map((item) =>
+        item.id === publicacao.id
+          ? {
+              ...item,
+              apoiadores: novosApoiadores,
+              apoios: novosApoiadores.length,
+              apoiado: !jaApoiou,
+            }
+          : item
+      )
+    );
+  }
+
+  function abrirComentarios(id) {
+    setComentariosAbertos((anteriores) => ({
+      ...anteriores,
+      [id]: !anteriores[id],
+    }));
+  }
+
+  function alterarComentario(id, valor) {
+    setNovoComentario((anteriores) => ({
+      ...anteriores,
+      [id]: valor,
+    }));
+  }
+
+  async function adicionarComentario(e, publicacao) {
+    e.preventDefault();
+
+    const textoComentario = (
+      novoComentario[publicacao.id] || ""
+    ).trim();
+
+    if (!textoComentario) return;
+
+    if (!usuarioAtual) {
+      alert("Faça login para comentar.");
+      return;
+    }
+
+    try {
+      const respostaIA = await fetch(
+        `${API_URL}/api/analisar-mensagem`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            texto: textoComentario,
+            ambiente: "empresa",
+          }),
+        }
       );
 
+      if (!respostaIA.ok) {
+        throw new Error("Falha na moderação do comentário.");
+      }
 
-    const novo = {
-      id: Date.now(),
+      const moderacao = await respostaIA.json();
 
-      texto:
-        textoComentario.trim(),
+      if (moderacao?.publicarPermitido === false) {
+        alert(
+          moderacao.motivoModeracao ||
+            "Esse comentário não pode ser publicado."
+        );
+        return;
+      }
 
-      nome:
-        "Anônimo",
+      const { data, error } = await supabase
+        .from("comentarios_ambiente")
+        .insert({
+          post_id: publicacao.id,
+          usuario_id: usuarioAtual.id,
+          texto: textoComentario,
+          ativo: true,
+        })
+        .select()
+        .single();
 
-      anonimato:
-        true,
+      if (error) {
+        console.error("Erro ao salvar comentário:", error);
+        alert("Não foi possível publicar o comentário.");
+        return;
+      }
 
-      data:
-        new Date().toLocaleDateString(
+      const novo = {
+        id: data.id,
+        texto: data.texto,
+        usuarioId: usuarioAtual.id,
+        data: new Date(data.criado_em || Date.now()).toLocaleDateString(
           "pt-BR"
         ),
-
-      hora:
-        new Date().toLocaleTimeString(
+        hora: new Date(data.criado_em || Date.now()).toLocaleTimeString(
           "pt-BR",
           {
             hour: "2-digit",
             minute: "2-digit",
           }
         ),
-    };
+      };
 
-
-    const atualizadas =
-      todasPublicacoes.map(
-        (item) => {
-
-          if (
-            item.id !==
-            publicacao.id
-          ) {
-            return item;
-          }
-
-
-          return {
-            ...item,
-
-            comentarios: [
-              ...(item.comentarios ||
-                []),
-
-              novo,
-            ],
-          };
-        }
+      setPublicacoes((anteriores) =>
+        anteriores.map((item) =>
+          item.id === publicacao.id
+            ? {
+                ...item,
+                comentarios: [...(item.comentarios || []), novo],
+              }
+            : item
+        )
       );
 
-
-    localStorage.setItem(
-      "pulsanPublicacoes",
-      JSON.stringify(
-        atualizadas
-      )
-    );
-
-
-    setPublicacoes(
-      atualizadas.filter(
-        (item) =>
-          item.ambiente ===
-            "empresa" ||
-          item.tipoAmbiente ===
-            "empresa"
-      )
-    );
-
-
-    setNovoComentario(
-      (anteriores) => ({
+      setNovoComentario((anteriores) => ({
         ...anteriores,
-
-        [publicacao.id]:
-          "",
-      })
-    );
+        [publicacao.id]: "",
+      }));
+    } catch (erro) {
+      console.error("Erro ao adicionar comentário:", erro);
+      alert(
+        "Não foi possível verificar o comentário no momento. Tente novamente."
+      );
+    }
   }
 
-
-  // =====================================================
-  // SOLICITAR CHAT
-  // =====================================================
-
-  function solicitarChat(
-    publicacao
-  ) {
-    const confirmar =
-      window.confirm(
-        "Você está oferecendo ajuda para esta pessoa.\n\n" +
-          "Antes de aceitar a conversa, a pessoa verá seu nome, sua foto e seus selos, caso tenha.\n\n" +
-          "A pessoa que publicou este desabafo continuará anônima para você.\n\n" +
-          "Deseja enviar a solicitação?"
-      );
-
-
-    if (!confirmar) {
+  async function solicitarChat(publicacao) {
+    if (!usuarioAtual) {
+      alert("Faça login para oferecer ajuda.");
       return;
     }
 
+    if (!publicacao.usuario_id) {
+      alert("Não foi possível identificar a pessoa que publicou este desabafo.");
+      return;
+    }
 
-    // =================================================
-    // IDENTIDADE DO AJUDANTE
-    // =================================================
+    if (publicacao.usuario_id === usuarioAtual.id) {
+      alert("Você não pode solicitar uma conversa com você mesmo.");
+      return;
+    }
 
-    const solicitacao = {
-      id:
-        Date.now(),
-
-      publicacaoId:
-        publicacao.id,
-
-      ambiente:
-        "empresa",
-
-      nomeSolicitante:
-        nomeUsuario,
-
-      fotoSolicitante:
-        fotoUsuario,
-
-      tipoSolicitante:
-        tipoUsuario,
-
-      seloSolicitante:
-        seloUsuario,
-
-      textoDesabafo:
-        publicacao.texto,
-
-      status:
-        "pendente",
-
-      data:
-        new Date().toLocaleString(
-          "pt-BR"
-        ),
-    };
-
-
-    // =================================================
-    // SALVAR SOLICITAÇÕES
-    // =================================================
-
-    const salvas =
-      JSON.parse(
-        localStorage.getItem(
-          "pulsanSolicitacoesChat"
-        ) || "[]"
-      );
-
-
-    const atualizadas = [
-      solicitacao,
-      ...salvas,
-    ];
-
-
-    localStorage.setItem(
-      "pulsanSolicitacoesChat",
-      JSON.stringify(
-        atualizadas
-      )
+    const confirmar = window.confirm(
+      "Você está oferecendo ajuda para esta pessoa.\n\n" +
+        "A pessoa verá seu nome, sua foto e seus selos, caso tenha.\n\n" +
+        "A pessoa que publicou o desabafo continuará anônima para você.\n\n" +
+        "Deseja enviar a solicitação?"
     );
 
+    if (!confirmar) return;
 
-    // =================================================
-    // SALVAR DADOS DA CONVERSA
-    // =================================================
+    const { data: existente } = await supabase
+      .from("solicitacoes_chat")
+      .select("id,status")
+      .eq("solicitante_id", usuarioAtual.id)
+      .eq("destinatario_id", publicacao.usuario_id)
+      .eq("status", "pendente")
+      .maybeSingle();
 
-    localStorage.setItem(
-      "pulsanAjudanteNome",
-      nomeUsuario
-    );
+    if (existente) {
+      alert("Você já enviou uma solicitação para essa pessoa.");
+      return;
+    }
 
-    localStorage.setItem(
-      "pulsanAjudanteFoto",
-      fotoUsuario
-    );
-
-    localStorage.setItem(
-      "pulsanAjudanteTipo",
-      tipoUsuario
-    );
-
-    localStorage.setItem(
-      "pulsanAjudanteSelo",
-      seloUsuario
-    );
-
-
-    localStorage.setItem(
-      "pulsanPublicacaoSelecionada",
-      JSON.stringify(
-        publicacao
-      )
-    );
-
-
-    localStorage.setItem(
-      "pulsanNovaSolicitacao",
-      "true"
-    );
-
-
-    localStorage.setItem(
-      "pulsanTipoSolicitacao",
-      "chat-publicacao"
-    );
-
-
-    setSolicitacoes(
-      (anteriores) => ({
-        ...anteriores,
-
-        [publicacao.id]:
-          solicitacao,
+    /*
+     * O schema atual de solicitacoes_chat possui desabafo_id como UUID,
+     * enquanto posts_ambiente.id está definido como bigint.
+     * Por isso, não enviamos esse campo aqui para evitar erro de tipo.
+     * O texto do desabafo é preservado em motivo para a solicitação.
+     */
+    const { data, error } = await supabase
+      .from("solicitacoes_chat")
+      .insert({
+        solicitante_id: usuarioAtual.id,
+        destinatario_id: publicacao.usuario_id,
+        status: "pendente",
+        categoria: "empresa",
+        urgencia: "normal",
+        motivo: `Desabafo #${publicacao.id}: ${publicacao.texto}`,
       })
-    );
+      .select()
+      .single();
 
+    if (error) {
+      console.error("Erro ao criar solicitação:", error);
+      alert(
+        "Não foi possível enviar a solicitação de ajuda agora."
+      );
+      return;
+    }
+
+    setSolicitacoes((anteriores) => ({
+      ...anteriores,
+      [publicacao.id]: data,
+    }));
 
     alert(
       "Solicitação enviada! 💚\n\n" +
-        "A pessoa verá seu nome, sua foto e seus selos antes de decidir se aceita."
+        "A pessoa poderá decidir se aceita a conversa."
     );
 
-
-    irPara(
-      "solicitacoes"
-    );
+    irPara("solicitacoes");
   }
-
 
   // =====================================================
   // RENDER

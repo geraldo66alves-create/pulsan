@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
 
 function Ambiente({ irPara, tema = "claro" }) {
@@ -127,113 +127,231 @@ function Ambiente({ irPara, tema = "claro" }) {
   }
 
   // =====================================================
-  // CARREGAR DESABAFOS E COMENTÁRIOS
+  // TEMPO RELATIVO COM ATUALIZAÇÃO AUTOMÁTICA
   // =====================================================
 
+  const [tempoAtual, setTempoAtual] = useState(new Date());
+
   useEffect(() => {
+    const intervalo = setInterval(() => {
+      setTempoAtual(new Date());
+    }, 30000); // Atualiza a cada 30 segundos
+
+    return () => clearInterval(intervalo);
+  }, []);
+
+  function formatarTempoRelativo(dataISO) {
+    if (!dataISO) return "Agora";
+
+    const dataObj = new Date(dataISO);
+    if (Number.isNaN(dataObj.getTime())) return "Agora";
+
+    const diffMs = tempoAtual - dataObj;
+    const diffSeg = Math.floor(diffMs / 1000);
+    const diffMin = Math.floor(diffSeg / 60);
+    const diffHora = Math.floor(diffMin / 60);
+    const diffDia = Math.floor(diffHora / 24);
+
+    if (diffSeg < 60) return "Agora";
+    if (diffMin < 1) return "Agora";
+    if (diffMin === 1) return "Há 1 minuto";
+    if (diffMin < 60) return `Há ${diffMin} minutos`;
+    if (diffHora === 1) return "Há 1 hora";
+    if (diffHora < 24) return `Há ${diffHora} horas`;
+    if (diffDia === 1) return "Ontem";
+    if (diffDia < 7) return `Há ${diffDia} dias`;
+
+    return dataObj.toLocaleDateString("pt-BR", {
+      day: "2-digit",
+      month: "short",
+    }).replace(".", "");
+  }
+
+  // =====================================================
+  // CARREGAR DESABAFOS E COMENTÁRIOS COM REALTIME
+  // =====================================================
+
+  const montadoRef = useRef(false);
+
+  useEffect(() => {
+    // React StrictMode executa o efeito de montagem duas vezes em desenvolvimento.
+    // Por isso a referência precisa voltar para true sempre que o efeito montar.
+    montadoRef.current = true;
+
+    return () => {
+      montadoRef.current = false;
+    };
+  }, []);
+
+  const carregarDesabafos = useCallback(async () => {
+    if (!montadoRef.current) return;
+
+    setCarregandoDesabafos(true);
+
+    try {
+      const { data, error } = await supabase
+        .from("posts_ambiente")
+        .select("*")
+        .order("criado_em", {
+          ascending: false,
+        });
+
+      if (error) {
+        console.error(
+          "Erro ao carregar desabafos:",
+          error
+        );
+
+        if (montadoRef.current) {
+          setDesabafos([]);
+        }
+
+        return;
+      }
+
+      const postsComComentarios = await Promise.all(
+        (data || []).map(async (post) => {
+          const {
+            data: comentariosBanco,
+            error: erroComentarios,
+          } = await supabase
+            .from("comentarios_ambiente")
+            .select("*")
+            .eq("post_id", post.id)
+            .order("criado_em", {
+              ascending: true,
+            });
+
+          if (erroComentarios) {
+            console.error(
+              "Erro ao carregar comentários do desabafo:",
+              post.id,
+              erroComentarios
+            );
+          }
+
+          return {
+            ...post,
+            usuarioId: post.usuario_id,
+            nomeUsuario:
+              post.nome_usuario ||
+              "Usuário anônimo",
+            fotoUsuario:
+              post.foto_usuario || "",
+            texto: post.texto,
+            apoiadores: Array.isArray(post.apoiadores)
+              ? post.apoiadores
+              : [],
+            comentarios: (comentariosBanco || []).map(
+              (comentarioBanco) => ({
+                id: comentarioBanco.id,
+                usuarioId:
+                  comentarioBanco.usuario_id,
+                nome: "Anônimo",
+                texto: comentarioBanco.texto,
+                data: comentarioBanco.criado_em,
+              })
+            ),
+          };
+        })
+      );
+
+      if (montadoRef.current) {
+        setDesabafos(postsComComentarios);
+      }
+    } catch (erro) {
+      console.error(
+        "Erro inesperado ao carregar o Ambiente:",
+        erro
+      );
+
+      if (montadoRef.current) {
+        setDesabafos([]);
+      }
+    } finally {
+      if (montadoRef.current) {
+        setCarregandoDesabafos(false);
+      }
+    }
+  }, []);
+  // Setup do Realtime para os desabafos
+  useEffect(() => {
+    if (!usuarioId) return;
+
+    // Disparo inicial
     carregarDesabafos();
 
-    // Atualiza o feed automaticamente quando um novo desabafo
-    // é inserido no Supabase, sem precisar recarregar a página.
-    const canalDesabafos = supabase
-      .channel("ambiente-desabafos")
+    // Aguarda que o Realtime esteja autenticado
+    const sessao = JSON.parse(localStorage.getItem("pulsanSessao") || "{}");
+    if (sessao.session?.access_token) {
+      supabase.realtime.setAuth(sessao.session.access_token);
+    }
+
+    // Débounce para evitar múltiplas recargas simultâneas
+    let timeoutAtualizacao;
+    function agendarAtualizacao() {
+      clearTimeout(timeoutAtualizacao);
+      timeoutAtualizacao = setTimeout(() => {
+        if (montadoRef.current) carregarDesabafos();
+      }, 400);
+    }
+
+    // Canal 1: Novos desabafos inseridos
+    const canalNovoPost = supabase
+      .channel("ambiente-novo-post")
       .on(
         "postgres_changes",
         {
-          event: "*",
+          event: "INSERT",
           schema: "public",
           table: "posts_ambiente",
         },
         () => {
-          carregarDesabafos();
+          agendarAtualizacao();
         }
       )
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(canalDesabafos);
-    };
-  }, []);
-
-  async function carregarDesabafos() {
-    setCarregandoDesabafos(true);
-
-    // Carrega os desabafos diretamente do banco.
-    // Não filtramos por "ativo" aqui para que novos desabafos
-    // publicados também apareçam no Ambiente imediatamente.
-    const { data, error } = await supabase
-      .from("posts_ambiente")
-      .select("*")
-      .order("criado_em", {
-        ascending: false,
-      });
-
-    if (error) {
-      console.error(
-        "Erro ao carregar desabafos:",
-        error
-      );
-
-      setCarregandoDesabafos(false);
-      return;
-    }
-
-    const postsComComentarios = await Promise.all(
-      (data || []).map(async (post) => {
-        const {
-          data: comentariosBanco,
-          error: erroComentarios,
-        } = await supabase
-          .from("comentarios_ambiente")
-          .select("*")
-          .eq("post_id", post.id)
-          .eq("ativo", true)
-          .order("criado_em", {
-            ascending: true,
-          });
-
-        if (erroComentarios) {
-          console.error(
-            "Erro ao carregar comentários:",
-            erroComentarios
-          );
+    // Canal 2: Desabafos atualizados (apoios, exclusões)
+    const canalAtualizacaoPost = supabase
+      .channel("ambiente-atualizacao-post")
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "posts_ambiente",
+        },
+        () => {
+          agendarAtualizacao();
         }
+      )
+      .subscribe();
 
-        return {
-          ...post,
+    // Canal 3: Novos comentários
+    const canalNovoComentario = supabase
+      .channel("ambiente-novo-comentario")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "comentarios_ambiente",
+        },
+        () => {
+          agendarAtualizacao();
+        }
+      )
+      .subscribe();
 
-          usuarioId: post.usuario_id,
-
-          nomeUsuario:
-            post.nome_usuario ||
-            "Usuário anônimo",
-
-          fotoUsuario:
-            post.foto_usuario || "",
-
-          texto: post.texto,
-
-          apoiadores: Array.isArray(post.apoiadores)
-            ? post.apoiadores
-            : [],
-
-          comentarios: (comentariosBanco || []).map(
-            (comentarioBanco) => ({
-              id: comentarioBanco.id,
-              usuarioId:
-                comentarioBanco.usuario_id,
-              nome: "Anônimo",
-              texto: comentarioBanco.texto,
-              data: comentarioBanco.criado_em,
-            })
-          ),
-        };
-      })
-    );
-
-    setDesabafos(postsComComentarios);
-    setCarregandoDesabafos(false);
-  }
+    // Cleanup
+    return () => {
+      clearTimeout(timeoutAtualizacao);
+      supabase.removeChannel(canalNovoPost);
+      supabase.removeChannel(canalAtualizacaoPost);
+      supabase.removeChannel(canalNovoComentario);
+    };
+  }, [usuarioId, carregarDesabafos]);
 
   useEffect(() => {
     localStorage.setItem("pulsanNotificacoes", JSON.stringify(notificacoes));
@@ -347,7 +465,12 @@ function Ambiente({ irPara, tema = "claro" }) {
   // =====================================================
 
   async function apoiar(id) {
-    registrarApoioDiario();
+    const idUsuario = usuarioAuthId();
+
+    if (!idUsuario) {
+      alert("Entre na sua conta para apoiar um desabafo.");
+      return;
+    }
 
     const post = desabafos.find(
       (item) => item.id === id
@@ -357,36 +480,12 @@ function Ambiente({ irPara, tema = "claro" }) {
       return;
     }
 
-    const apoiadores = Array.isArray(
-      post.apoiadores
-    )
-      ? post.apoiadores
-      : [];
-
-    const identificadorUsuario = String(
-      usuarioId
+    const { data: novosApoiadores, error } = await supabase.rpc(
+      "alternar_apoio",
+      {
+        p_post_id: id,
+      }
     );
-
-    const jaApoiou = apoiadores.includes(
-      identificadorUsuario
-    );
-
-    const novosApoiadores = jaApoiou
-      ? apoiadores.filter(
-          (idApoiador) =>
-            idApoiador !== identificadorUsuario
-        )
-      : [
-          ...apoiadores,
-          identificadorUsuario,
-        ];
-
-    const { error } = await supabase
-      .from("posts_ambiente")
-      .update({
-        apoiadores: novosApoiadores,
-      })
-      .eq("id", id);
 
     if (error) {
       console.error(
@@ -401,16 +500,24 @@ function Ambiente({ irPara, tema = "claro" }) {
       return;
     }
 
+    const apoiadoresAtualizados = Array.isArray(
+      novosApoiadores
+    )
+      ? novosApoiadores
+      : [];
+
     setDesabafos((listaAtual) =>
       listaAtual.map((item) =>
         item.id === id
           ? {
               ...item,
-              apoiadores: novosApoiadores,
+              apoiadores: apoiadoresAtualizados,
             }
           : item
       )
     );
+
+    registrarApoioDiario();
   }
 
   // =====================================================
@@ -527,49 +634,86 @@ function Ambiente({ irPara, tema = "claro" }) {
       return;
     }
 
-    const { data: existente, error: erroBusca } = await supabase
+    // 1. PRIMEIRO: procura uma conversa ATIVA ligada exatamente a este desabafo.
+    // Se existir, o usuário volta para ela. Não cria uma nova solicitação.
+    const { data: conversaAtiva, error: erroConversaAtiva } = await supabase
+      .from("conversas")
+      .select("*")
+      .eq("desabafo_post_id", desabafo.id)
+      .eq("status", "ativa")
+      .or(`solicitante_id.eq.${user.id},destinatario_id.eq.${user.id}`)
+      .order("criada_em", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (erroConversaAtiva) {
+      console.error("Erro ao verificar conversa ativa:", erroConversaAtiva);
+      alert(
+        `Não foi possível verificar a conversa deste desabafo.\n\n${
+          erroConversaAtiva.message || "Verifique as políticas do Supabase."
+        }`
+      );
+      return;
+    }
+
+    if (conversaAtiva) {
+      localStorage.setItem(
+        "pulsanAbrirConversaId",
+        String(conversaAtiva.id)
+      );
+      localStorage.setItem(
+        "pulsanConversaAtual",
+        JSON.stringify(conversaAtiva)
+      );
+      localStorage.setItem(
+        "pulsanIdDesabafoConversa",
+        String(desabafo.id)
+      );
+      localStorage.setItem(
+        "pulsanDesabafoConversa",
+        String(desabafo.texto || "")
+      );
+
+      if (typeof irPara === "function") {
+        irPara("conversa");
+      }
+
+      return;
+    }
+
+    // 2. Se não existe conversa ativa, verifica se já existe um pedido
+    // pendente para ESTE desabafo.
+    const { data: solicitacaoPendente, error: erroBusca } = await supabase
       .from("solicitacoes_chat")
-      .select("id, status")
+      .select("id, status, desabafo_post_id")
       .eq("solicitante_id", user.id)
       .eq("destinatario_id", destinatarioId)
-      .in("status", ["pendente", "aceita"])
+      .eq("desabafo_post_id", desabafo.id)
+      .eq("status", "pendente")
       .maybeSingle();
 
     if (erroBusca) {
-      console.error(
-        "Erro ao verificar solicitação:",
-        erroBusca
-      );
-
+      console.error("Erro ao verificar solicitação:", erroBusca);
       alert(
         `Erro ao verificar solicitação:\n\n${
-          erroBusca.message ||
-          "Verifique a configuração do Supabase."
+          erroBusca.message || "Verifique a configuração do Supabase."
         }`
       );
-
       return;
     }
 
-    if (existente) {
-      alert(
-        existente.status === "aceita"
-          ? "Você já possui uma conversa com essa pessoa."
-          : "Você já enviou uma solicitação para essa pessoa."
-      );
-
+    if (solicitacaoPendente) {
+      alert("Você já enviou uma solicitação para este desabafo. 💙");
       return;
     }
 
-    console.log("Usuário logado:", user.id);
-    console.log("Destinatário:", destinatarioId);
-    console.log("Desabafo:", desabafo);
-
+    // 3. Sem conversa ativa e sem solicitação pendente: cria um novo pedido.
     const { error: erroInsercao } = await supabase
       .from("solicitacoes_chat")
       .insert({
         solicitante_id: user.id,
         destinatario_id: destinatarioId,
+        desabafo_post_id: desabafo.id,
         status: "pendente",
       });
 
@@ -585,17 +729,12 @@ function Ambiente({ irPara, tema = "claro" }) {
           "Verifique a tabela solicitacoes_chat e as políticas RLS."
         }`
       );
-
       return;
     }
 
-    alert("Solicitação de chat enviada!");
+    alert("Solicitação de chat enviada! 💙");
   } catch (erro) {
-    console.error(
-      "Erro inesperado ao solicitar conversa:",
-      erro
-    );
-
+    console.error("Erro inesperado ao solicitar conversa:", erro);
     alert(
       `Ocorreu um erro ao solicitar a conversa.\n\n${
         erro.message || "Erro desconhecido."
@@ -674,16 +813,6 @@ function Ambiente({ irPara, tema = "claro" }) {
 
   function marcarNotificacoesComoLidas() {
     setNotificacoes((lista) => lista.map((item) => ({ ...item, lida: true })));
-  }
-
-  function formatarData(data) {
-    if (!data) return "Agora";
-    const dataObj = new Date(data);
-    if (Number.isNaN(dataObj.getTime())) return "Agora";
-    return dataObj.toLocaleDateString("pt-BR", {
-      day: "2-digit",
-      month: "short",
-    }).replace(".", "");
   }
 
   function obterNivelUrgencia(item) {
@@ -898,6 +1027,53 @@ function Ambiente({ irPara, tema = "claro" }) {
           color: #FFFFFF !important;
         }
 
+        /* Animações de entrada */
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(12px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes slideInFromTop {
+          from {
+            opacity: 0;
+            transform: translateY(-8px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        .ambiente-post {
+          animation: fadeInUp 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+
+        .ambiente-comment {
+          animation: slideInFromTop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+
+        /* Pulso suave para novos comentários */
+        .ambiente-comment-new {
+          box-shadow: 0 0 0 3px rgba(58, 125, 255, 0.1);
+          animation: fadeInUp 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        /* Transição suave em apoios */
+        .ambiente-action {
+          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .ambiente-action:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(15, 45, 91, 0.12);
+        }
+
         .ambiente-shell { width: min(100% - 32px, 980px); margin: 0 auto; }
         .ambiente-header { position: sticky; top: 0; z-index: 30; backdrop-filter: blur(16px); background: var(--ambiente-card); border-bottom: 1px solid var(--ambiente-border); }
         .ambiente-header-inner { width: min(100% - 32px, 1180px); min-height: 76px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 18px; }
@@ -1053,7 +1229,7 @@ function Ambiente({ irPara, tema = "claro" }) {
                       <strong style={{ color: "#0F2D5B" }}>{item.nomeUsuario || "Usuário anônimo"}</strong>
                       <div style={{ display: "flex", gap: 7, flexWrap: "wrap", marginTop: 3, color: "#7186A1", fontSize: 11 }}>
                         <span>Identidade protegida</span>
-                        {item.criado_em && <span>• {formatarData(item.criado_em)}</span>}
+                        {item.criado_em && <span>• {formatarTempoRelativo(item.criado_em)}</span>}
                       </div>
                     </div>
                     {aba === "meus" && dono ? (
@@ -1111,7 +1287,7 @@ function Ambiente({ irPara, tema = "claro" }) {
                           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                             <div style={{ width: 28, height: 28, borderRadius: "50%", background: "#EAF3FF", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13 }}>💙</div>
                             <strong style={{ fontSize: 12, color: "#365A82" }}>{coment.nome || "Anônimo"}</strong>
-                            {coment.data && <span style={{ color: "#8AA0B9", fontSize: 10 }}>• {formatarData(coment.data)}</span>}
+                            {coment.data && <span style={{ color: "#8AA0B9", fontSize: 10 }}>• {formatarTempoRelativo(coment.data)}</span>}
                           </div>
                           <div style={{ marginTop: 7, color: "#36506F", fontSize: 13.5, lineHeight: 1.55 }}>{coment.texto}</div>
                         </div>

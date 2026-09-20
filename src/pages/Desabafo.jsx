@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { supabase } from "../lib/supabase";
 
 function Desabafo({ irPara }) {
   const [texto, setTexto] = useState("");
@@ -18,21 +19,31 @@ function Desabafo({ irPara }) {
     const textoLimpo = texto.trim();
 
     if (!textoLimpo) {
-      alert(
-        "Escreva algo antes de publicar."
-      );
+      alert("Escreva algo antes de publicar.");
       return;
     }
 
-    // ===================================================
-    // ANÁLISE DE SEGURANÇA PELA IA DO PULSAN
-    // ===================================================
-
     setAnalisandoIA(true);
 
-    let analiseIA = null;
-
     try {
+      // ===================================================
+      // USUÁRIO AUTENTICADO
+      // ===================================================
+
+      const { data: sessao, error: erroSessao } =
+        await supabase.auth.getUser();
+
+      if (erroSessao || !sessao?.user) {
+        alert("Sua sessão não foi encontrada. Faça login novamente.");
+        return;
+      }
+
+      const usuarioId = sessao.user.id;
+
+      // ===================================================
+      // ANÁLISE DE SEGURANÇA PELA IA DO PULSAN
+      // ===================================================
+
       const API_URL =
         import.meta.env.VITE_API_URL ||
         "http://localhost:3001";
@@ -57,197 +68,135 @@ function Desabafo({ irPara }) {
         );
       }
 
-      analiseIA = await respostaIA.json();
+      const analiseIA = await respostaIA.json();
 
+      // ===================================================
+      // MODERAÇÃO
+      // ===================================================
+
+      if (analiseIA?.publicarPermitido === false) {
+        alert(
+          analiseIA.motivoModeracao ||
+            "Seu texto contém linguagem ofensiva ou inadequada. Revise a mensagem e tente novamente."
+        );
+        return;
+      }
+
+      // ===================================================
+      // CLASSIFICAÇÃO DA IA
+      // ===================================================
+
+      let classificacao =
+        analiseIA?.classificacao || "normal";
+
+      if (
+        !["normal", "intermediario", "grave", "urgente"].includes(
+          classificacao
+        )
+      ) {
+        classificacao = "normal";
+      }
+
+      const alerta = Boolean(
+        analiseIA?.alerta ||
+          classificacao === "intermediario" ||
+          classificacao === "grave" ||
+          classificacao === "urgente"
+      );
+
+      // ===================================================
+      // SALVAR DIRETAMENTE NO SUPABASE
+      // ===================================================
+      // Não usamos localStorage para armazenar a publicação.
+      // O conteúdo fica no banco e pode ser carregado pelo
+      // Ambiente.jsx para todos os fluxos da plataforma.
+
+      const { data: publicacaoBanco, error: erroBanco } =
+        await supabase
+          .from("posts_ambiente")
+          .insert({
+            usuario_id: usuarioId,
+            texto: textoLimpo,
+            ambiente: "geral",
+            classificacao,
+            alerta,
+            nome_usuario: "Anônimo",
+            prioridade:
+              analiseIA?.prioridadeAlerta ||
+              classificacao,
+            categoria:
+              analiseIA?.tipoSituacao ||
+              "geral",
+            sentimento:
+              analiseIA?.sentimento || null,
+            urgencia: classificacao,
+            moderado: true,
+            moderacao_motivo:
+              analiseIA?.motivoModeracao || null,
+          })
+          .select()
+          .single();
+
+      if (erroBanco) {
+        console.error(
+          "❌ Pulsan: erro ao salvar desabafo no Supabase.",
+          erroBanco
+        );
+
+        throw new Error(
+          "Não foi possível salvar o desabafo."
+        );
+      }
+
+      // ===================================================
+      // LIMPAR
+      // ===================================================
+
+      setTexto("");
+
+      // ===================================================
+      // AVISO AO USUÁRIO
+      // ===================================================
+
+      if (classificacao === "urgente") {
+        alert(
+          "Seu desabafo foi publicado anonimamente. 💚\n\n" +
+            "A situação poderá receber atenção da equipe responsável."
+        );
+      } else if (classificacao === "grave") {
+        alert(
+          "Seu desabafo foi publicado anonimamente. 💚\n\n" +
+            "A situação poderá receber atenção adicional."
+        );
+      } else if (classificacao === "intermediario") {
+        alert(
+          "Seu desabafo foi publicado anonimamente. 💚\n\n" +
+            "Seu relato poderá receber atenção adicional."
+        );
+      } else {
+        alert(
+          "Seu desabafo foi publicado anonimamente. 💚"
+        );
+      }
+
+      console.log(
+        "✅ Pulsan: desabafo salvo no Supabase.",
+        publicacaoBanco?.id
+      );
+
+      irPara("ambiente");
     } catch (erro) {
       console.error(
-        "❌ Pulsan: erro ao analisar desabafo com IA.",
+        "❌ Pulsan: erro ao publicar desabafo.",
         erro
       );
 
       alert(
-        "Não foi possível verificar seu desabafo no momento. Tente novamente."
+        "Não foi possível publicar seu desabafo agora. Tente novamente."
       );
-
+    } finally {
       setAnalisandoIA(false);
-      return;
     }
-
-    // ===================================================
-    // NOVA MODERAÇÃO DE CONTEÚDO
-    // ===================================================
-    // Se a IA identificar que o autor está realmente
-    // utilizando conteúdo ofensivo, a publicação é bloqueada.
-    //
-    // Importante:
-    // Se a pessoa estiver apenas relatando que sofreu
-    // uma ofensa, a IA deverá retornar publicarPermitido=true.
-    // ===================================================
-
-    if (
-      analiseIA?.publicarPermitido === false
-    ) {
-      setAnalisandoIA(false);
-
-      alert(
-        analiseIA.motivoModeracao ||
-          "Seu texto contém linguagem ofensiva ou inadequada. Revise a mensagem e tente novamente."
-      );
-
-      return;
-    }
-
-    // ===================================================
-    // PEGAR PUBLICAÇÕES EXISTENTES
-    // ===================================================
-
-    const publicacoesSalvas =
-      JSON.parse(
-        localStorage.getItem(
-          "pulsanPublicacoes"
-        ) || "[]"
-      );
-
-    // ===================================================
-    // CRIAR NOVO DESABAFO
-    //
-    // IMPORTANTE:
-    // Não salvamos nome, foto ou e-mail.
-    // A publicação é somente anônima.
-    // ===================================================
-
-    const novaPublicacao = {
-      id: Date.now(),
-
-      texto:
-        textoLimpo,
-
-      autor:
-        "Anônimo",
-
-      anonimato:
-        true,
-
-      apoios:
-        0,
-
-      apoiado:
-        false,
-
-      comentarios:
-        [],
-
-      // ===================================================
-      // RESULTADO INTERNO DA IA
-      // ===================================================
-      // Não é exibido para outros usuários.
-
-      analiseIA: analiseIA
-        ? {
-            classificacao:
-              analiseIA.classificacao ||
-              "normal",
-
-            tipoSituacao:
-              analiseIA.tipoSituacao ||
-              "nenhum",
-
-            motivo:
-              analiseIA.motivo || "",
-
-            alerta:
-              Boolean(
-                analiseIA.alerta
-              ),
-
-            prioridadeAlerta:
-              analiseIA.prioridadeAlerta ||
-              "nenhuma",
-
-            ambienteEscolar:
-              Boolean(
-                analiseIA.ambienteEscolar
-              ),
-
-            // =================================================
-            // NOVOS DADOS DE MODERAÇÃO
-            // =================================================
-
-            conteudoOfensivo:
-              Boolean(
-                analiseIA.conteudoOfensivo
-              ),
-
-            categoriaOfensa:
-              analiseIA.categoriaOfensa ||
-              "nenhuma",
-
-            publicarPermitido:
-              analiseIA.publicarPermitido !==
-              false,
-
-            motivoModeracao:
-              analiseIA.motivoModeracao ||
-              "",
-          }
-        : null,
-
-      data:
-        new Date().toLocaleDateString(
-          "pt-BR"
-        ),
-
-      hora:
-        new Date().toLocaleTimeString(
-          "pt-BR",
-          {
-            hour: "2-digit",
-            minute: "2-digit",
-          }
-        ),
-    };
-
-    // ===================================================
-    // COLOCAR A PUBLICAÇÃO MAIS NOVA NO INÍCIO
-    // ===================================================
-
-    const novasPublicacoes = [
-      novaPublicacao,
-      ...publicacoesSalvas,
-    ];
-
-    // ===================================================
-    // SALVAR
-    // ===================================================
-
-    localStorage.setItem(
-      "pulsanPublicacoes",
-      JSON.stringify(
-        novasPublicacoes
-      )
-    );
-
-    // ===================================================
-    // LIMPAR CAMPO
-    // ===================================================
-
-    setTexto("");
-
-    // ===================================================
-    // AVISO
-    // ===================================================
-
-    setAnalisandoIA(false);
-
-    alert(
-      "Seu desabafo foi publicado anonimamente. 💚"
-    );
-
-    // ===================================================
-    // VOLTAR PARA O INÍCIO
-    // ===================================================
-
-    irPara("ambiente");
   }
 
   // =====================================================

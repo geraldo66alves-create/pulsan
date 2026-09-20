@@ -1,1235 +1,781 @@
 import React, { useEffect, useState } from "react";
+import { supabase } from "../lib/supabase";
+import "../tema.css";
 
-function Conversa({ irPara }) {
-  // =====================================================
-  // IDENTIFICADOR DA CONVERSA
-  // =====================================================
+export default function Comentarios({
+  postId,
+  usuarioId,
+  tema = "claro",
+  onFechar,
+}) {
+  const [comentarios, setComentarios] = useState([]);
+  const [novoComentario, setNovoComentario] = useState("");
+  const [carregando, setCarregando] = useState(true);
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState("");
 
-  const solicitacaoSalva =
-    JSON.parse(
-      localStorage.getItem(
-        "pulsanSolicitacaoAtual"
-      ) || "null"
-    );
+  const modoEscuro = tema === "escuro";
 
-  const conversaId =
-    solicitacaoSalva?.conversaId ||
-    solicitacaoSalva?.id ||
-    localStorage.getItem(
-      "pulsanConversaAtual"
-    ) ||
-    "conversa-principal";
+  /*
+   * =========================================================
+   * CARREGAR COMENTÁRIOS
+   * =========================================================
+   */
 
-
-  // =====================================================
-  // DADOS DO USUÁRIO LOGADO
-  // =====================================================
-
-  const meuNome =
-    localStorage.getItem(
-      "pulsanNome"
-    ) || "Você";
-
-  const minhaFoto =
-    localStorage.getItem(
-      "pulsanFoto"
-    ) || "";
-
-  const meuTipo =
-    localStorage.getItem(
-      "pulsanTipo"
-    ) || "";
-
-
-  // =====================================================
-  // PAPEL NA CONVERSA
-  //
-  // "ajudante" = pessoa que solicitou ajudar
-  // "anonimo" = pessoa que publicou o desabafo
-  // =====================================================
-
-  const papel =
-    localStorage.getItem(
-      "pulsanPapelConversa"
-    ) || "anonimo";
-
-
-  // =====================================================
-  // DADOS DE QUEM ESTÁ AJUDANDO
-  // =====================================================
-
-  const nomeAjudante =
-    solicitacaoSalva?.nomeSolicitante ||
-    localStorage.getItem(
-      "pulsanAjudanteNome"
-    ) ||
-    "Ajudante";
-
-  const fotoAjudante =
-    solicitacaoSalva?.fotoSolicitante ||
-    localStorage.getItem(
-      "pulsanAjudanteFoto"
-    ) ||
-    "";
-
-  const seloAjudante =
-    solicitacaoSalva?.seloSolicitante ||
-    localStorage.getItem(
-      "pulsanAjudanteSelo"
-    ) ||
-    "";
-
-  const tipoAjudante =
-    solicitacaoSalva?.tipoSolicitante ||
-    localStorage.getItem(
-      "pulsanAjudanteTipo"
-    ) ||
-    "";
-
-
-  // =====================================================
-  // ESTADOS
-  // =====================================================
-
-  const [mensagem, setMensagem] =
-    useState("");
-
-  const [mensagens, setMensagens] =
-    useState([]);
-
-  const [carregando, setCarregando] =
-    useState(true);
-
-
-  // =====================================================
-  // CARREGAR HISTÓRICO
-  //
-  // As mensagens ficam salvas no navegador.
-  // =====================================================
-
-  useEffect(() => {
-    const chave =
-      `pulsanMensagens_${conversaId}`;
-
-    const mensagensSalvas =
-      JSON.parse(
-        localStorage.getItem(
-          chave
-        ) || "[]"
-      );
-
-    setMensagens(
-      mensagensSalvas
-    );
-
-    setCarregando(false);
-  }, [conversaId]);
-
-
-  // =====================================================
-  // SALVAR MENSAGENS
-  // =====================================================
-
-  useEffect(() => {
-    if (carregando) {
+  async function carregarComentarios() {
+    if (!postId) {
+      setComentarios([]);
+      setCarregando(false);
       return;
     }
 
-    const chave =
-      `pulsanMensagens_${conversaId}`;
+    try {
+      setErro("");
 
-    localStorage.setItem(
-      chave,
-      JSON.stringify(
-        mensagens
-      )
-    );
-  }, [
-    mensagens,
-    conversaId,
-    carregando,
-  ]);
+      const { data, error } = await supabase
+        .from("comentarios_ambiente")
+        .select(`
+          id,
+          post_id,
+          usuario_id,
+          texto,
+          criado_em,
+          ativo
+        `)
+        .eq("post_id", postId)
+        .eq("ativo", true)
+        .order("criado_em", {
+          ascending: true,
+        });
 
+      if (error) {
+        throw error;
+      }
 
-  // =====================================================
-  // INFORMAÇÕES DO OUTRO LADO
-  //
-  // REGRA:
-  //
-  // Se eu sou o ajudante:
-  //   a outra pessoa aparece como ANÔNIMA.
-  //
-  // Se eu sou quem publicou:
-  //   aparece a identidade de quem
-  //   solicitou ajudar.
-  // =====================================================
+      setComentarios(data || []);
+    } catch (error) {
+      console.error("Erro ao carregar comentários:", error);
 
-  const souAjudante =
-    papel === "ajudante";
-
-
-  let nomeDaOutraPessoa =
-    "Anônimo";
-
-  let fotoDaOutraPessoa =
-    "";
-
-  let seloDaOutraPessoa =
-    "";
-
-  let tipoDaOutraPessoa =
-    "";
-
-
-  if (souAjudante) {
-    // Quem publicou permanece anônimo.
-
-    nomeDaOutraPessoa =
-      "Anônimo";
-
-    fotoDaOutraPessoa =
-      "";
-
-    seloDaOutraPessoa =
-      "";
-
-    tipoDaOutraPessoa =
-      "";
-  } else {
-    // Quem publicou consegue ver
-    // a identidade do ajudante.
-
-    nomeDaOutraPessoa =
-      nomeAjudante;
-
-    fotoDaOutraPessoa =
-      fotoAjudante;
-
-    seloDaOutraPessoa =
-      seloAjudante;
-
-    tipoDaOutraPessoa =
-      tipoAjudante;
+      setErro(
+        "Não foi possível carregar os comentários."
+      );
+    } finally {
+      setCarregando(false);
+    }
   }
 
+  /*
+   * =========================================================
+   * PRIMEIRO CARREGAMENTO
+   * =========================================================
+   */
 
-  // =====================================================
-  // ENVIAR MENSAGEM
-  // =====================================================
+  useEffect(() => {
+    let ativo = true;
 
-  function enviarMensagem(e) {
-    e.preventDefault();
+    async function iniciar() {
+      if (!ativo) return;
 
-    const texto =
-      mensagem.trim();
+      await carregarComentarios();
+    }
+
+    iniciar();
+
+    return () => {
+      ativo = false;
+    };
+  }, [postId]);
+
+  /*
+   * =========================================================
+   * REALTIME
+   * =========================================================
+   */
+
+  useEffect(() => {
+    if (!postId) return;
+
+    const canal = supabase
+      .channel(`comentarios-post-${postId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "comentarios_ambiente",
+          filter: `post_id=eq.${postId}`,
+        },
+        () => {
+          carregarComentarios();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(canal);
+    };
+  }, [postId]);
+
+  /*
+   * =========================================================
+   * ENVIAR COMENTÁRIO
+   * =========================================================
+   */
+
+  async function enviarComentario(event) {
+    event?.preventDefault();
+
+    const texto = novoComentario.trim();
 
     if (!texto) {
       return;
     }
 
+    if (!usuarioId) {
+      setErro(
+        "Você precisa estar conectado para comentar."
+      );
+      return;
+    }
 
-    const novaMensagem = {
-      id: Date.now(),
+    if (!postId) {
+      setErro(
+        "Não foi possível identificar o desabafo."
+      );
+      return;
+    }
 
-      autor:
-        "eu",
+    if (texto.length > 1000) {
+      setErro(
+        "O comentário pode ter no máximo 1000 caracteres."
+      );
+      return;
+    }
 
-      texto:
-        texto,
+    try {
+      setEnviando(true);
+      setErro("");
 
-      hora:
-        new Date().toLocaleTimeString(
-          "pt-BR",
-          {
-            hour: "2-digit",
-            minute: "2-digit",
+      /*
+       * O conteúdo é enviado para a moderação do servidor
+       * antes de ser salvo no banco.
+       */
+
+      const apiUrl =
+        import.meta.env.VITE_API_URL ||
+        (window.location.hostname === "localhost"
+          ? "http://localhost:3001"
+          : "");
+
+      if (apiUrl) {
+        try {
+          const resposta = await fetch(
+            `${apiUrl}/api/analisar-mensagem`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                texto,
+                usuario_id: usuarioId,
+                post_id: postId,
+              }),
+            }
+          );
+
+          if (resposta.ok) {
+            const analise = await resposta.json();
+
+            if (
+              analise?.permitido === false ||
+              analise?.bloqueado === true ||
+              analise?.moderado === true
+            ) {
+              setErro(
+                analise?.motivo ||
+                  analise?.mensagem ||
+                  "Esse comentário não pode ser publicado."
+              );
+
+              return;
+            }
           }
-        ),
+        } catch (erroModeracao) {
+          console.warn(
+            "Não foi possível consultar a moderação:",
+            erroModeracao
+          );
+        }
+      }
 
-      data:
-        new Date().toLocaleDateString(
-          "pt-BR"
-        ),
-    };
+      /*
+       * Salva diretamente no Supabase.
+       */
 
+      const { data, error } = await supabase
+        .from("comentarios_ambiente")
+        .insert({
+          post_id: postId,
+          usuario_id: usuarioId,
+          texto,
+          criado_em: new Date().toISOString(),
+          ativo: true,
+        })
+        .select(`
+          id,
+          post_id,
+          usuario_id,
+          texto,
+          criado_em,
+          ativo
+        `)
+        .single();
 
-    setMensagens(
-      (anteriores) => [
-        ...anteriores,
-        novaMensagem,
-      ]
-    );
+      if (error) {
+        throw error;
+      }
 
+      /*
+       * Adiciona imediatamente na tela.
+       * O Realtime também atualizará os demais usuários.
+       */
 
-    setMensagem("");
-  }
+      if (data) {
+        setComentarios((anteriores) => {
+          const jaExiste = anteriores.some(
+            (item) => String(item.id) === String(data.id)
+          );
 
+          if (jaExiste) {
+            return anteriores;
+          }
 
-  // =====================================================
-  // ENTER PARA ENVIAR
-  //
-  // SHIFT + ENTER = NOVA LINHA
-  // =====================================================
+          return [
+            ...anteriores,
+            data,
+          ];
+        });
+      }
 
-  function controlarEnter(e) {
-    if (
-      e.key === "Enter" &&
-      !e.shiftKey
-    ) {
-      e.preventDefault();
+      setNovoComentario("");
+    } catch (error) {
+      console.error(
+        "Erro ao enviar comentário:",
+        error
+      );
 
-      enviarMensagem(e);
+      setErro(
+        error?.message ||
+          "Não foi possível publicar o comentário."
+      );
+    } finally {
+      setEnviando(false);
     }
   }
 
+  /*
+   * =========================================================
+   * EXCLUIR / DESATIVAR MEU COMENTÁRIO
+   * =========================================================
+   */
 
-  // =====================================================
-  // ENCERRAR CONVERSA
-  // =====================================================
+  async function excluirComentario(comentario) {
+    if (!usuarioId) return;
 
-  function encerrarConversa() {
-    const confirmar =
-      window.confirm(
-        "Deseja encerrar esta conversa?\n\n" +
-          "O histórico continuará salvo."
-      );
+    if (
+      String(comentario.usuario_id) !==
+      String(usuarioId)
+    ) {
+      return;
+    }
+
+    const confirmar = window.confirm(
+      "Deseja excluir este comentário?"
+    );
 
     if (!confirmar) {
       return;
     }
 
+    try {
+      setErro("");
 
-    // Guarda o ID para a avaliação.
+      const { error } = await supabase
+        .from("comentarios_ambiente")
+        .update({
+          ativo: false,
+        })
+        .eq("id", comentario.id)
+        .eq("usuario_id", usuarioId);
 
-    localStorage.setItem(
-      "pulsanConversaAvaliar",
-      conversaId
-    );
+      if (error) {
+        throw error;
+      }
 
+      setComentarios((anteriores) =>
+        anteriores.filter(
+          (item) =>
+            String(item.id) !==
+            String(comentario.id)
+        )
+      );
+    } catch (error) {
+      console.error(
+        "Erro ao excluir comentário:",
+        error
+      );
 
-    // Guarda quem deve ser avaliado.
+      setErro(
+        "Não foi possível excluir o comentário."
+      );
+    }
+  }
 
-    localStorage.setItem(
-      "pulsanPessoaAvaliar",
-      JSON.stringify({
-        nome:
-          nomeDaOutraPessoa,
+  /*
+   * =========================================================
+   * DATA
+   * =========================================================
+   */
 
-        foto:
-          fotoDaOutraPessoa,
+  function formatarData(data) {
+    if (!data) return "";
 
-        selo:
-          seloDaOutraPessoa,
+    const dataObj = new Date(data);
 
-        tipo:
-          tipoDaOutraPessoa,
-      })
-    );
+    if (Number.isNaN(dataObj.getTime())) {
+      return "";
+    }
 
-
-    irPara(
-      "avaliacao"
+    return dataObj.toLocaleString(
+      "pt-BR",
+      {
+        day: "2-digit",
+        month: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      }
     );
   }
 
-
-  // =====================================================
-  // VOLTAR
-  // =====================================================
-
-  function voltar() {
-    irPara(
-      "solicitacoes"
-    );
-  }
-
-
-  // =====================================================
-  // RENDER
-  // =====================================================
+  /*
+   * =========================================================
+   * RENDER
+   * =========================================================
+   */
 
   return (
-    <main
-      style={{
-        minHeight:
-          "100vh",
-
-        height:
-          "100vh",
-
-        background:
-          "#f7f5f2",
-
-        display:
-          "flex",
-
-        flexDirection:
-          "column",
-
-        fontFamily:
-          "Arial, Helvetica, sans-serif",
-
-        color:
-          "#173b38",
-
-        boxSizing:
-          "border-box",
-      }}
+    <div
+      className={`pulsan-comentarios ${
+        modoEscuro
+          ? "pulsan-comentarios-dark"
+          : ""
+      }`}
     >
-
-      {/* =================================================
-          CABEÇALHO
-      ================================================= */}
-
-      <header
-        style={{
-          flexShrink:
-            0,
-
-          height:
-            "70px",
-
-          background:
-            "#ffffff",
-
-          borderBottom:
-            "1px solid #e6e6e6",
-
-          display:
-            "flex",
-
-          alignItems:
-            "center",
-
-          padding:
-            "0 16px",
-
-          gap:
-            "12px",
-
-          boxSizing:
-            "border-box",
-
-          boxShadow:
-            "0 2px 10px rgba(0,0,0,0.04)",
-        }}
-      >
-
-        {/* VOLTAR */}
-
-        <button
-          type="button"
-          onClick={voltar}
-          style={{
-            width:
-              "40px",
-
-            height:
-              "40px",
-
-            border:
-              "none",
-
-            borderRadius:
-              "50%",
-
-            background:
-              "#f3f5f4",
-
-            color:
-              "#36504a",
-
-            fontSize:
-              "23px",
-
-            cursor:
-              "pointer",
-
-            display:
-              "flex",
-
-            alignItems:
-              "center",
-
-            justifyContent:
-              "center",
-          }}
-        >
-          ←
-        </button>
-
-
-        {/* FOTO */}
-
-        <div
-          style={{
-            width:
-              "43px",
-
-            height:
-              "43px",
-
-            borderRadius:
-              "50%",
-
-            overflow:
-              "hidden",
-
-            background:
-              "#eaf3f0",
-
-            display:
-              "flex",
-
-            alignItems:
-              "center",
-
-            justifyContent:
-              "center",
-
-            flexShrink:
-              0,
-
-            border:
-              "1px solid #dce9e5",
-          }}
-        >
-
-          {fotoDaOutraPessoa ? (
-
-            <img
-              src={
-                fotoDaOutraPessoa
-              }
-              alt={
-                nomeDaOutraPessoa
-              }
-              style={{
-                width:
-                  "100%",
-
-                height:
-                  "100%",
-
-                objectFit:
-                  "cover",
-              }}
-            />
-
-          ) : (
-
-            <span
-              style={{
-                fontSize:
-                  "19px",
-              }}
-            >
-              🔒
-            </span>
-
-          )}
-
-        </div>
-
-
-        {/* NOME */}
-
-        <div
-          style={{
-            flex:
-              1,
-
-            minWidth:
-              0,
-          }}
-        >
-
-          <strong
-            style={{
-              display:
-                "block",
-
-              fontSize:
-                "15px",
-
-              overflow:
-                "hidden",
-
-              textOverflow:
-                "ellipsis",
-
-              whiteSpace:
-                "nowrap",
-            }}
-          >
-            {nomeDaOutraPessoa}
-          </strong>
-
-
-          <div
-            style={{
-              display:
-                "flex",
-
-              alignItems:
-                "center",
-
-              gap:
-                "6px",
-
-              marginTop:
-                "3px",
-
-              flexWrap:
-                "wrap",
-            }}
-          >
-
-            <span
-              style={{
-                color:
-                  "#8a9390",
-
-                fontSize:
-                  "10px",
-              }}
-            >
-              Conversa privada
-            </span>
-
-
-            {seloDaOutraPessoa && (
-
-              <span
-                style={{
-                  fontSize:
-                    "9px",
-
-                  color:
-                    "#a17b21",
-
-                  background:
-                    "#fff5d9",
-
-                  padding:
-                    "3px 6px",
-
-                  borderRadius:
-                    "8px",
-
-                  fontWeight:
-                    "700",
-                }}
-              >
-                ⭐ {seloDaOutraPessoa}
-              </span>
-
-            )}
-
-          </div>
-
-        </div>
-
-
-        {/* SEGURANÇA */}
-
-        <div
-          style={{
-            width:
-              "38px",
-
-            height:
-              "38px",
-
-            borderRadius:
-              "50%",
-
-            background:
-              "#edf8f5",
-
-            display:
-              "flex",
-
-            alignItems:
-              "center",
-
-            justifyContent:
-              "center",
-
-            fontSize:
-              "17px",
-          }}
-        >
-          🔒
-        </div>
-
-      </header>
-
-
-      {/* =================================================
-          AVISO
-      ================================================= */}
-
-      <div
-        style={{
-          flexShrink:
-            0,
-
-          margin:
-            "10px 12px 5px",
-
-          padding:
-            "11px 13px",
-
-          borderRadius:
-            "13px",
-
-          background:
-            "#edf8f5",
-
-          border:
-            "1px solid #d9eee8",
-
-          display:
-            "flex",
-
-          alignItems:
-            "center",
-
-          gap:
-            "10px",
-        }}
-      >
-
-        <span
-          style={{
-            fontSize:
-              "18px",
-          }}
-        >
-          💚
-        </span>
-
-
+      <div className="pulsan-comentarios-header">
         <div>
-
-          <strong
-            style={{
-              display:
-                "block",
-
-              fontSize:
-                "11px",
-
-              color:
-                "#31564e",
-            }}
-          >
-            Esta conversa é privada
-          </strong>
-
-
-          <span
-            style={{
-              display:
-                "block",
-
-              fontSize:
-                "10px",
-
-              color:
-                "#788681",
-
-              marginTop:
-                "2px",
-            }}
-          >
-            Seja acolhedor e respeite
-            os limites da outra pessoa.
+          <span className="pulsan-comentarios-kicker">
+            ESPAÇO DE APOIO
           </span>
 
+          <h3>
+            Comentários
+          </h3>
+
+          <span className="pulsan-comentarios-count">
+            {comentarios.length}{" "}
+            {comentarios.length === 1
+              ? "comentário"
+              : "comentários"}
+          </span>
         </div>
 
+        {onFechar && (
+          <button
+            type="button"
+            onClick={onFechar}
+            className="pulsan-comentarios-fechar"
+            aria-label="Fechar comentários"
+          >
+            ×
+          </button>
+        )}
       </div>
 
+      {erro && (
+        <div
+          className="pulsan-comentarios-erro"
+          role="alert"
+        >
+          {erro}
+        </div>
+      )}
 
-      {/* =================================================
-          ÁREA DAS MENSAGENS
-      ================================================= */}
-
-      <section
-        style={{
-          flex:
-            1,
-
-          overflowY:
-            "auto",
-
-          padding:
-            "15px 13px 20px",
-
-          display:
-            "flex",
-
-          flexDirection:
-            "column",
-
-          gap:
-            "10px",
-
-          boxSizing:
-            "border-box",
-        }}
-      >
-
-        {/* SEM MENSAGENS */}
-
-        {!carregando &&
-          mensagens.length ===
-            0 && (
-
-            <div
-              style={{
-                margin:
-                  "auto",
-
-                textAlign:
-                  "center",
-
-                maxWidth:
-                  "270px",
-
-                color:
-                  "#8a9390",
-              }}
-            >
-
-              <div
-                style={{
-                  fontSize:
-                    "38px",
-
-                  marginBottom:
-                    "10px",
-                }}
-              >
-                💚
-              </div>
-
-
-              <strong
-                style={{
-                  display:
-                    "block",
-
-                  color:
-                    "#536660",
-
-                  fontSize:
-                    "15px",
-                }}
-              >
-                Comece a conversa
-              </strong>
-
-
-              <p
-                style={{
-                  fontSize:
-                    "12px",
-
-                  lineHeight:
-                    "1.5",
-
-                  margin:
-                    "7px 0 0",
-                }}
-              >
-                Escreva uma mensagem
-                acolhedora. Você pode
-                conversar no seu próprio
-                tempo.
-              </p>
-
+      <div className="pulsan-comentarios-lista">
+        {carregando ? (
+          <div className="pulsan-comentarios-vazio">
+            <div className="pulsan-comentarios-icone">
+              💙
             </div>
 
-          )}
+            <strong>
+              Carregando comentários...
+            </strong>
+          </div>
+        ) : comentarios.length === 0 ? (
+          <div className="pulsan-comentarios-vazio">
+            <div className="pulsan-comentarios-icone">
+              🌱
+            </div>
 
+            <strong>
+              Ainda não há comentários
+            </strong>
 
-        {/* MENSAGENS */}
-
-        {mensagens.map(
-          (item) => {
-
-            const minha =
-              item.autor ===
-              "eu";
-
+            <span>
+              Seja a primeira pessoa a deixar
+              uma mensagem de apoio.
+            </span>
+          </div>
+        ) : (
+          comentarios.map((comentario) => {
+            const meuComentario =
+              String(comentario.usuario_id) ===
+              String(usuarioId);
 
             return (
-
-              <div
-                key={
-                  item.id
-                }
-                style={{
-                  display:
-                    "flex",
-
-                  justifyContent:
-                    minha
-                      ? "flex-end"
-                      : "flex-start",
-
-                  width:
-                    "100%",
-                }}
+              <article
+                key={comentario.id}
+                className={`pulsan-comentario ${
+                  meuComentario
+                    ? "pulsan-comentario-meu"
+                    : ""
+                }`}
               >
-
-                <div
-                  style={{
-                    maxWidth:
-                      "78%",
-
-                    padding:
-                      "11px 13px",
-
-                    borderRadius:
-                      minha
-                        ? "17px 17px 4px 17px"
-                        : "17px 17px 17px 4px",
-
-                    background:
-                      minha
-                        ? "#20adb0"
-                        : "#ffffff",
-
-                    color:
-                      minha
-                        ? "#ffffff"
-                        : "#40514c",
-
-                    boxShadow:
-                      "0 3px 10px rgba(0,0,0,0.05)",
-                  }}
-                >
-
-                  <p
-                    style={{
-                      margin:
-                        0,
-
-                      fontSize:
-                        "14px",
-
-                      lineHeight:
-                        "1.5",
-
-                      whiteSpace:
-                        "pre-wrap",
-
-                      wordBreak:
-                        "break-word",
-                    }}
-                  >
-                    {item.texto}
-                  </p>
-
-
-                  <div
-                    style={{
-                      marginTop:
-                        "5px",
-
-                      display:
-                        "flex",
-
-                      justifyContent:
-                        "flex-end",
-
-                      fontSize:
-                        "9px",
-
-                      opacity:
-                        0.65,
-                    }}
-                  >
-                    {item.hora}
-                  </div>
-
+                <div className="pulsan-comentario-avatar">
+                  {meuComentario
+                    ? "Você".charAt(0)
+                    : "P"}
                 </div>
 
-              </div>
+                <div className="pulsan-comentario-corpo">
+                  <div className="pulsan-comentario-topo">
+                    <strong>
+                      {meuComentario
+                        ? "Você"
+                        : "Pessoa anônima"}
+                    </strong>
 
+                    <span>
+                      {formatarData(
+                        comentario.criado_em
+                      )}
+                    </span>
+                  </div>
+
+                  <p>
+                    {comentario.texto}
+                  </p>
+
+                  {meuComentario && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        excluirComentario(
+                          comentario
+                        )
+                      }
+                      className="pulsan-comentario-excluir"
+                    >
+                      Excluir
+                    </button>
+                  )}
+                </div>
+              </article>
             );
-          }
+          })
         )}
-
-      </section>
-
-
-      {/* =================================================
-          CAMPO DE MENSAGEM
-      ================================================= */}
+      </div>
 
       <form
-        onSubmit={
-          enviarMensagem
-        }
-        style={{
-          flexShrink:
-            0,
-
-          background:
-            "#ffffff",
-
-          borderTop:
-            "1px solid #e5e5e5",
-
-          padding:
-            "9px 10px",
-
-          display:
-            "flex",
-
-          alignItems:
-            "flex-end",
-
-          gap:
-            "8px",
-
-          boxSizing:
-            "border-box",
-        }}
+        className="pulsan-comentarios-form"
+        onSubmit={enviarComentario}
       >
+        <textarea
+          value={novoComentario}
+          onChange={(event) =>
+            setNovoComentario(
+              event.target.value
+            )
+          }
+          placeholder="Escreva uma mensagem de apoio..."
+          maxLength={1000}
+          rows={2}
+          disabled={enviando}
+        />
 
-        <div
-          style={{
-            flex:
-              1,
-
-            position:
-              "relative",
-          }}
-        >
-
-          <textarea
-            value={
-              mensagem
-            }
-            onChange={(e) =>
-              setMensagem(
-                e.target.value
-              )
-            }
-            onKeyDown={
-              controlarEnter
-            }
-            placeholder="Escreva uma mensagem acolhedora..."
-            maxLength={
-              500
-            }
-            rows={
-              1
-            }
-            style={{
-              width:
-                "100%",
-
-              minHeight:
-                "43px",
-
-              maxHeight:
-                "110px",
-
-              resize:
-                "none",
-
-              boxSizing:
-                "border-box",
-
-              border:
-                "1px solid #dfe4e2",
-
-              borderRadius:
-                "20px",
-
-              padding:
-                "12px 42px 12px 14px",
-
-              outline:
-                "none",
-
-              fontFamily:
-                "Arial, Helvetica, sans-serif",
-
-              fontSize:
-                "13px",
-
-              background:
-                "#f8faf9",
-
-              color:
-                "#354944",
-            }}
-          />
-
-
-          <span
-            style={{
-              position:
-                "absolute",
-
-              right:
-                "12px",
-
-              bottom:
-                "5px",
-
-              fontSize:
-                "8px",
-
-              color:
-                "#9aa19f",
-            }}
-          >
-            {mensagem.length}/500
+        <div className="pulsan-comentarios-form-bottom">
+          <span>
+            {novoComentario.length}/1000
           </span>
 
+          <button
+            type="submit"
+            disabled={
+              enviando ||
+              !novoComentario.trim()
+            }
+          >
+            {enviando
+              ? "Enviando..."
+              : "Enviar"}
+          </button>
         </div>
-
-
-        {/* ENVIAR */}
-
-        <button
-          type="submit"
-          aria-label="Enviar mensagem"
-          disabled={
-            !mensagem.trim()
-          }
-          style={{
-            width:
-              "45px",
-
-            height:
-              "45px",
-
-            flexShrink:
-              0,
-
-            border:
-              "none",
-
-            borderRadius:
-              "50%",
-
-            background:
-              mensagem.trim()
-                ? "#20adb0"
-                : "#d7dfdc",
-
-            color:
-              "#ffffff",
-
-            cursor:
-              mensagem.trim()
-                ? "pointer"
-                : "default",
-
-            fontSize:
-              "18px",
-
-            display:
-              "flex",
-
-            alignItems:
-              "center",
-
-            justifyContent:
-              "center",
-          }}
-        >
-          ➤
-        </button>
-
       </form>
 
+      <div className="pulsan-comentarios-privacidade">
+        🔒 Comentários são publicados de forma
+        anônima.
+      </div>
 
-      {/* =================================================
-          RODAPÉ
-      ================================================= */}
+      <style>{`
+        .pulsan-comentarios {
+          --blue: #3A7DFF;
+          --deep: #0F2D5B;
+          --light: #EAF3FF;
+          --soft: #A8C7FF;
 
-      <footer
-        style={{
-          flexShrink:
-            0,
+          width: 100%;
+          background: #ffffff;
+          color: var(--deep);
+          border-radius: 24px;
+          overflow: hidden;
+        }
 
-          background:
-            "#ffffff",
+        .pulsan-comentarios-dark {
+          background: #102744;
+          color: #edf5ff;
+        }
 
-          padding:
-            "8px 15px 10px",
+        .pulsan-comentarios-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 20px;
+          border-bottom: 1px solid rgba(58,125,255,.10);
+        }
 
-          textAlign:
-            "center",
+        .pulsan-comentarios-kicker {
+          color: var(--blue);
+          font-size: 10px;
+          font-weight: 900;
+          letter-spacing: .12em;
+        }
 
-          borderTop:
-            "1px solid #f0f0f0",
-        }}
-      >
+        .pulsan-comentarios-header h3 {
+          margin: 4px 0 2px;
+          font-size: 20px;
+        }
 
-        <div
-          style={{
-            color:
-              "#999",
+        .pulsan-comentarios-count {
+          color: #7b8b9d;
+          font-size: 11px;
+        }
 
-            fontSize:
-              "9px",
+        .pulsan-comentarios-fechar {
+          width: 36px;
+          height: 36px;
+          border: none;
+          border-radius: 50%;
+          background: var(--light);
+          color: var(--deep);
+          font-size: 24px;
+          cursor: pointer;
+        }
 
-            marginBottom:
-              "5px",
-          }}
-        >
-          🔒 Sua conversa é privada.
-          O histórico fica salvo.
-        </div>
+        .pulsan-comentarios-lista {
+          max-height: 420px;
+          overflow-y: auto;
+          padding: 16px;
+        }
 
+        .pulsan-comentario {
+          display: flex;
+          gap: 10px;
+          padding: 13px 0;
+          border-bottom: 1px solid rgba(58,125,255,.08);
+        }
 
-        <button
-          type="button"
-          onClick={
-            encerrarConversa
-          }
-          style={{
-            border:
-              "none",
+        .pulsan-comentario-avatar {
+          width: 36px;
+          height: 36px;
+          flex: 0 0 36px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: var(--light);
+          color: var(--blue);
+          font-size: 11px;
+          font-weight: 800;
+        }
 
-            background:
-              "transparent",
+        .pulsan-comentario-corpo {
+          flex: 1;
+          min-width: 0;
+        }
 
-            color:
-              "#168f92",
+        .pulsan-comentario-topo {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 4px;
+        }
 
-            fontSize:
-              "11px",
+        .pulsan-comentario-topo strong {
+          font-size: 12px;
+        }
 
-            fontWeight:
-              "700",
+        .pulsan-comentario-topo span {
+          color: #8a98a8;
+          font-size: 9px;
+        }
 
-            cursor:
-              "pointer",
+        .pulsan-comentario p {
+          margin: 0;
+          font-size: 13px;
+          line-height: 1.5;
+          white-space: pre-wrap;
+          word-break: break-word;
+        }
 
-            padding:
-              "4px 8px",
-          }}
-        >
-          Encerrar conversa
-        </button>
+        .pulsan-comentario-excluir {
+          margin-top: 6px;
+          padding: 0;
+          border: none;
+          background: transparent;
+          color: #d46b6b;
+          font-size: 10px;
+          cursor: pointer;
+        }
 
-      </footer>
+        .pulsan-comentarios-vazio {
+          min-height: 180px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          text-align: center;
+          gap: 7px;
+          color: #718294;
+        }
 
-    </main>
+        .pulsan-comentarios-icone {
+          font-size: 30px;
+          margin-bottom: 4px;
+        }
+
+        .pulsan-comentarios-vazio strong {
+          color: var(--deep);
+          font-size: 14px;
+        }
+
+        .pulsan-comentarios-dark
+        .pulsan-comentarios-vazio strong {
+          color: #edf5ff;
+        }
+
+        .pulsan-comentarios-vazio span {
+          max-width: 250px;
+          font-size: 11px;
+          line-height: 1.5;
+        }
+
+        .pulsan-comentarios-form {
+          padding: 12px 16px;
+          border-top: 1px solid rgba(58,125,255,.10);
+        }
+
+        .pulsan-comentarios-form textarea {
+          width: 100%;
+          box-sizing: border-box;
+          resize: none;
+          border: 1px solid #dce6f0;
+          border-radius: 16px;
+          padding: 11px 13px;
+          outline: none;
+          font-family: inherit;
+          font-size: 13px;
+          background: #f8fbff;
+          color: var(--deep);
+        }
+
+        .pulsan-comentarios-form textarea:focus {
+          border-color: var(--blue);
+          box-shadow: 0 0 0 3px rgba(58,125,255,.10);
+        }
+
+        .pulsan-comentarios-form-bottom {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-top: 7px;
+        }
+
+        .pulsan-comentarios-form-bottom span {
+          color: #94a0ad;
+          font-size: 9px;
+        }
+
+        .pulsan-comentarios-form-bottom button {
+          border: none;
+          border-radius: 999px;
+          padding: 9px 18px;
+          background: var(--blue);
+          color: white;
+          font-size: 11px;
+          font-weight: 800;
+          cursor: pointer;
+        }
+
+        .pulsan-comentarios-form-bottom button:disabled {
+          background: #cbd5e1;
+          cursor: not-allowed;
+        }
+
+        .pulsan-comentarios-erro {
+          margin: 10px 16px 0;
+          padding: 10px 12px;
+          border-radius: 12px;
+          background: #fff1f1;
+          color: #b94b4b;
+          font-size: 11px;
+        }
+
+        .pulsan-comentarios-privacidade {
+          padding: 8px 16px 12px;
+          text-align: center;
+          color: #8a98a8;
+          font-size: 9px;
+        }
+
+        .pulsan-comentarios-dark
+        .pulsan-comentarios-form textarea {
+          background: #0d203b;
+          border-color: rgba(168,199,255,.18);
+          color: #edf5ff;
+        }
+
+        .pulsan-comentarios-dark
+        .pulsan-comentarios-header {
+          border-color: rgba(168,199,255,.12);
+        }
+
+        .pulsan-comentarios-dark
+        .pulsan-comentarios-form {
+          border-color: rgba(168,199,255,.12);
+        }
+      `}</style>
+    </div>
   );
 }
-
-export default Conversa;

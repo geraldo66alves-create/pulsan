@@ -70,34 +70,158 @@ function PainelAdmin({ irPara, tema, alterarTema }) {
 
   async function carregarDados() {
     try {
-      const { data: perfis, error: erroPerfis } = await supabase
-        .from("perfis")
-        .select("*");
-      if (erroPerfis) throw erroPerfis;
+      const [perfisResult, psicologosResult, postsResult, chatsResult, denunciasResult] =
+        await Promise.all([
+          supabase
+            .from("perfis")
+            .select(
+              "id,nome,foto_url,selo,verificacao_psicologo,psicologo_parceiro,criado_em"
+            ),
+          supabase
+            .from("psicologos")
+            .select(
+              "id,usuario_id,nome,email,telefone,crp,estado_crp,area_atuacao,verificado,ativo,disponivel,created_at"
+            ),
+          supabase
+            .from("posts_ambiente")
+            .select("*")
+            .order("criado_em", { ascending: false }),
+          supabase.from("conversas").select("*"),
+          supabase
+            .from("denuncias")
+            .select("*")
+            .order("criado_em", { ascending: false }),
+        ]);
 
-      const contas = perfis || [];
-      const psicologos = contas.filter((u) => u.tipo_usuario === "psicologo");
-      const pendentes = psicologos.filter((u) => u.verificacao_psicologo === "pendente");
-      const aprovados = psicologos.filter((u) => u.verificacao_psicologo === "aprovado");
-      const recusados = psicologos.filter((u) => u.verificacao_psicologo === "recusado");
-      const colaboradores = contas.filter((u) => u.tipo_usuario === "colaborador");
-      const alunos = contas.filter((u) => u.tipo_usuario === "aluno");
+      if (perfisResult.error) throw perfisResult.error;
+      if (psicologosResult.error) throw psicologosResult.error;
+      if (postsResult.error) throw postsResult.error;
+      if (chatsResult.error) throw chatsResult.error;
+      if (denunciasResult.error) throw denunciasResult.error;
 
-      const [{ data: posts }, { data: chats }, { data: denuncias }] = await Promise.all([
-        supabase.from("posts_ambiente").select("*").order("criado_em", { ascending: false }),
-        supabase.from("conversas").select("*"),
-        supabase.from("denuncias").select("*").order("criado_em", { ascending: false }),
-      ]);
+      const perfis = perfisResult.data || [];
+      const registrosPsicologos = psicologosResult.data || [];
+      const posts = postsResult.data || [];
+      const chats = chatsResult.data || [];
+      const denuncias = denunciasResult.data || [];
+
+      // A tabela perfis não possui tipo_usuario. Para não inventar
+      // uma coluna no banco, o tipo de psicólogo é identificado pela
+      // tabela psicologos.usuario_id. Tipos antigos mantidos no
+      // localStorage são usados apenas como compatibilidade.
+      const contasLocais = lerLocalStorage("pulsanContas");
+      const mapaPsicologos = new Map(
+        registrosPsicologos
+          .filter((item) => item.usuario_id)
+          .map((item) => [String(item.usuario_id), item])
+      );
+
+      const mapaContasLocais = new Map();
+      contasLocais.forEach((conta) => {
+        const chaves = [conta.id, conta.usuario_id, conta.email]
+          .filter(Boolean)
+          .map(String);
+        chaves.forEach((chave) => mapaContasLocais.set(chave, conta));
+      });
+
+      const contas = perfis.map((perfil) => {
+        const psicologo = mapaPsicologos.get(String(perfil.id));
+        const contaLocal =
+          mapaContasLocais.get(String(perfil.id)) ||
+          mapaContasLocais.get(String(perfil.email || ""));
+
+        let tipoUsuario = contaLocal?.tipo_usuario || "usuario";
+
+        if (psicologo) {
+          tipoUsuario = "psicologo";
+        }
+
+        let verificacao = perfil.verificacao_psicologo || "nao_enviado";
+
+        if (psicologo && !["aprovado", "recusado", "pendente"].includes(verificacao)) {
+          verificacao = psicologo.verificado ? "aprovado" : "pendente";
+        }
+
+        return {
+          ...perfil,
+          ...(contaLocal || {}),
+          ...perfil,
+          tipo_usuario: tipoUsuario,
+          verificacao_psicologo: verificacao,
+          psicologo_parceiro:
+            Boolean(perfil.psicologo_parceiro) ||
+            Boolean(psicologo?.verificado),
+          crp: psicologo?.crp || contaLocal?.crp || "",
+          telefone: psicologo?.telefone || contaLocal?.telefone || "",
+          estado_crp: psicologo?.estado_crp || contaLocal?.estado_crp || "",
+          area_atuacao:
+            psicologo?.area_atuacao || contaLocal?.area_atuacao || "",
+          email: psicologo?.email || contaLocal?.email || "",
+          psicologo_id: psicologo?.id || null,
+        };
+      });
+
+      // Contas antigas que ainda estão no localStorage e não possuem
+      // perfil no banco não entram como usuários reais do Supabase.
+      const psicologos = contas.filter(
+        (usuario) => usuario.tipo_usuario === "psicologo"
+      );
+      const pendentes = psicologos.filter(
+        (usuario) => usuario.verificacao_psicologo === "pendente"
+      );
+      const aprovados = psicologos.filter(
+        (usuario) => usuario.verificacao_psicologo === "aprovado"
+      );
+      const recusados = psicologos.filter(
+        (usuario) => usuario.verificacao_psicologo === "recusado"
+      );
+      const colaboradores = contas.filter(
+        (usuario) => usuario.tipo_usuario === "colaborador"
+      );
+      const alunos = contas.filter(
+        (usuario) => usuario.tipo_usuario === "aluno"
+      );
+
+      const moderacoesDeDenuncias = denuncias.map((item) => ({
+        ...item,
+        _origem: "denuncia",
+        conteudo:
+          item.descricao ||
+          item.conteudo ||
+          item.motivo ||
+          "Denúncia registrada",
+        categoria: item.categoria || item.motivo || "Denúncia",
+        usuario: item.usuario || "Anônimo",
+      }));
+
+      const moderacoesDePosts = posts
+        .filter((post) => post.alerta || post.moderado)
+        .map((post) => ({
+          ...post,
+          _origem: "post",
+          conteudo: post.texto || "Conteúdo sinalizado",
+          categoria:
+            post.categoria ||
+            post.urgencia ||
+            post.classificacao ||
+            "Conteúdo sinalizado",
+          usuario: "Anônimo",
+          status: post.ativo === false ? "removido" : "pendente",
+        }));
+
+      const moderacoesSalvas = [
+        ...moderacoesDeDenuncias,
+        ...moderacoesDePosts,
+      ];
 
       const escolasSalvas = lerLocalStorage("pulsanEscolas");
       const empresasSalvas = lerLocalStorage("pulsanEmpresas");
-      const moderacoesSalvas = [...(denuncias || []), ...(posts || []).filter((p) => p.alerta || p.moderado)];
 
       setUsuarios(contas);
       setEscolas(escolasSalvas);
       setEmpresas(empresasSalvas);
       setModeracoes(moderacoesSalvas);
-      setConversas(chats || []);
+      setConversas(chats);
 
       setDados({
         usuarios: contas.length,
@@ -107,11 +231,16 @@ function PainelAdmin({ irPara, tema, alterarTema }) {
         recusados: recusados.length,
         colaboradores: colaboradores.length,
         alunos: alunos.length,
-        alertas: (posts || []).filter((p) => p.alerta || p.urgencia === "grave" || p.urgencia === "urgente").length,
+        alertas: posts.filter(
+          (post) =>
+            post.alerta ||
+            post.urgencia === "grave" ||
+            post.urgencia === "urgente"
+        ).length,
         escolas: escolasSalvas.length,
         empresas: empresasSalvas.length,
         moderacoes: moderacoesSalvas.length,
-        conversas: (chats || []).length,
+        conversas: chats.length,
       });
     } catch (erro) {
       console.error("Erro ao carregar dados administrativos:", erro);
@@ -122,24 +251,48 @@ function PainelAdmin({ irPara, tema, alterarTema }) {
     localStorage.setItem(chave, JSON.stringify(lista));
   }
 
-  function sair() {
-  localStorage.removeItem("usuarioLogado");
-  localStorage.removeItem("pulsanUsuarioAtual");
-  localStorage.removeItem("pulsanEquipePulsan");
+  async function sair() {
+    // Primeiro encerra a sessão real do Supabase.
+    try {
+      const { error } = await supabase.auth.signOut();
 
-  localStorage.removeItem("pulsanNome");
-  localStorage.removeItem("pulsanEmail");
-  localStorage.removeItem("pulsanFoto");
-  localStorage.removeItem("pulsanTipo");
+      if (error) {
+        console.error("Erro ao encerrar sessão do Supabase:", error);
+      }
+    } catch (erro) {
+      console.error("Erro ao encerrar sessão do Supabase:", erro);
+    }
 
-  localStorage.removeItem("pulsanCRP");
-  localStorage.removeItem("pulsanVerificacaoPsicologo");
-  localStorage.removeItem("pulsanPsicologoParceiro");
-  localStorage.removeItem("pulsanDocumentoProfissional");
-  localStorage.removeItem("pulsanNomeDocumento");
+    // Remove somente os dados locais da sessão atual.
+    const chavesSessao = [
+      "usuarioLogado",
+      "pulsanUsuarioAtual",
+      "pulsanEquipePulsan",
+      "pulsanAcessoAdmin",
+      "pulsanAreaAcesso",
+      "pulsanNome",
+      "pulsanEmail",
+      "pulsanFoto",
+      "pulsanTipo",
+      "pulsanCRP",
+      "pulsanVerificacaoPsicologo",
+      "pulsanPsicologoParceiro",
+      "pulsanDocumentoProfissional",
+      "pulsanNomeDocumento",
+    ];
 
-  irPara("login");
-}
+    chavesSessao.forEach((chave) => {
+      localStorage.removeItem(chave);
+    });
+
+    // Sai da área administrativa e volta para o início do Pulsan.
+    if (typeof irPara === "function") {
+      irPara("inicio");
+    } else {
+      // Fallback caso a função de navegação não tenha sido recebida pelo App.
+      window.location.href = "/";
+    }
+  }
 
   function voltarInicio() {
     carregarDados();
@@ -338,33 +491,58 @@ function PainelAdmin({ irPara, tema, alterarTema }) {
     carregarDados();
   }
 
-  function alterarModeracao(id, status) {
-    const novaLista = moderacoes.map((item) =>
-      item.id === id
-        ? {
-            ...item,
-            status,
-            analisado_em: new Date().toISOString(),
-          }
-        : item
-    );
+  async function alterarModeracao(id, status) {
+    const item = moderacoes.find((registro) => String(registro.id) === String(id));
 
-    salvarLista("pulsanModeracoes", novaLista);
-    setModeracoes(novaLista);
-    carregarDados();
+    if (!item) return;
+
+    const agora = new Date().toISOString();
+
+    if (item._origem === "post") {
+      const atualizacao =
+        status === "removido"
+          ? {
+              ativo: false,
+              moderado: true,
+              moderacao_motivo: "Removido pela equipe Pulsan.",
+              moderado_em: agora,
+            }
+          : {
+              ativo: true,
+              moderado: false,
+              moderacao_motivo: null,
+              moderado_em: agora,
+            };
+
+      const { error } = await supabase
+        .from("posts_ambiente")
+        .update(atualizacao)
+        .eq("id", item.id);
+
+      if (error) {
+        console.error("Erro ao atualizar moderação do conteúdo:", error);
+        alert("Não foi possível atualizar este conteúdo.");
+        return;
+      }
+    } else if (item._origem === "denuncia") {
+      const { error } = await supabase
+        .from("denuncias")
+        .update({ status })
+        .eq("id", item.id);
+
+      if (error) {
+        console.error("Erro ao atualizar denúncia:", error);
+        alert("Não foi possível atualizar esta denúncia.");
+        return;
+      }
+    }
+
+    await carregarDados();
   }
 
   function limparModeracoes() {
-    if (
-      !window.confirm(
-        "Deseja remover todas as ocorrências de moderação?"
-      )
-    ) {
-      return;
-    }
-
-    salvarLista("pulsanModeracoes", []);
-    setModeracoes([]);
+    // As ocorrências permanecem registradas no banco para auditoria.
+    // O botão apenas atualiza a lista, evitando apagar evidências reais.
     carregarDados();
   }
 
@@ -517,8 +695,11 @@ function PainelAdmin({ irPara, tema, alterarTema }) {
           position: sticky;
           top: 22px;
           height: calc(100vh - 44px);
-          min-height: 620px;
+          min-height: 0;
+          max-height: calc(100vh - 44px);
           box-sizing: border-box;
+          overflow-y: auto;
+          overflow-x: hidden;
           border: 1px solid rgba(168,199,255,.55);
           border-radius: 26px;
           background: rgba(255,255,255,.92);
@@ -583,7 +764,15 @@ function PainelAdmin({ irPara, tema, alterarTema }) {
           transform: translateX(2px);
         }
 
-        .pulsan-admin-sidebar-spacer { flex: 1; }
+        .pulsan-admin-sidebar-spacer {
+          flex: 1 1 auto;
+          min-height: 14px;
+        }
+
+        .pulsan-admin-account,
+        .pulsan-admin-sidebar > .pulsan-admin-action {
+          flex-shrink: 0;
+        }
 
         .pulsan-admin-account {
           border: 1px solid #dce9fb;
@@ -1425,7 +1614,7 @@ function PaginaModeracao({
             onClick={limparModeracoes}
             style={botaoPerigo}
           >
-            Limpar ocorrências
+            Atualizar ocorrências
           </button>
         )}
       </div>

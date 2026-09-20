@@ -1,136 +1,271 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 
 function Escola({ irPara }) {
   const [texto, setTexto] = useState("");
   const [analisando, setAnalisando] = useState(false);
+  const [posts, setPosts] = useState([]);
+  const [carregandoPosts, setCarregandoPosts] = useState(true);
+  const [usuarioId, setUsuarioId] = useState(null);
 
- async function publicar(e) {
-  if (e) {
-    e.preventDefault();
+  const apiUrl =
+    import.meta.env.VITE_API_URL?.replace(/\/$/, "") || "http://localhost:3001";
+
+  async function carregarUsuario() {
+    const { data } = await supabase.auth.getUser();
+    const id = data?.user?.id || null;
+    setUsuarioId(id);
+    return id;
   }
 
-  const textoLimpo = texto.trim();
+  async function carregarPosts() {
+    try {
+      setCarregandoPosts(true);
 
-  if (!textoLimpo) {
-    alert("Escreva algo antes de publicar.");
-    return;
+      const { data, error } = await supabase
+        .from("posts_ambiente")
+        .select(
+          "id, texto, criado_em, apoiadores, categoria, sentimento, urgencia, classificacao, alerta, usuario_id"
+        )
+        .eq("ambiente", "escolar")
+        .or("ativo.eq.true,ativo.is.null")
+        .order("criado_em", { ascending: false });
+
+      if (error) throw error;
+
+      setPosts(data || []);
+    } catch (error) {
+      console.error("Erro ao carregar publicações escolares:", error);
+    } finally {
+      setCarregandoPosts(false);
+    }
   }
 
-  if (analisando) {
-    return;
+  useEffect(() => {
+    let canal;
+
+    async function iniciar() {
+      await carregarUsuario();
+      await carregarPosts();
+
+      canal = supabase
+        .channel("pulsan-escola-posts")
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "posts_ambiente",
+            filter: "ambiente=eq.escolar",
+          },
+          () => {
+            carregarPosts();
+          }
+        )
+        .subscribe();
+    }
+
+    iniciar();
+
+    return () => {
+      if (canal) supabase.removeChannel(canal);
+    };
+  }, []);
+
+  function abrirComentarios(post) {
+    localStorage.setItem(
+      "pulsanPostComentarios",
+      JSON.stringify({
+        id: post.id,
+        texto: post.texto,
+        ambiente: "escolar",
+      })
+    );
+    irPara("comentarios");
   }
 
-  try {
-    setAnalisando(true);
+  async function apoiar(post) {
+    if (!usuarioId) {
+      alert("É necessário estar conectado para apoiar uma publicação.");
+      return;
+    }
 
-    // Envia o desabafo para a IA
-    const { data, error } = await supabase.functions.invoke(
-      "analisar-desabafo",
-      {
-        body: {
-          texto: textoLimpo,
-          ambiente: "escolar",
-        },
+    try {
+      const apoiadores = Array.isArray(post.apoiadores)
+        ? post.apoiadores
+        : [];
+
+      const jaApoiou = apoiadores.includes(usuarioId);
+
+      const novosApoiadores = jaApoiou
+        ? apoiadores.filter((id) => id !== usuarioId)
+        : [...apoiadores, usuarioId];
+
+      const { error } = await supabase
+        .from("posts_ambiente")
+        .update({ apoiadores: novosApoiadores })
+        .eq("id", post.id);
+
+      if (error) throw error;
+
+      setPosts((atual) =>
+        atual.map((item) =>
+          item.id === post.id
+            ? { ...item, apoiadores: novosApoiadores }
+            : item
+        )
+      );
+    } catch (error) {
+      console.error("Erro ao apoiar publicação:", error);
+      alert("Não foi possível registrar o apoio agora.");
+    }
+  }
+
+  async function publicar(e) {
+    if (e) e.preventDefault();
+
+    const textoLimpo = texto.trim();
+
+    if (!textoLimpo) {
+      alert("Escreva algo antes de publicar.");
+      return;
+    }
+
+    if (analisando) return;
+
+    try {
+      setAnalisando(true);
+
+      const idUsuario = usuarioId || (await carregarUsuario());
+
+      if (!idUsuario) {
+        alert("Sua sessão não foi encontrada. Entre novamente no Pulsan.");
+        return;
       }
-    );
 
-    if (error) {
-      console.error("Erro na análise:", error);
-
-      alert(
-        "Não foi possível analisar seu desabafo. Tente novamente."
+      // A IA analisa o conteúdo antes de qualquer publicação.
+      const { data, error } = await supabase.functions.invoke(
+        "analisar-desabafo",
+        {
+          body: {
+            texto: textoLimpo,
+            ambiente: "escolar",
+          },
+        }
       );
 
-      return;
+      if (error) {
+        console.error("Erro na análise:", error);
+        alert("Não foi possível analisar seu desabafo. Tente novamente.");
+        return;
+      }
+
+      console.log("Resultado da análise:", data);
+
+      // Conteúdo ofensivo não é publicado.
+      if (data?.permitir_publicacao === false) {
+        alert(
+          data?.mensagem ||
+            "Sua mensagem contém linguagem ofensiva. Reformule o texto."
+        );
+        return;
+      }
+
+      const possivelRisco = Boolean(data?.possivel_risco);
+      const possivelAmeaca = Boolean(data?.possivel_ameaca);
+      const possivelBullying = Boolean(data?.possivel_bullying);
+      const possivelAssedio = Boolean(data?.possivel_assedio);
+
+      const alerta = possivelRisco || possivelAmeaca || possivelBullying || possivelAssedio;
+
+      const urgencia =
+        possivelRisco || possivelAmeaca
+          ? "urgente"
+          : possivelBullying || possivelAssedio
+            ? "importante"
+            : "normal";
+
+      const categoria =
+        data?.categoria ||
+        (possivelBullying
+          ? "bullying"
+          : possivelAssedio
+            ? "assedio"
+            : possivelAmeaca
+              ? "ameaca"
+              : possivelRisco
+                ? "risco"
+                : "desabafo");
+
+      // A publicação só acontece depois da análise.
+      const { error: insertError } = await supabase
+        .from("posts_ambiente")
+        .insert({
+          usuario_id: idUsuario,
+          texto: textoLimpo,
+          criado_em: new Date().toISOString(),
+          apoiadores: [],
+          nome_usuario: "Anônimo",
+          foto_usuario: null,
+          prioridade: urgencia,
+          categoria,
+          sentimento: data?.sentimento || null,
+          urgencia,
+          ambiente: "escolar",
+          classificacao:
+            data?.classificacao ||
+            (alerta ? "atenção" : "normal"),
+          alerta,
+          moderado: true,
+          moderacao_motivo: data?.mensagem || null,
+        });
+
+      if (insertError) {
+        console.error("Erro ao publicar no Supabase:", insertError);
+        alert("A análise foi concluída, mas não foi possível publicar o desabafo.");
+        return;
+      }
+
+      setTexto("");
+      await carregarPosts();
+
+      if (possivelRisco) {
+        alert(
+          "Seu relato foi recebido e recebeu prioridade de atenção. Pessoas autorizadas poderão avaliar a situação."
+        );
+        return;
+      }
+
+      if (possivelAmeaca) {
+        alert(
+          "Seu relato foi recebido e recebeu um alerta prioritário para avaliação."
+        );
+        return;
+      }
+
+      if (possivelBullying) {
+        alert(
+          "Seu relato foi publicado anonimamente. Identificamos possíveis sinais de bullying e o caso poderá receber atenção."
+        );
+        return;
+      }
+
+      if (possivelAssedio) {
+        alert(
+          "Seu relato foi publicado anonimamente e poderá receber atenção de pessoas autorizadas."
+        );
+        return;
+      }
+
+      alert("Seu desabafo foi publicado anonimamente. 💚");
+    } catch (erro) {
+      console.error("Erro inesperado:", erro);
+      alert("Ocorreu um erro ao analisar seu desabafo. Tente novamente.");
+    } finally {
+      setAnalisando(false);
     }
-
-    console.log("Resultado da análise:", data);
-
-    // ==========================================
-    // BLOQUEIO DE OFENSA DIRETA
-    // ==========================================
-
-    if (data?.permitir_publicacao === false) {
-      alert(
-        data?.mensagem ||
-          "Sua mensagem contém linguagem ofensiva. Reformule o texto."
-      );
-
-      return;
-    }
-
-    // ==========================================
-    // PUBLICAÇÃO NORMAL
-    // ==========================================
-
-    setTexto("");
-
-    // ==========================================
-    // ALERTA DE RISCO
-    // ==========================================
-
-    if (data?.possivel_risco) {
-      alert(
-        "Seu relato foi recebido e recebeu prioridade de atenção. Pessoas autorizadas poderão avaliar a situação."
-      );
-
-      return;
-    }
-
-    // ==========================================
-    // ALERTA DE AMEAÇA
-    // ==========================================
-
-    if (data?.possivel_ameaca) {
-      alert(
-        "Seu relato foi recebido e recebeu um alerta prioritário para avaliação."
-      );
-
-      return;
-    }
-
-    // ==========================================
-    // ALERTA DE BULLYING
-    // ==========================================
-
-    if (data?.possivel_bullying) {
-      alert(
-        "Seu relato foi publicado anonimamente. Identificamos possíveis sinais de bullying e o caso poderá receber atenção."
-      );
-
-      return;
-    }
-
-    // ==========================================
-    // ASSÉDIO
-    // ==========================================
-
-    if (data?.possivel_assedio) {
-      alert(
-        "Seu relato foi publicado anonimamente e poderá receber atenção de pessoas autorizadas."
-      );
-
-      return;
-    }
-
-    // ==========================================
-    // DESABAFO NORMAL
-    // ==========================================
-
-    alert(
-      "Seu desabafo foi publicado anonimamente. 💚"
-    );
-  } catch (erro) {
-    console.error("Erro inesperado:", erro);
-
-    alert(
-      "Ocorreu um erro ao analisar seu desabafo. Tente novamente."
-    );
-  } finally {
-    setAnalisando(false);
   }
-}
+
   return (
     <main className="escola-page">
 
@@ -383,101 +518,84 @@ function Escola({ irPara }) {
       ================================= */}
 
       <section className="escola-community">
-
         <div className="escola-community-header">
-
           <div>
-
-            <span>
-              COMUNIDADE
-            </span>
-
-            <h2>
-              O que outras pessoas estão compartilhando
-            </h2>
-
+            <span>COMUNIDADE</span>
+            <h2>O que outras pessoas estão compartilhando</h2>
           </div>
 
-          <span className="escola-community-lock">
-            🔒 Anônimo
-          </span>
-
+          <span className="escola-community-lock">🔒 Anônimo</span>
         </div>
 
-
-        {/* PUBLICAÇÃO DE EXEMPLO */}
-
-        <article className="escola-post">
-
-          <div className="escola-post-header">
-
-            <div className="escola-post-avatar">
-              👤
+        {carregandoPosts ? (
+          <div className="escola-empty">
+            <div className="escola-empty-icon">💚</div>
+            <h3>Carregando desabafos...</h3>
+            <p>Estamos preparando o espaço da comunidade.</p>
+          </div>
+        ) : posts.length === 0 ? (
+          <>
+            <div className="escola-empty">
+              <div className="escola-empty-icon">🌱</div>
+              <h3>Este espaço está começando</h3>
+              <p>
+                Novos desabafos aparecerão aqui de forma anônima.
+              </p>
             </div>
+          </>
+        ) : (
+          posts.map((post) => {
+            const apoiadores = Array.isArray(post.apoiadores)
+              ? post.apoiadores
+              : [];
 
-            <div>
+            const apoiou = usuarioId
+              ? apoiadores.includes(usuarioId)
+              : false;
 
-              <strong>
-                Anônimo
-              </strong>
+            const dataPost = post.criado_em
+              ? new Date(post.criado_em).toLocaleString("pt-BR", {
+                  day: "2-digit",
+                  month: "2-digit",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })
+              : "Agora";
 
-              <span>
-                Hoje
-              </span>
+            return (
+              <article className="escola-post" key={post.id}>
+                <div className="escola-post-header">
+                  <div className="escola-post-avatar">👤</div>
 
-            </div>
+                  <div>
+                    <strong>Anônimo</strong>
+                    <span>{dataPost}</span>
+                  </div>
+                </div>
 
-          </div>
+                <p>{post.texto}</p>
 
-          <p>
-            Este é um espaço onde podemos compartilhar
-            nossos sentimentos e lembrar que ninguém precisa
-            enfrentar tudo sozinho. 💚
-          </p>
+                <div className="escola-post-actions">
+                  <button
+                    type="button"
+                    onClick={() => apoiar(post)}
+                    aria-pressed={apoiou}
+                  >
+                    {apoiou ? "💚 Apoiado" : "🤍 Apoiar"}{" "}
+                    {apoiadores.length > 0 ? `(${apoiadores.length})` : ""}
+                  </button>
 
-          <div className="escola-post-actions">
-
-            <button
-              type="button"
-              onClick={() =>
-                alert("Obrigado por demonstrar apoio. 💚")
-              }
-            >
-              💚 Apoiar
-            </button>
-
-            <button
-              type="button"
-              onClick={() =>
-                irPara("comentarios")
-              }
-            >
-              💬 Comentários
-            </button>
-
-          </div>
-
-        </article>
-
-
-        {/* ESTADO VAZIO / MAIS PUBLICAÇÕES */}
-
-        <div className="escola-empty">
-
-          <div className="escola-empty-icon">
-            🌱
-          </div>
-
-          <h3>
-            Este espaço está começando
-          </h3>
-
-          <p>
-            Novos desabafos aparecerão aqui de forma anônima.
-          </p>
-
-        </div>
-
+                  <button
+                    type="button"
+                    onClick={() => abrirComentarios(post)}
+                  >
+                    💬 Comentários
+                  </button>
+                </div>
+              </article>
+            );
+          })
+        )}
       </section>
 
 

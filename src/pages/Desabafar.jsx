@@ -1,5 +1,7 @@
 import React, { useState } from "react";
-import { supabase } from "../lib/supabase";function Desabafar({ irPara }) {
+import { supabase } from "../lib/supabase";
+
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";function Desabafar({ irPara }) {
 
   const [texto, setTexto] = useState("");
   const [analisando, setAnalisando] = useState(false);
@@ -455,7 +457,7 @@ import { supabase } from "../lib/supabase";function Desabafar({ irPara }) {
         try {
           const resposta =
             await fetch(
-              "/api/analisar-desabafo",
+              `${API_URL}/api/analisar-desabafo`,
               {
                 method: "POST",
 
@@ -583,51 +585,91 @@ if (
 const usuarioId =
   usuarioAutenticado.user.id;
 
+// A coluna urgencia aceita apenas: normal, importante ou urgente.
+// A classificação da IA pode ser normal, intermediario ou grave,
+// portanto não enviamos a classificação diretamente para urgencia.
+const urgenciaBanco =
+  classificacao === "urgente" || classificacao === "grave"
+    ? "urgente"
+    : classificacao === "intermediario"
+      ? "importante"
+      : "normal";
+
 
 // =====================================
 // SALVAR NO SUPABASE
 // =====================================
 
-const {
-  data: publicacaoBanco,
-  error: erroBanco,
-} = await supabase
+// A tabela atual de posts_ambiente não possui a coluna "ativo".
+// Também normalizamos "prioridade" para a mesma escala aceita em
+// "urgencia": normal, importante ou urgente.
+const prioridadeBanco = urgenciaBanco;
+
+const payloadPublicacao = {
+  usuario_id: usuarioId,
+  texto: conteudo,
+  ambiente: ambiente,
+  classificacao: classificacao,
+  alerta: Boolean(alerta),
+  nome_usuario: "Anônimo",
+  prioridade: prioridadeBanco,
+  categoria: ambiente,
+  urgencia: urgenciaBanco,
+};
+
+let publicacaoBanco = null;
+
+const resultadoInsercao = await supabase
   .from("posts_ambiente")
-  .insert({
-    usuario_id: usuarioId,
-    texto: conteudo,
-    ambiente: ambiente,
-    classificacao: classificacao,
-    alerta: alerta,
-    nome_usuario: "Anônimo",
-    prioridade: classificacao,
-    categoria: ambiente,
-    sentimento: null,
-    urgencia: classificacao,
-  })
-  .select()
-  .single();
+  .insert(payloadPublicacao);
 
-if (erroBanco) {
+if (resultadoInsercao.error) {
   console.error(
-    "Erro ao salvar desabafo no Supabase:",
-    erroBanco
+    "Erro ao salvar desabafo completo no Supabase:",
+    resultadoInsercao.error
   );
 
-  alert(
-    "Não foi possível publicar agora. Tente novamente."
-  );
+  // Segunda tentativa com somente os campos básicos da tabela.
+  // Isso evita que uma restrição adicional de alguma coluna opcional
+  // impeça a publicação do desabafo.
+  const tentativaBasica = await supabase
+    .from("posts_ambiente")
+    .insert({
+      usuario_id: usuarioId,
+      texto: conteudo,
+      nome_usuario: "Anônimo",
+    })
+    .select("id, usuario_id, texto, criado_em")
+    .single();
 
-  return;
+  if (tentativaBasica.error) {
+    console.error(
+      "Erro ao salvar desabafo básico no Supabase:",
+      tentativaBasica.error
+    );
+
+    alert(
+      tentativaBasica.error?.message
+        ? `Não foi possível publicar agora.\n\n${tentativaBasica.error.message}`
+        : "Não foi possível publicar agora. Tente novamente."
+    );
+
+    return;
+  }
+
+  publicacaoBanco = tentativaBasica.data;
+} else {
+  // O INSERT foi concluído. Não exigimos SELECT no primeiro caminho,
+  // pois a política de leitura pode ser diferente da de inserção.
+  publicacaoBanco = null;
 }
-
 
 // =====================================
 // NOVA PUBLICAÇÃO LOCAL
 // =====================================
 
 const novaPublicacao = {
-  id: publicacaoBanco.id,
+  id: publicacaoBanco?.id || `local-${Date.now()}`,
 
   texto: conteudo,
 

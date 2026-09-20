@@ -1,8 +1,14 @@
 import React, { useEffect, useState } from "react";
+import { supabase } from "../lib/supabase";
+
+const API_URL =
+  import.meta.env.VITE_API_URL || "http://localhost:3001";
 
 function GestaoPsicologos({ irPara, tema, alterarTema }) {
   const [psicologos, setPsicologos] = useState([]);
   const [filtro, setFiltro] = useState("pendente");
+  const [carregando, setCarregando] = useState(true);
+  const [processandoId, setProcessandoId] = useState(null);
 
   // =====================================================
   // CARREGAR PSICÓLOGOS
@@ -12,109 +18,140 @@ function GestaoPsicologos({ irPara, tema, alterarTema }) {
     carregarPsicologos();
   }, []);
 
-  function carregarPsicologos() {
+  async function obterHeadersAutenticacao() {
+    const {
+      data: { session },
+      error,
+    } = await supabase.auth.getSession();
+
+    if (error) throw error;
+
+    if (!session?.access_token) {
+      throw new Error("Sessão do administrador não encontrada.");
+    }
+
+    return {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${session.access_token}`,
+    };
+  }
+
+  async function carregarPsicologos() {
     try {
-      const contas = JSON.parse(
-        localStorage.getItem("pulsanContas") || "[]"
-      );
+      setCarregando(true);
 
-      const listaPsicologos = contas.filter(
-        (conta) => conta.tipo_usuario === "psicologo"
-      );
+      const headers = await obterHeadersAutenticacao();
 
-      setPsicologos(listaPsicologos);
+      const resposta = await fetch(`${API_URL}/api/psicologos`, {
+        method: "GET",
+        headers,
+      });
+
+      const data = await resposta.json().catch(() => ({}));
+
+      if (!resposta.ok) {
+        throw new Error(
+          data?.error ||
+            data?.message ||
+            "Não foi possível carregar os psicólogos."
+        );
+      }
+
+      const lista = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.psicologos)
+        ? data.psicologos
+        : [];
+
+      setPsicologos(
+        lista.map((psicologo) => ({
+          ...psicologo,
+          verificacao_psicologo:
+            psicologo.verificacao_psicologo ||
+            (psicologo.verificado === true ? "aprovado" : "pendente"),
+          psicologo_parceiro:
+            psicologo.psicologo_parceiro ??
+            psicologo.verificado === true,
+        }))
+      );
     } catch (erro) {
       console.error("Erro ao carregar psicólogos:", erro);
       setPsicologos([]);
+      alert(
+        "Não foi possível carregar os psicólogos. Verifique a sessão e o servidor do Pulsan."
+      );
+    } finally {
+      setCarregando(false);
     }
   }
 
   // =====================================================
-  // APROVAR PSICÓLOGO
+  // ALTERAR STATUS DO PSICÓLOGO
   // =====================================================
+
+  async function alterarVerificacao(id, status) {
+    const confirmar = window.confirm(
+      status === "aprovado"
+        ? "Deseja realmente aprovar este psicólogo como Psicólogo Parceiro Pulsan?"
+        : "Deseja realmente recusar a solicitação deste psicólogo?"
+    );
+
+    if (!confirmar) return;
+
+    try {
+      setProcessandoId(id);
+
+      const headers = await obterHeadersAutenticacao();
+
+      const resposta = await fetch(
+        `${API_URL}/api/psicologos/${encodeURIComponent(id)}/verificacao`,
+        {
+          method: "PATCH",
+          headers,
+          body: JSON.stringify({
+            verificado: status === "aprovado",
+            ativo: status === "aprovado",
+            disponivel: status === "aprovado",
+          }),
+        }
+      );
+
+      const data = await resposta.json().catch(() => ({}));
+
+      if (!resposta.ok) {
+        throw new Error(
+          data?.error ||
+            data?.message ||
+            "Não foi possível atualizar a verificação."
+        );
+      }
+
+      await carregarPsicologos();
+
+      if (status === "aprovado") {
+        alert(
+          "Psicólogo aprovado com sucesso! 🧠✅\n\nAgora ele é um Psicólogo Parceiro Pulsan."
+        );
+      } else {
+        alert("Solicitação recusada.");
+      }
+    } catch (erro) {
+      console.error("Erro ao alterar verificação:", erro);
+      alert(
+        erro?.message ||
+          "Não foi possível atualizar a solicitação do psicólogo."
+      );
+    } finally {
+      setProcessandoId(null);
+    }
+  }
 
   function aprovarPsicologo(id) {
-    const confirmar = window.confirm(
-      "Deseja realmente aprovar este psicólogo como Psicólogo Parceiro Pulsan?"
-    );
-
-    if (!confirmar) return;
-
-    try {
-      const contas = JSON.parse(
-        localStorage.getItem("pulsanContas") || "[]"
-      );
-
-      const novasContas = contas.map((conta) => {
-        if (conta.id === id) {
-          return {
-            ...conta,
-            verificacao_psicologo: "aprovado",
-            psicologo_parceiro: true,
-            aprovado_em: new Date().toISOString(),
-          };
-        }
-
-        return conta;
-      });
-
-      localStorage.setItem(
-        "pulsanContas",
-        JSON.stringify(novasContas)
-      );
-
-      carregarPsicologos();
-
-      alert(
-        "Psicólogo aprovado com sucesso! 🧠✅\n\nAgora ele é um Psicólogo Parceiro Pulsan."
-      );
-    } catch (erro) {
-      console.error("Erro ao aprovar psicólogo:", erro);
-      alert("Não foi possível aprovar o psicólogo.");
-    }
+    return alterarVerificacao(id, "aprovado");
   }
 
-  // =====================================================
-  // RECUSAR PSICÓLOGO
-  // =====================================================
-
   function recusarPsicologo(id) {
-    const confirmar = window.confirm(
-      "Deseja realmente recusar a solicitação deste psicólogo?"
-    );
-
-    if (!confirmar) return;
-
-    try {
-      const contas = JSON.parse(
-        localStorage.getItem("pulsanContas") || "[]"
-      );
-
-      const novasContas = contas.map((conta) => {
-        if (conta.id === id) {
-          return {
-            ...conta,
-            verificacao_psicologo: "recusado",
-            psicologo_parceiro: false,
-            recusado_em: new Date().toISOString(),
-          };
-        }
-
-        return conta;
-      });
-
-      localStorage.setItem(
-        "pulsanContas",
-        JSON.stringify(novasContas)
-      );
-
-      carregarPsicologos();
-
-      alert("Solicitação recusada.");
-    } catch (erro) {
-      console.error("Erro ao recusar psicólogo:", erro);
-      alert("Não foi possível recusar o psicólogo.");
-    }
+    return alterarVerificacao(id, "recusado");
   }
 
   // =====================================================
@@ -490,7 +527,49 @@ function GestaoPsicologos({ irPara, tema, alterarTema }) {
             LISTA
         ================================================= */}
 
-        {psicologosFiltrados.length === 0 ? (
+        {carregando ? (
+          <div
+            style={{
+              background:
+                tema === "dark"
+                  ? "#182321"
+                  : "#ffffff",
+              borderRadius: "18px",
+              padding: "35px 20px",
+              textAlign: "center",
+              border:
+                tema === "dark"
+                  ? "1px solid #2c3b38"
+                  : "1px solid #e5ece9",
+            }}
+          >
+            <div style={{ fontSize: "36px" }}>🧠</div>
+            <h2
+              style={{
+                margin: "10px 0 6px",
+                color:
+                  tema === "dark"
+                    ? "#ffffff"
+                    : "#173b38",
+                fontSize: "20px",
+              }}
+            >
+              Carregando psicólogos...
+            </h2>
+            <p
+              style={{
+                margin: 0,
+                color:
+                  tema === "dark"
+                    ? "#a9bbb7"
+                    : "#687773",
+                fontSize: "14px",
+              }}
+            >
+              Buscando as solicitações no sistema Pulsan.
+            </p>
+          </div>
+        ) : psicologosFiltrados.length === 0 ? (
           <div
             style={{
               background:
@@ -819,7 +898,10 @@ function GestaoPsicologos({ irPara, tema, alterarTema }) {
                             psicologo.id
                           )
                         }
+                        disabled={processandoId === psicologo.id}
                         style={{
+                          opacity:
+                            processandoId === psicologo.id ? 0.65 : 1,
                           flex: 1,
                           border: "none",
                           borderRadius: "12px",
@@ -830,7 +912,9 @@ function GestaoPsicologos({ irPara, tema, alterarTema }) {
                           fontWeight: "800",
                         }}
                       >
-                        ✅ Aprovar
+                        {processandoId === psicologo.id
+                          ? "⏳ Processando..."
+                          : "✅ Aprovar"}
                       </button>
 
                       <button
@@ -840,7 +924,10 @@ function GestaoPsicologos({ irPara, tema, alterarTema }) {
                             psicologo.id
                           )
                         }
+                        disabled={processandoId === psicologo.id}
                         style={{
+                          opacity:
+                            processandoId === psicologo.id ? 0.65 : 1,
                           flex: 1,
                           border: "1px solid #d9a2a2",
                           borderRadius: "12px",
@@ -854,7 +941,9 @@ function GestaoPsicologos({ irPara, tema, alterarTema }) {
                           fontWeight: "800",
                         }}
                       >
-                        ❌ Recusar
+                        {processandoId === psicologo.id
+                          ? "⏳ Processando..."
+                          : "❌ Recusar"}
                       </button>
                     </div>
                   )}

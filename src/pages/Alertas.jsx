@@ -1,5 +1,9 @@
 import React, { useEffect, useState } from "react";
 
+const API_URL =
+  import.meta.env.VITE_API_URL ||
+  "http://localhost:3001";
+
 function Alertas({ irPara }) {
   // =====================================================
   // ALERTAS REAIS
@@ -21,15 +25,75 @@ function Alertas({ irPara }) {
       const tipo =
         localStorage.getItem("pulsanTipo") || "equipe_pulsan";
 
-      const psicologoId =
+      const usuarioAtualRaw =
         localStorage.getItem("pulsanUsuarioAtual") || "";
 
-      let url = `http://localhost:3001/api/alertas?tipo=${encodeURIComponent(
+      let usuarioAtualId = usuarioAtualRaw;
+
+      try {
+        const possivelObjeto = JSON.parse(usuarioAtualRaw);
+        if (possivelObjeto && typeof possivelObjeto === "object") {
+          usuarioAtualId =
+            possivelObjeto.id ||
+            possivelObjeto.usuario_id ||
+            possivelObjeto.user_id ||
+            "";
+        }
+      } catch {
+        // O projeto também pode armazenar somente o UUID como texto.
+      }
+
+      let psicologoId = "";
+
+      if (tipo === "psicologo" && usuarioAtualId) {
+        // O endpoint de alertas usa o ID interno da tabela
+        // "psicologos", que é diferente do UUID do auth/perfil.
+        const respostaPsicologos = await fetch(
+          `${API_URL}/api/psicologos`
+        );
+
+        if (respostaPsicologos.ok) {
+          const dadosPsicologos =
+            await respostaPsicologos.json();
+
+          const psicologos = Array.isArray(
+            dadosPsicologos
+          )
+            ? dadosPsicologos
+            : Array.isArray(
+                dadosPsicologos?.psicologos
+              )
+            ? dadosPsicologos.psicologos
+            : [];
+
+          const psicologo = psicologos.find(
+            (item) =>
+              String(item.usuario_id || "") ===
+                String(usuarioAtualId) ||
+              String(item.id || "") ===
+                String(usuarioAtualId)
+          );
+
+          psicologoId = psicologo?.id || "";
+        }
+
+        if (!psicologoId) {
+          setAlertas([]);
+          setErro(
+            "Não foi possível identificar o cadastro do psicólogo."
+          );
+          return;
+        }
+      }
+
+      let url = `${API_URL}/api/alertas?tipo=${encodeURIComponent(
         tipo
       )}`;
 
       if (tipo === "psicologo" && psicologoId) {
-        url += `&psicologoId=${encodeURIComponent(psicologoId)}`;
+        url += `&psicologoId=${encodeURIComponent(
+          psicologoId
+        )}`;
       }
 
       const resposta = await fetch(url);
@@ -179,14 +243,37 @@ function Alertas({ irPara }) {
   // =====================================================
 
   useEffect(() => {
-    carregarAlertas();
+    let ativo = true;
 
-    // Atualiza automaticamente a cada 15 segundos
-    const intervalo = setInterval(() => {
-      carregarAlertas();
-    }, 15000);
+    const carregar = async () => {
+      if (!ativo) return;
+      await carregarAlertas();
+    };
 
-    return () => clearInterval(intervalo);
+    carregar();
+
+    // Mantém os alertas atualizados sem depender de dados locais.
+    const intervalo = setInterval(carregar, 15000);
+
+    const aoVoltarParaTela = () => {
+      if (document.visibilityState === "visible") {
+        carregar();
+      }
+    };
+
+    document.addEventListener(
+      "visibilitychange",
+      aoVoltarParaTela
+    );
+
+    return () => {
+      ativo = false;
+      clearInterval(intervalo);
+      document.removeEventListener(
+        "visibilitychange",
+        aoVoltarParaTela
+      );
+    };
   }, []);
 
   // =====================================================
@@ -206,8 +293,59 @@ function Alertas({ irPara }) {
         return;
       }
 
+      const usuarioAtualRaw =
+        localStorage.getItem("pulsanUsuarioAtual") || "";
+
+      let usuarioAtualId = usuarioAtualRaw;
+
+      try {
+        const possivelObjeto = JSON.parse(usuarioAtualRaw);
+        if (possivelObjeto && typeof possivelObjeto === "object") {
+          usuarioAtualId =
+            possivelObjeto.id ||
+            possivelObjeto.usuario_id ||
+            possivelObjeto.user_id ||
+            "";
+        }
+      } catch {
+        // Mantém o valor original quando ele já for um UUID.
+      }
+
+      let psicologoId = "";
+
+      if (tipo === "psicologo" && usuarioAtualId) {
+        const respostaPsicologos = await fetch(
+          `${API_URL}/api/psicologos`
+        );
+
+        if (respostaPsicologos.ok) {
+          const dadosPsicologos =
+            await respostaPsicologos.json();
+
+          const psicologos = Array.isArray(
+            dadosPsicologos
+          )
+            ? dadosPsicologos
+            : Array.isArray(
+                dadosPsicologos?.psicologos
+              )
+            ? dadosPsicologos.psicologos
+            : [];
+
+          const psicologo = psicologos.find(
+            (item) =>
+              String(item.usuario_id || "") ===
+                String(usuarioAtualId) ||
+              String(item.id || "") ===
+                String(usuarioAtualId)
+          );
+
+          psicologoId = psicologo?.id || "";
+        }
+      }
+
       const resposta = await fetch(
-        `http://localhost:3001/api/alertas/${alerta.id}/visualizado`,
+        `${API_URL}/api/alertas/${alerta.id}/visualizado`,
         {
           method: "PATCH",
           headers: {
@@ -215,6 +353,7 @@ function Alertas({ irPara }) {
           },
           body: JSON.stringify({
             tipo,
+            psicologoId: psicologoId || undefined,
           }),
         }
       );

@@ -1287,6 +1287,12 @@ app.patch(
 
 app.patch("/api/psicologos/:id/verificacao", async (req, res) => {
   try {
+    if (!supabaseAdmin) {
+      return res.status(503).json({
+        erro: "Supabase administrativo não configurado.",
+      });
+    }
+
     const { verificado } = req.body;
 
     if (typeof verificado !== "boolean") {
@@ -1295,15 +1301,39 @@ app.patch("/api/psicologos/:id/verificacao", async (req, res) => {
       });
     }
 
+    const { data: psicologoAtual, error: erroBusca } =
+      await supabaseAdmin
+        .from("psicologos")
+        .select("id, usuario_id, nome, email, crp")
+        .eq("id", req.params.id)
+        .maybeSingle();
+
+    if (erroBusca) {
+      console.error("Erro ao buscar psicólogo:", erroBusca);
+      return res.status(500).json({
+        erro: "Não foi possível localizar o psicólogo.",
+      });
+    }
+
+    if (!psicologoAtual) {
+      return res.status(404).json({
+        erro: "Psicólogo não encontrado.",
+      });
+    }
+
+    const status = verificado ? "aprovado" : "recusado";
+
     const { data, error } = await supabaseAdmin
       .from("psicologos")
       .update({
         verificado,
         disponivel: verificado,
-        ativo: verificado ? true : false,
+        ativo: verificado,
       })
       .eq("id", req.params.id)
-      .select()
+      .select(
+        "id, usuario_id, nome, email, telefone, crp, estado_crp, area_atuacao, verificado, ativo, disponivel, created_at"
+      )
       .single();
 
     if (error) {
@@ -1315,12 +1345,31 @@ app.patch("/api/psicologos/:id/verificacao", async (req, res) => {
       });
     }
 
+    // Mantém o status da solicitação também no perfil do usuário.
+    if (psicologoAtual.usuario_id) {
+      const { error: erroPerfil } = await supabaseAdmin
+        .from("perfis")
+        .update({
+          verificacao_psicologo: status,
+          psicologo_parceiro: verificado,
+        })
+        .eq("id", psicologoAtual.usuario_id);
+
+      if (erroPerfil) {
+        console.error(
+          "⚠️ Psicólogo atualizado, mas não foi possível atualizar o perfil:",
+          erroPerfil
+        );
+      }
+    }
+
     return res.json({
       sucesso: true,
+      status,
       psicologo: data,
     });
   } catch (error) {
-    console.error("Erro na aprovação do psicólogo:", error);
+    console.error("Erro na verificação do psicólogo:", error);
 
     return res.status(500).json({
       erro: "Erro interno ao atualizar psicólogo.",
@@ -1334,10 +1383,17 @@ app.patch("/api/psicologos/:id/verificacao", async (req, res) => {
 
 app.get("/api/psicologos", async (req, res) => {
   try {
-    const { data, error } = await supabaseAdmin
+    if (!supabaseAdmin) {
+      return res.status(503).json({
+        erro: "Supabase administrativo não configurado.",
+        psicologos: [],
+      });
+    }
+
+    const { data: psicologosBanco, error } = await supabaseAdmin
       .from("psicologos")
       .select(
-        "id, nome, email, crp, verificado, ativo, disponivel, created_at"
+        "id, usuario_id, nome, email, telefone, crp, estado_crp, area_atuacao, verificado, ativo, disponivel, created_at"
       )
       .order("created_at", { ascending: false });
 
@@ -1346,17 +1402,79 @@ app.get("/api/psicologos", async (req, res) => {
 
       return res.status(500).json({
         erro: "Não foi possível buscar os psicólogos.",
+        psicologos: [],
       });
     }
 
+    const lista = psicologosBanco || [];
+    const usuarioIds = [
+      ...new Set(
+        lista
+          .map((psicologo) => psicologo.usuario_id)
+          .filter(Boolean)
+      ),
+    ];
+
+    let perfisPorUsuario = new Map();
+
+    if (usuarioIds.length > 0) {
+      const {
+        data: perfis,
+        error: erroPerfis,
+      } = await supabaseAdmin
+        .from("perfis")
+        .select("id, verificacao_psicologo, psicologo_parceiro")
+        .in("id", usuarioIds);
+
+      if (erroPerfis) {
+        console.error(
+          "⚠️ Não foi possível carregar os status dos perfis:",
+          erroPerfis
+        );
+      } else {
+        perfisPorUsuario = new Map(
+          (perfis || []).map((perfil) => [
+            perfil.id,
+            perfil,
+          ])
+        );
+      }
+    }
+
+    const psicologos = lista.map((psicologo) => {
+      const perfil = perfisPorUsuario.get(psicologo.usuario_id);
+
+      let verificacao_psicologo = "pendente";
+
+      if (
+        perfil?.verificacao_psicologo === "aprovado" ||
+        psicologo.verificado === true
+      ) {
+        verificacao_psicologo = "aprovado";
+      } else if (
+        perfil?.verificacao_psicologo === "recusado"
+      ) {
+        verificacao_psicologo = "recusado";
+      }
+
+      return {
+        ...psicologo,
+        verificacao_psicologo,
+        psicologo_parceiro:
+          Boolean(perfil?.psicologo_parceiro) ||
+          psicologo.verificado === true,
+      };
+    });
+
     return res.json({
-      psicologos: data || [],
+      psicologos,
     });
   } catch (erro) {
     console.error("Erro inesperado:", erro);
 
     return res.status(500).json({
       erro: "Erro inesperado ao buscar psicólogos.",
+      psicologos: [],
     });
   }
 });
@@ -1405,21 +1523,24 @@ app.post(
       }
 
       const {
-        id,
+        usuario_id,
         nome,
         email,
+        telefone,
         crp,
+        estado_crp,
+        area_atuacao,
       } = req.body;
 
       if (
-        !id ||
+        !usuario_id ||
         !nome ||
         !email ||
         !crp
       ) {
         return res.status(400).json({
           erro:
-            "Nome, e-mail, CRP e ID são obrigatórios.",
+            "Usuário, nome, e-mail e CRP são obrigatórios.",
         });
       }
 
@@ -1457,16 +1578,19 @@ app.post(
       } = await supabaseAdmin
         .from("psicologos")
         .insert({
-          id,
+          usuario_id,
           nome: nome.trim(),
           email: email.trim().toLowerCase(),
+          telefone: telefone?.trim() || null,
           crp: crp.trim(),
+          estado_crp: estado_crp?.trim() || null,
+          area_atuacao: area_atuacao?.trim() || null,
           verificado: false,
           ativo: true,
           disponivel: false,
         })
         .select(
-          "id, nome, email, crp, verificado, ativo, disponivel, created_at"
+          "id, usuario_id, nome, email, telefone, crp, estado_crp, area_atuacao, verificado, ativo, disponivel, created_at"
         )
         .single();
 
@@ -1480,6 +1604,21 @@ app.post(
           erro:
             "Não foi possível salvar o psicólogo no Supabase.",
         });
+      }
+
+      const { error: erroPerfil } = await supabaseAdmin
+        .from("perfis")
+        .update({
+          verificacao_psicologo: "pendente",
+          psicologo_parceiro: false,
+        })
+        .eq("id", usuario_id);
+
+      if (erroPerfil) {
+        console.error(
+          "⚠️ Psicólogo salvo, mas não foi possível atualizar o perfil:",
+          erroPerfil
+        );
       }
 
       console.log(
