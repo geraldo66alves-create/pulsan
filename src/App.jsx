@@ -521,6 +521,170 @@ function ComandoVozGlobal({ irPara, tema, alterarTema, acessibilidade, alterarAc
 }
 
 // =====================================================
+// INSTALAÇÃO DO PULSAN — PWA
+// =====================================================
+
+function InstalacaoPulsan() {
+  const [eventoInstalacao, setEventoInstalacao] = useState(null);
+  const [instalado, setInstalado] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+
+    const verificarInstalado = () => {
+      const modoStandalone =
+        window.matchMedia?.("(display-mode: standalone)")?.matches ||
+        window.navigator.standalone === true;
+
+      setInstalado(Boolean(modoStandalone));
+    };
+
+    verificarInstalado();
+
+    const capturarInstalacao = (evento) => {
+      evento.preventDefault();
+      setEventoInstalacao(evento);
+    };
+
+    const quandoInstalado = () => {
+      setInstalado(true);
+      setEventoInstalacao(null);
+    };
+
+    window.addEventListener("beforeinstallprompt", capturarInstalacao);
+    window.addEventListener("appinstalled", quandoInstalado);
+
+    const mediaQuery = window.matchMedia?.("(display-mode: standalone)");
+    mediaQuery?.addEventListener?.("change", verificarInstalado);
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", capturarInstalacao);
+      window.removeEventListener("appinstalled", quandoInstalado);
+      mediaQuery?.removeEventListener?.("change", verificarInstalado);
+    };
+  }, []);
+
+  async function instalarPulsan() {
+    if (!eventoInstalacao) return;
+
+    try {
+      await eventoInstalacao.prompt();
+      const escolha = await eventoInstalacao.userChoice;
+
+      if (escolha?.outcome === "accepted") {
+        setInstalado(true);
+      }
+    } catch (erro) {
+      console.error("Erro ao instalar o Pulsan:", erro);
+    } finally {
+      setEventoInstalacao(null);
+    }
+  }
+
+  if (instalado || !eventoInstalacao) {
+    return null;
+  }
+
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      style={{
+        position: "fixed",
+        right: "16px",
+        bottom: "92px",
+        zIndex: 10050,
+        display: "flex",
+        alignItems: "center",
+        gap: "8px",
+        maxWidth: "calc(100vw - 32px)",
+        padding: "8px 10px 8px 12px",
+        borderRadius: "18px",
+        background: "var(--pulsan-card, #FFFFFF)",
+        border: "1px solid var(--pulsan-borda, #A8C7FF)",
+        boxShadow: "0 10px 30px rgba(15,45,91,.18)",
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
+      }}
+    >
+      <div
+        style={{
+          width: "34px",
+          height: "34px",
+          flex: "0 0 34px",
+          borderRadius: "10px",
+          display: "grid",
+          placeItems: "center",
+          background: "#EAF3FF",
+          overflow: "hidden",
+        }}
+      >
+        <img
+          src="/pulsan-icon-192.png"
+          alt=""
+          aria-hidden="true"
+          style={{
+            width: "27px",
+            height: "27px",
+            objectFit: "contain",
+          }}
+        />
+      </div>
+
+      <div
+        style={{
+          minWidth: 0,
+          display: "flex",
+          flexDirection: "column",
+          gap: "1px",
+        }}
+      >
+        <strong
+          style={{
+            color: "var(--pulsan-texto, #0F2D5B)",
+            fontSize: "13px",
+            lineHeight: 1.2,
+            whiteSpace: "nowrap",
+          }}
+        >
+          Instalar Pulsan
+        </strong>
+
+        <span
+          style={{
+            color: "var(--pulsan-texto-secundario, #5F7695)",
+            fontSize: "11px",
+            lineHeight: 1.25,
+          }}
+        >
+          Tenha o Pulsan na sua tela inicial.
+        </span>
+      </div>
+
+      <button
+        type="button"
+        onClick={instalarPulsan}
+        aria-label="Instalar Pulsan"
+        style={{
+          border: "none",
+          borderRadius: "12px",
+          padding: "9px 12px",
+          background: "linear-gradient(135deg, #3A7DFF, #0F2D5B)",
+          color: "#FFFFFF",
+          fontSize: "12px",
+          fontWeight: 800,
+          cursor: "pointer",
+          whiteSpace: "nowrap",
+          boxShadow: "0 5px 14px rgba(58,125,255,.25)",
+        }}
+      >
+        Instalar
+      </button>
+    </div>
+  );
+}
+
+// =====================================================
 // APP
 // =====================================================
 
@@ -1099,6 +1263,8 @@ function App() {
       </div>
 
       <ComandoVozGlobal irPara={irPara} tema={tema} alterarTema={alterarTema} acessibilidade={acessibilidade} alterarAcessibilidade={alterarAcessibilidade} />
+
+      <InstalacaoPulsan />
 
       {!usuarioEhEquipePulsan() && (
         <MenuInferior

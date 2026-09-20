@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { supabase } from "../lib/supabase";
 
 function Ajudar({ irPara }) {
   // =========================================================
@@ -7,76 +8,89 @@ function Ajudar({ irPara }) {
 
   const sentimentos = [
     {
-      id: "triste",
-      emoji: "😔",
-      nome: "Triste",
-      descricao: "Talvez eu precise de acolhimento",
+      id: "cansado",
+      emoji: "😴",
+      nome: "Cansado",
+      descricao: "Talvez você precise desacelerar.",
     },
     {
       id: "ansioso",
       emoji: "😰",
-      nome: "Preocupado",
-      descricao: "Minha mente não para",
+      nome: "Ansioso",
+      descricao: "Talvez seja hora de voltar para o presente.",
     },
     {
-      id: "cansado",
-      emoji: "😴",
-      nome: "Cansado",
-      descricao: "Preciso desacelerar",
+      id: "triste",
+      emoji: "😔",
+      nome: "Triste",
+      descricao: "Talvez esse sentimento precise ser ouvido.",
     },
     {
-      id: "pensativo",
-      emoji: "🤔",
-      nome: "Pensativo",
-      descricao: "Estou pensando muito",
-    },
-    {
-      id: "sozinho",
-      emoji: "🥺",
-      nome: "Sozinho",
-      descricao: "Queria me sentir compreendido",
+      id: "pensando_demais",
+      emoji: "💭",
+      nome: "Pensando demais",
+      descricao: "Talvez nem todo pensamento precise ser seguido.",
     },
     {
       id: "irritado",
       emoji: "😡",
       nome: "Irritado",
-      descricao: "Algo está me incomodando",
+      descricao: "Talvez exista algo por trás dessa raiva.",
     },
     {
-      id: "confuso",
+      id: "vazio",
       emoji: "😶",
-      nome: "Confuso",
-      descricao: "Não sei exatamente o que sinto",
+      nome: "Vazio",
+      descricao: "Talvez você não precise preencher esse espaço imediatamente.",
     },
     {
-      id: "recomecando",
-      emoji: "🌱",
-      nome: "Recomeçando",
-      descricao: "Estou vivendo uma mudança",
+      id: "desanimado",
+      emoji: "🥀",
+      nome: "Desanimado",
+      descricao: "Talvez o caminho precise mudar, não terminar.",
     },
     {
-      id: "motivado",
-      emoji: "✨",
-      nome: "Motivado",
-      descricao: "Quero aproveitar esse momento",
+      id: "inseguro",
+      emoji: "🪞",
+      nome: "Inseguro",
+      descricao: "Talvez seu valor não dependa da opinião dos outros.",
     },
     {
-      id: "bem",
-      emoji: "💚",
-      nome: "Estou bem",
-      descricao: "Quero aproveitar o momento",
+      id: "sobrecarregado",
+      emoji: "💼",
+      nome: "Sobrecarregado",
+      descricao: "Você não precisa carregar tudo sozinho.",
     },
     {
-      id: "paz",
-      emoji: "😌",
-      nome: "Em paz",
-      descricao: "Quero permanecer nesse estado",
+      id: "frustrado",
+      emoji: "😤",
+      nome: "Frustrado",
+      descricao: "Talvez você esteja cansado de tentar sem ver resultado.",
     },
     {
-      id: "grato",
-      emoji: "❤️",
-      nome: "Grato",
-      descricao: "Estou percebendo coisas boas",
+      id: "medo_do_futuro",
+      emoji: "🔮",
+      nome: "Medo do futuro",
+      descricao: "Talvez você esteja tentando controlar o que ainda não aconteceu.",
+    },
+    {
+      id: "depressivo",
+      emoji: "🌧️",
+      nome: "Depressivo",
+      descricao: "Você merece acolhimento, cuidado e apoio.",
+    },
+    {
+      id: "solitario",
+      emoji: "🫂",
+      nome: "Solitário",
+      descricao: "Talvez você esteja precisando de conexão e acolhimento.",
+    },
+    {
+      id: "sem_esperanca",
+      emoji: "🕯️",
+      nome: "Sem esperança",
+      descricao:
+        "Talvez hoje você não consiga enxergar uma saída, mas não precisa enfrentar isso sozinho.",
     },
   ];
 
@@ -334,295 +348,26 @@ function Ajudar({ irPara }) {
   // FLASH CARDS REFLEXIVOS
   // =========================================================
 
-  const flashCards = [
-    {
-      sentimento: "triste",
-      emoji: "💙",
-      titulo: "Talvez você não precise esconder isso",
-      texto:
-        "Às vezes, tentar parecer bem o tempo inteiro acaba sendo mais cansativo do que admitir que alguma coisa está doendo.",
-    },
+  // =========================================================
+  // REFLEXÕES DO SUPABASE
+  // =========================================================
+  // As frases dos cards são carregadas da tabela public.reflexoes.
+  // Cada sentimento possui 200 registros no banco.
 
-    {
-      sentimento: "triste",
-      emoji: "🌧️",
-      titulo: "Nem todo dia precisa ser bom",
-      texto:
-        "Existem dias em que simplesmente continuar já é uma forma de coragem.",
-    },
+  const [reflexoesPorSentimento, setReflexoesPorSentimento] =
+    useState({});
 
-    {
-      sentimento: "triste",
-      emoji: "🪞",
-      titulo: "Você está triste ou está cansado de fingir que está bem?",
-      texto:
-        "Nem sempre aquilo que sentimos é exatamente aquilo que conseguimos explicar.",
-    },
+  const [carregandoReflexoes, setCarregandoReflexoes] =
+    useState(false);
 
-    {
-      sentimento: "ansioso",
-      emoji: "🌿",
-      titulo: "Você não precisa resolver tudo agora",
-      texto:
-        "Talvez parte da sua ansiedade venha da tentativa de viver hoje problemas que ainda pertencem ao amanhã.",
-    },
+  const [erroReflexoes, setErroReflexoes] =
+    useState("");
 
-    {
-      sentimento: "ansioso",
-      emoji: "💭",
-      titulo: "Sua mente está tentando proteger você?",
-      texto:
-        "Pensar em todas as possibilidades pode parecer uma forma de se preparar. Mas será que você está se preparando ou apenas se cansando antes da hora?",
-    },
+  const [reflexoesCarregadas, setReflexoesCarregadas] =
+    useState({});
 
-    {
-      sentimento: "ansioso",
-      emoji: "🕊️",
-      titulo: "E se você simplesmente parasse?",
-      texto:
-        "Nem toda pausa é perda de tempo. Às vezes, parar é justamente o que permite continuar.",
-    },
-
-    {
-      sentimento: "cansado",
-      emoji: "😴",
-      titulo: "Talvez não seja preguiça",
-      texto:
-        "Às vezes, o que você chama de preguiça é apenas cansaço que você ainda não se permitiu reconhecer.",
-    },
-
-    {
-      sentimento: "cansado",
-      emoji: "🌙",
-      titulo: "Você precisa produzir para ter valor?",
-      texto:
-        "Descansar não diminui aquilo que você é. Você continua sendo você mesmo quando não está produzindo.",
-    },
-
-    {
-      sentimento: "cansado",
-      emoji: "🌱",
-      titulo: "Talvez seu corpo esteja pedindo uma pausa",
-      texto:
-        "Nem sempre precisamos de mais disciplina. Às vezes precisamos de descanso suficiente para conseguir continuar.",
-    },
-
-    {
-      sentimento: "pensativo",
-      emoji: "🪞",
-      titulo: "Olhe novamente",
-      texto:
-        "Você está enxergando a situação como ela realmente é ou como seus pensamentos estão permitindo que você a enxergue?",
-    },
-
-    {
-      sentimento: "pensativo",
-      emoji: "💭",
-      titulo: "Nem todo pensamento é uma verdade",
-      texto:
-        "Pensar alguma coisa sobre você não significa que aquilo define quem você é.",
-    },
-
-    {
-      sentimento: "pensativo",
-      emoji: "🧠",
-      titulo: "O que existe por trás desse pensamento?",
-      texto:
-        "Às vezes, aquilo que ocupa nossa cabeça é apenas a superfície de algo que ainda não conseguimos nomear.",
-    },
-
-    {
-      sentimento: "sozinho",
-      emoji: "🫂",
-      titulo: "Você está sozinho ou está se sentindo sozinho?",
-      texto:
-        "Existe uma diferença entre estar sem pessoas por perto e sentir que ninguém realmente consegue enxergar aquilo que acontece dentro de você.",
-    },
-
-    {
-      sentimento: "sozinho",
-      emoji: "💙",
-      titulo: "Você não precisa carregar tudo sozinho",
-      texto:
-        "Pedir para ser ouvido não é fraqueza. Às vezes, é apenas reconhecer que você também merece cuidado.",
-    },
-
-    {
-      sentimento: "sozinho",
-      emoji: "🌱",
-      titulo: "Uma conexão pode começar pequena",
-      texto:
-        "Talvez você não precise encontrar muitas pessoas. Talvez uma conversa verdadeira já seja um começo.",
-    },
-
-    {
-      sentimento: "irritado",
-      emoji: "🔥",
-      titulo: "O que existe por trás da raiva?",
-      texto:
-        "Às vezes, a raiva aparece primeiro, mas por trás dela existe frustração, medo, tristeza ou sensação de injustiça.",
-    },
-
-    {
-      sentimento: "irritado",
-      emoji: "🌿",
-      titulo: "Responder ou reagir?",
-      texto:
-        "Existe uma pequena diferença entre aquilo que sentimos imediatamente e aquilo que escolhemos fazer depois.",
-    },
-
-    {
-      sentimento: "irritado",
-      emoji: "🪞",
-      titulo: "O que realmente te incomodou?",
-      texto:
-        "Talvez aquilo que provocou sua irritação não seja exatamente aquilo que está machucando você.",
-    },
-
-    {
-      sentimento: "confuso",
-      emoji: "🌀",
-      titulo: "Você não precisa entender tudo hoje",
-      texto:
-        "Algumas respostas aparecem somente depois que deixamos de tentar encontrá-las à força.",
-    },
-
-    {
-      sentimento: "confuso",
-      emoji: "🪞",
-      titulo: "Talvez a dúvida também esteja dizendo alguma coisa",
-      texto:
-        "Nem sempre estar confuso significa estar perdido. Às vezes significa que alguma coisa dentro de você está mudando.",
-    },
-
-    {
-      sentimento: "confuso",
-      emoji: "🌱",
-      titulo: "Comece pelo que você sabe",
-      texto:
-        "Quando tudo parece confuso, talvez seja suficiente encontrar uma única coisa que ainda faça sentido.",
-    },
-
-    {
-      sentimento: "recomecando",
-      emoji: "🦋",
-      titulo: "Recomeçar não apaga o que aconteceu",
-      texto:
-        "Você não precisa esquecer sua história para construir uma nova parte dela.",
-    },
-
-    {
-      sentimento: "recomecando",
-      emoji: "🌱",
-      titulo: "Talvez você esteja mudando",
-      texto:
-        "Algumas versões nossas precisam ficar para trás para que outras possam existir.",
-    },
-
-    {
-      sentimento: "recomecando",
-      emoji: "🚪",
-      titulo: "Você está com medo de começar ou de deixar para trás?",
-      texto:
-        "Às vezes, o que mais dificulta um novo caminho não é o desconhecido, mas aquilo que ainda não conseguimos soltar.",
-    },
-
-    {
-      sentimento: "motivado",
-      emoji: "✨",
-      titulo: "Não transforme motivação em cobrança",
-      texto:
-        "Você pode querer crescer sem precisar transformar cada dia em uma corrida contra si mesmo.",
-    },
-
-    {
-      sentimento: "motivado",
-      emoji: "🌱",
-      titulo: "Pequenos passos também mudam caminhos",
-      texto:
-        "Nem toda transformação começa com uma grande decisão. Algumas começam com uma pequena escolha repetida.",
-    },
-
-    {
-      sentimento: "motivado",
-      emoji: "🦋",
-      titulo: "Você está crescendo ou apenas tentando provar alguma coisa?",
-      texto:
-        "Existe uma diferença entre fazer algo porque deseja e fazer algo para provar que é capaz.",
-    },
-
-    {
-      sentimento: "bem",
-      emoji: "💚",
-      titulo: "Você percebeu que está bem?",
-      texto:
-        "Às vezes estamos tão acostumados a procurar problemas que esquecemos de reconhecer quando alguma coisa simplesmente está boa.",
-    },
-
-    {
-      sentimento: "bem",
-      emoji: "🌻",
-      titulo: "Guarde este momento",
-      texto:
-        "Você não precisa esperar um momento difícil para perceber o valor de um momento tranquilo.",
-    },
-
-    {
-      sentimento: "bem",
-      emoji: "✨",
-      titulo: "O que tornou este momento diferente?",
-      texto:
-        "Talvez perceber o que faz bem também seja uma maneira de aprender a cuidar de si.",
-    },
-
-    {
-      sentimento: "paz",
-      emoji: "🌿",
-      titulo: "Não tenha pressa para sair daqui",
-      texto:
-        "Alguns momentos não precisam servir para alguma coisa. Eles podem simplesmente existir.",
-    },
-
-    {
-      sentimento: "paz",
-      emoji: "🌊",
-      titulo: "A calma também merece espaço",
-      texto:
-        "Talvez você não precise procurar uma solução. Talvez possa apenas permanecer alguns minutos em paz.",
-    },
-
-    {
-      sentimento: "paz",
-      emoji: "🕊️",
-      titulo: "Permita-se não fazer nada por alguns minutos",
-      texto:
-        "Nem todo silêncio precisa ser preenchido. Algumas pausas também são importantes.",
-    },
-
-    {
-      sentimento: "grato",
-      emoji: "❤️",
-      titulo: "Nem tudo precisa ser extraordinário",
-      texto:
-        "Às vezes, aquilo que merece nossa gratidão está escondido justamente nas coisas que parecem pequenas.",
-    },
-
-    {
-      sentimento: "grato",
-      emoji: "🌻",
-      titulo: "Perceba o que já existe",
-      texto:
-        "Enquanto procuramos aquilo que falta, podemos deixar de perceber aquilo que já está fazendo parte da nossa vida.",
-    },
-
-    {
-      sentimento: "grato",
-      emoji: "✨",
-      titulo: "O que você quase não percebeu hoje?",
-      texto:
-        "Talvez exista algo bom acontecendo ao seu redor que mereça alguns segundos da sua atenção.",
-    },
-  ];
+  const [indiceAleatorioInicial, setIndiceAleatorioInicial] =
+    useState({});
 
   // =========================================================
   // PENSAMENTOS FILOSÓFICOS
@@ -784,21 +529,48 @@ function Ajudar({ irPara }) {
   // CARDS DO MOMENTO
   // =========================================================
 
-  const cardsDoMomento = sentimentoSelecionado
-    ? flashCards.filter(
-        (card) =>
-          card.sentimento === sentimentoSelecionado
-      )
-    : [];
+  const reflexoesAtuais =
+    sentimentoSelecionado
+      ? reflexoesPorSentimento[sentimentoSelecionado] || []
+      : [];
+
+  const cardsDoMomento = reflexoesAtuais.map((reflexao) => ({
+    id: reflexao.id,
+    sentimento: sentimentoSelecionado,
+    emoji: sentimentoAtual?.emoji || "💭",
+    titulo: reflexao.mensagem,
+    texto: reflexao.pergunta || "",
+    acao: reflexao.acao || "",
+  }));
+
+  const categoriasDeSomPorSentimento = {
+    cansado: ["cansado", "paz", "pensativo"],
+    ansioso: ["ansioso", "paz", "pensativo", "confuso"],
+    triste: ["triste", "sozinho", "paz"],
+    pensando_demais: ["pensativo", "ansioso", "paz", "confuso"],
+    irritado: ["irritado", "ansioso", "paz"],
+    vazio: ["confuso", "sozinho", "triste", "paz"],
+    desanimado: ["triste", "cansado", "recomecando", "paz"],
+    inseguro: ["confuso", "pensativo", "ansioso", "paz"],
+    sobrecarregado: ["cansado", "ansioso", "paz"],
+    frustrado: ["irritado", "ansioso", "paz"],
+    medo_do_futuro: ["ansioso", "pensativo", "paz"],
+    depressivo: ["triste", "sozinho", "paz", "cansado"],
+    solitario: ["sozinho", "triste", "paz"],
+    sem_esperanca: ["triste", "sozinho", "paz", "cansado"],
+  };
 
   // =========================================================
   // SONS RELACIONADOS
   // =========================================================
 
+  const categoriasSomAtuais =
+    categoriasDeSomPorSentimento[sentimentoSelecionado] || [];
+
   const sonsRelacionados = sentimentoSelecionado
     ? sons.filter((som) =>
-        som.categorias.includes(
-          sentimentoSelecionado
+        som.categorias.some((categoria) =>
+          categoriasSomAtuais.includes(categoria)
         )
       )
     : sons.slice(0, 8);
@@ -807,17 +579,114 @@ function Ajudar({ irPara }) {
   // VÍDEOS RELACIONADOS
   // =========================================================
 
+  const categoriasVideoPorSentimento = {
+    cansado: ["cansado"],
+    ansioso: ["ansioso", "pensativo"],
+    triste: ["triste"],
+    pensando_demais: ["pensativo", "ansioso"],
+    irritado: ["ansioso"],
+    vazio: ["triste", "confuso"],
+    desanimado: ["triste"],
+    inseguro: ["confuso", "pensativo"],
+    sobrecarregado: ["cansado", "ansioso"],
+    frustrado: ["ansioso"],
+    medo_do_futuro: ["ansioso", "pensativo"],
+    depressivo: ["triste"],
+    solitario: ["triste", "sozinho"],
+    sem_esperanca: ["triste", "sozinho"],
+  };
+
+  const categoriasVideoAtuais =
+    categoriasVideoPorSentimento[sentimentoSelecionado] || [];
+
   const videosRelacionados = sentimentoSelecionado
     ? videos.filter((video) =>
-        video.categorias.includes(
-          sentimentoSelecionado
+        video.categorias.some((categoria) =>
+          categoriasVideoAtuais.includes(categoria)
         )
       )
     : videos;
 
   // =========================================================
+  // CARREGAR REFLEXÕES DO SUPABASE
+  // =========================================================
+
+  async function carregarReflexoes(sentimentoId, forcar = false) {
+    if (!sentimentoId) return;
+
+    if (!forcar && reflexoesCarregadas[sentimentoId]) {
+      return;
+    }
+
+    setCarregandoReflexoes(true);
+    setErroReflexoes("");
+
+    try {
+      const { data, error } = await supabase
+        .from("reflexoes")
+        .select(
+          "id, sentimento, mensagem, pergunta, acao, categoria, nivel, ativa, ativo"
+        )
+        .eq("sentimento", sentimentos.find(
+          (item) => item.id === sentimentoId
+        )?.nome || "")
+        .eq("ativa", true)
+        .or("ativo.eq.true,ativo.is.null")
+        .order("id", { ascending: false })
+        .limit(200);
+
+      if (error) {
+        throw error;
+      }
+
+      const registros = Array.isArray(data) ? data : [];
+
+      // Embaralha no cliente para que os 200 cards não apareçam
+      // sempre na mesma ordem.
+      const embaralhados = [...registros].sort(
+        () => Math.random() - 0.5
+      );
+
+      setReflexoesPorSentimento((anterior) => ({
+        ...anterior,
+        [sentimentoId]: embaralhados,
+      }));
+
+      setReflexoesCarregadas((anterior) => ({
+        ...anterior,
+        [sentimentoId]: true,
+      }));
+
+      setIndiceAleatorioInicial((anterior) => ({
+        ...anterior,
+        [sentimentoId]: Math.floor(
+          Math.random() * Math.max(embaralhados.length, 1)
+        ),
+      }));
+
+      if (!registros.length) {
+        setErroReflexoes(
+          "Ainda não encontramos reflexões para este sentimento."
+        );
+      }
+    } catch (erro) {
+      console.error(
+        "Erro ao carregar reflexões do Supabase:",
+        erro
+      );
+
+      setErroReflexoes(
+        "Não foi possível carregar as reflexões agora."
+      );
+    } finally {
+      setCarregandoReflexoes(false);
+    }
+  }
+
+  // =========================================================
   // ESCOLHER SENTIMENTO
   // =========================================================
+
 
   function escolherSentimento(id) {
     pararAudio();
@@ -827,6 +696,9 @@ function Ajudar({ irPara }) {
     setMomentoIniciado(false);
     setMomentoFinalizado(false);
     setMensagemExtra(null);
+    setErroReflexoes("");
+
+    carregarReflexoes(id);
 
     setTimeout(() => {
       const elemento =
@@ -848,6 +720,13 @@ function Ajudar({ irPara }) {
   // =========================================================
 
   function iniciarMomento() {
+    if (carregandoReflexoes) return;
+
+    if (!reflexoesPorSentimento[sentimentoSelecionado]?.length) {
+      carregarReflexoes(sentimentoSelecionado);
+      return;
+    }
+
     setMomentoIniciado(true);
     setCardAtual(0);
     setMomentoFinalizado(false);
@@ -872,6 +751,8 @@ function Ajudar({ irPara }) {
   // =========================================================
 
   function proximoCard() {
+    if (!cardsDoMomento.length) return;
+
     if (
       cardAtual <
       cardsDoMomento.length - 1
@@ -932,6 +813,7 @@ function Ajudar({ irPara }) {
 
   function novaReflexao() {
     if (!cardsDoMomento.length) {
+      carregarReflexoes(sentimentoSelecionado, true);
       return;
     }
 
@@ -1224,17 +1106,6 @@ function Ajudar({ irPara }) {
             0 8px 20px rgba(0,0,0,0.06);
         }
 
-        .sentimento-button:focus-visible,
-        .som-card:focus-visible,
-        .conteudo-opcao:focus-visible,
-        button:focus-visible,
-        a:focus-visible,
-        input:focus-visible {
-          outline: 3px solid
-            var(--pulsan-primaria, #20adb0);
-          outline-offset: 3px;
-        }
-
         .sentimento-button.ativo {
           background:
             var(--pulsan-primaria, #20adb0);
@@ -1380,6 +1251,76 @@ function Ajudar({ irPara }) {
             rgba(32,173,176,0.05);
           bottom: -60px;
           left: -50px;
+        }
+
+        .reflexoes-carregando,
+        .reflexoes-erro {
+          margin-top: 25px;
+          min-height: 260px;
+          padding: 45px 25px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          text-align: center;
+          border-radius: 24px;
+        }
+
+        .reflexoes-carregando p,
+        .reflexoes-erro p {
+          margin: 10px 0 0;
+          color: var(--pulsan-texto-secundario, #777);
+          line-height: 1.6;
+        }
+
+        .reflexoes-spinner {
+          font-size: 42px;
+          margin-bottom: 14px;
+          animation: pulsar-reflexao 1.2s ease-in-out infinite;
+        }
+
+        @keyframes pulsar-reflexao {
+          0%, 100% { transform: scale(1); opacity: .65; }
+          50% { transform: scale(1.12); opacity: 1; }
+        }
+
+        .flash-sentimento {
+          position: relative;
+          z-index: 1;
+          margin-bottom: 14px;
+          color: var(--pulsan-primaria, #20adb0);
+          font-size: 13px;
+          font-weight: 900;
+          letter-spacing: 1px;
+        }
+
+        .flash-acao {
+          position: relative;
+          z-index: 1;
+          width: min(100%, 650px);
+          margin-top: 24px;
+          padding: 15px 18px;
+          border-radius: 17px;
+          background: rgba(32,173,176,.07);
+          border: 1px solid rgba(32,173,176,.12);
+          text-align: left;
+        }
+
+        .flash-acao > span {
+          font-size: 18px;
+          margin-right: 7px;
+        }
+
+        .flash-acao strong {
+          color: var(--pulsan-texto, #173b38);
+          font-size: 12px;
+        }
+
+        .flash-acao p {
+          margin: 6px 0 0 27px;
+          color: var(--pulsan-texto-secundario, #666);
+          font-size: 13px;
+          line-height: 1.5;
         }
 
         .flash-numero {
@@ -2016,6 +1957,59 @@ function Ajudar({ irPara }) {
 
         }
 
+        @media (max-width: 700px) {
+          .reflexao-container {
+            padding: 22px 14px 40px;
+          }
+
+          .reflexao-topo h1 {
+            font-size: 31px;
+          }
+
+          .sentimentos-card {
+            padding: 17px;
+          }
+
+          .sentimentos-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 9px;
+          }
+
+          .sentimento-button {
+            min-height: 94px;
+            padding: 13px 7px;
+          }
+
+          .sentimento-emoji {
+            font-size: 25px;
+          }
+
+          .flash-card {
+            min-height: 500px;
+            padding: 35px 19px;
+          }
+
+          .flash-titulo {
+            font-size: 23px;
+          }
+
+          .flash-texto {
+            font-size: 16px;
+          }
+
+          .flash-controles {
+            flex-wrap: wrap;
+          }
+
+          .flash-acao {
+            padding: 13px 14px;
+          }
+
+          .flash-acao p {
+            margin-left: 0;
+          }
+        }
+
         `}
       </style>
 
@@ -2167,7 +2161,48 @@ function Ajudar({ irPara }) {
 
               )}
 
-              {momentoIniciado &&
+              {carregandoReflexoes && (
+                <div
+                  className="reflexoes-carregando"
+                  style={cardStyle}
+                >
+                  <div className="reflexoes-spinner">🌿</div>
+                  <strong>Preparando seu momento...</strong>
+                  <p>
+                    Estamos buscando uma reflexão para
+                    <br />
+                    acompanhar o que você está sentindo.
+                  </p>
+                </div>
+              )}
+
+              {!carregandoReflexoes &&
+                erroReflexoes &&
+                !cardsDoMomento.length && (
+                  <div
+                    className="reflexoes-erro"
+                    style={cardStyle}
+                  >
+                    <div>💭</div>
+                    <strong>{erroReflexoes}</strong>
+                    <button
+                      type="button"
+                      className="momento-botao"
+                      onClick={() =>
+                        carregarReflexoes(
+                          sentimentoSelecionado,
+                          true
+                        )
+                      }
+                    >
+                      Tentar novamente
+                    </button>
+                  </div>
+                )}
+
+              {!carregandoReflexoes &&
+                !erroReflexoes &&
+                momentoIniciado &&
                 !momentoFinalizado &&
                 cardsDoMomento.length > 0 && (
 
@@ -2195,6 +2230,11 @@ function Ajudar({ irPara }) {
                       }
                     </div>
 
+                    <div className="flash-sentimento">
+                      {sentimentoAtual?.emoji}{" "}
+                      {sentimentoAtual?.nome}
+                    </div>
+
                     <h2 className="flash-titulo">
                       {
                         cardsDoMomento[
@@ -2203,13 +2243,31 @@ function Ajudar({ irPara }) {
                       }
                     </h2>
 
-                    <p className="flash-texto">
-                      {
-                        cardsDoMomento[
-                          cardAtual
-                        ].texto
-                      }
-                    </p>
+                    {cardsDoMomento[cardAtual].texto && (
+                      <p className="flash-texto">
+                        {
+                          cardsDoMomento[
+                            cardAtual
+                          ].texto
+                        }
+                      </p>
+                    )}
+
+                    {cardsDoMomento[cardAtual].acao && (
+                      <div className="flash-acao">
+                        <span>🌿</span>
+                        <strong>
+                          Um pequeno passo
+                        </strong>
+                        <p>
+                          {
+                            cardsDoMomento[
+                              cardAtual
+                            ].acao
+                          }
+                        </p>
+                      </div>
+                    )}
 
                     <div className="progresso">
                       <div
@@ -2340,23 +2398,6 @@ function Ajudar({ irPara }) {
                 <article
                   className="conteudo-opcao"
                   style={cardStyle}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(event) => {
-                    if (
-                      event.key === "Enter" ||
-                      event.key === " "
-                    ) {
-                      event.preventDefault();
-                      const elemento =
-                        document.getElementById(
-                          "videos-area"
-                        );
-                      elemento?.scrollIntoView({
-                        behavior: "smooth",
-                      });
-                    }
-                  }}
                   onClick={() => {
                     const elemento =
                       document.getElementById(
@@ -2389,17 +2430,6 @@ function Ajudar({ irPara }) {
                 <article
                   className="conteudo-opcao"
                   style={cardStyle}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(event) => {
-                    if (
-                      event.key === "Enter" ||
-                      event.key === " "
-                    ) {
-                      event.preventDefault();
-                      mostrarPensamento();
-                    }
-                  }}
                   onClick={
                     mostrarPensamento
                   }
@@ -2426,23 +2456,6 @@ function Ajudar({ irPara }) {
                 <article
                   className="conteudo-opcao"
                   style={cardStyle}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(event) => {
-                    if (
-                      event.key === "Enter" ||
-                      event.key === " "
-                    ) {
-                      event.preventDefault();
-                      const elemento =
-                        document.getElementById(
-                          "sons-area"
-                        );
-                      elemento?.scrollIntoView({
-                        behavior: "smooth",
-                      });
-                    }
-                  }}
                   onClick={() => {
                     const elemento =
                       document.getElementById(

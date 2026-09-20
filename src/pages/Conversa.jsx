@@ -29,6 +29,8 @@ function ConversaPrincipal({ irPara, tema = "claro" }) {
   const inputRef = useRef(null);
   const canalListaRef = useRef(null);
   const canalMensagensRef = useRef(null);
+  const [tecladoAberto, setTecladoAberto] = useState(false);
+  const [alturaTeclado, setAlturaTeclado] = useState(0);
 
   const modoEscuro = tema === "escuro";
 
@@ -760,6 +762,54 @@ function ConversaPrincipal({ irPara, tema = "claro" }) {
   }, [conversaAtual?.id]);
 
   /* =========================================================
+     TECLADO / VIEWPORT — MOBILE
+  ========================================================= */
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.visualViewport) {
+      return undefined;
+    }
+
+    const viewport = window.visualViewport;
+
+    const atualizarViewport = () => {
+      const diferenca =
+        Math.max(
+          0,
+          window.innerHeight -
+            viewport.height -
+            viewport.offsetTop
+        );
+
+      const aberto = diferenca > 90;
+
+      setTecladoAberto(aberto);
+      setAlturaTeclado(aberto ? diferenca : 0);
+
+      if (aberto) {
+        requestAnimationFrame(() => {
+          const container = mensagensContainerRef.current;
+          if (!container) return;
+
+          container.scrollTo({
+            top: container.scrollHeight,
+            behavior: "smooth",
+          });
+        });
+      }
+    };
+
+    viewport.addEventListener("resize", atualizarViewport);
+    viewport.addEventListener("scroll", atualizarViewport);
+    atualizarViewport();
+
+    return () => {
+      viewport.removeEventListener("resize", atualizarViewport);
+      viewport.removeEventListener("scroll", atualizarViewport);
+    };
+  }, []);
+
+  /* =========================================================
      SCROLL AUTOMÁTICO
   ========================================================= */
 
@@ -767,15 +817,13 @@ function ConversaPrincipal({ irPara, tema = "claro" }) {
     const container = mensagensContainerRef.current;
     if (!container) return;
 
-    // Mantém o scroll dentro do painel de mensagens.
-    // Assim o envio/recebimento não move a página inteira.
+    // Mantém o scroll somente dentro da conversa.
+    // A área inferior recebe espaço suficiente para que o
+    // composer nunca cubra a última mensagem.
     requestAnimationFrame(() => {
-      // O composer fica fixo sobre a tela. Rolamos apenas a área
-      // das mensagens até o final, deixando a última mensagem
-      // visível logo acima do campo de envio.
       const destino = Math.max(
         0,
-        container.scrollHeight - container.clientHeight + 18
+        container.scrollHeight - container.clientHeight
       );
 
       container.scrollTo({
@@ -783,7 +831,7 @@ function ConversaPrincipal({ irPara, tema = "claro" }) {
         behavior: "smooth",
       });
     });
-  }, [mensagens]);
+  }, [mensagens, tecladoAberto]);
 
   /* =========================================================
      ABRIR CONVERSA RECENTE
@@ -1227,7 +1275,17 @@ function ConversaPrincipal({ irPara, tema = "claro" }) {
 
       setTimeout(() => {
         inputRef.current?.focus();
-      }, 50);
+
+        requestAnimationFrame(() => {
+          const container = mensagensContainerRef.current;
+          if (!container) return;
+
+          container.scrollTo({
+            top: container.scrollHeight,
+            behavior: "smooth",
+          });
+        });
+      }, 80);
     } catch (erro) {
       console.error(
         "Erro ao enviar mensagem:",
@@ -1922,7 +1980,18 @@ function ConversaPrincipal({ irPara, tema = "claro" }) {
 
       {/* CAMPO DE MENSAGEM */}
 
-      <div className="pulsan-composer-wrap">
+      <div
+        className={`pulsan-composer-wrap ${
+          tecladoAberto ? "pulsan-keyboard-open" : ""
+        }`}
+        style={
+          tecladoAberto
+            ? {
+                bottom: `${Math.max(8, alturaTeclado + 8)}px`,
+              }
+            : undefined
+        }
+      >
         <form
           className="pulsan-composer"
           onSubmit={enviarMensagem}
@@ -3067,7 +3136,7 @@ const CSS = `
 
 .pulsan-chat-main {
   width: min(900px, calc(100% - 28px));
-  height: calc(100vh - 68px);
+  height: calc(100dvh - 68px);
   min-height: 0;
   margin: 0 auto;
   flex: 1 1 auto;
@@ -3075,7 +3144,7 @@ const CSS = `
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  padding: 18px 0 155px;
+  padding: 18px 0 175px;
 }
 
 /* SEGURANÇA */
@@ -3186,8 +3255,9 @@ const CSS = `
   gap: 11px;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 18px 8px 105px;
+  padding: 22px 8px 220px;
   margin: 0 -8px;
+  scroll-padding-bottom: 220px;
   overscroll-behavior: contain;
   scroll-behavior: smooth;
   scrollbar-width: thin;
@@ -3363,14 +3433,16 @@ const CSS = `
 
 .pulsan-composer-wrap {
   position: fixed;
-  z-index: 20;
+  z-index: 50;
   left: 50%;
-  bottom: 84px;
+  bottom: 82px;
   transform: translateX(-50%);
   width: min(860px, calc(100% - 26px));
   display: flex;
   flex-direction: column;
   gap: 7px;
+  transition: bottom .18s ease;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 .pulsan-composer {
@@ -3423,12 +3495,15 @@ const CSS = `
 .pulsan-composer input {
   flex: 1;
   min-width: 0;
+  min-height: 43px;
   border: 0;
   outline: 0;
   background: transparent;
   padding: 10px 12px;
   color: var(--pulsan-deep);
   font-size: 13px;
+  line-height: 1.35;
+  box-sizing: border-box;
 }
 
 .pulsan-dark .pulsan-composer input {
@@ -3948,26 +4023,50 @@ const CSS = `
   }
 
   .pulsan-chat-main {
-    width: calc(100% - 20px);
-    height: calc(100vh - 68px);
-    padding-bottom: 140px;
+    width: calc(100% - 18px);
+    height: calc(100dvh - 68px);
+    padding-top: 12px;
+    padding-bottom: 205px;
   }
 
   .pulsan-messages {
-    padding-bottom: 105px;
+    padding:
+      16px
+      5px
+      250px;
+    margin: 0 -5px;
+    scroll-padding-bottom: 250px;
+    gap: 9px;
   }
 
   .pulsan-message-bubble {
-    max-width: 84%;
+    max-width: 86%;
+    padding: 11px 13px 8px;
+    border-radius: 18px;
+  }
+
+  .pulsan-message-row.other {
+    padding-right: 8%;
+  }
+
+  .pulsan-message-row.mine {
+    padding-left: 8%;
   }
 
   .pulsan-composer-wrap {
-    bottom: 78px;
-    width: calc(100% - 18px);
+    bottom: calc(66px + env(safe-area-inset-bottom, 0px));
+    width: calc(100% - 14px);
+    gap: 6px;
+  }
+
+  .pulsan-composer-wrap.pulsan-keyboard-open {
+    bottom: 8px;
   }
 
   .pulsan-composer {
-    border-radius: 18px;
+    border-radius: 19px;
+    padding: 6px 7px 7px;
+    box-shadow: 0 12px 35px rgba(15,45,91,.20);
   }
 
   .pulsan-composer-topline {
@@ -4214,6 +4313,26 @@ const CSS = `
 }
 
 @media (max-width: 680px) {
+  .pulsan-composer input {
+    font-size: 16px;
+  }
+
+  .pulsan-composer input:focus {
+    scroll-margin-bottom: 280px;
+  }
+
+  .pulsan-keyboard-open .pulsan-composer-topline {
+    display: none;
+  }
+
+  .pulsan-keyboard-open .pulsan-composer {
+    padding-top: 5px;
+  }
+
+  .pulsan-keyboard-open .pulsan-btn-finalizar-chat {
+    display: none;
+  }
+
   .pulsan-message-row.other {
     padding-right: 12%;
   }
