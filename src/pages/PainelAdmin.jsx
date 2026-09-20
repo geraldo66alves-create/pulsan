@@ -1,6 +1,43 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabase";
 
+function Icon({ name, size = 18, strokeWidth = 1.9, className = "" }) {
+  const paths = {
+    dashboard: <><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></>,
+    brain: <><path d="M9.5 4.5a3.2 3.2 0 0 0-5.8 1.9A3.2 3.2 0 0 0 4 12.6a3.2 3.2 0 0 0 3.4 5.1c.6 1.1 1.7 1.8 3 1.8V4.7a3 3 0 0 0-.9-.2Z"/><path d="M14.5 4.5a3.2 3.2 0 0 1 5.8 1.9 3.2 3.2 0 0 1-.3 6.2 3.2 3.2 0 0 1-3.4 5.1c-.6 1.1-1.7 1.8-3 1.8V4.7c.3-.1.6-.2.9-.2Z"/><path d="M8 8.5h1.5M14.5 8.5H16M8.2 13h1.3M14.5 13h1.3M12 4.5v15"/></>,
+    alert: <><path d="M12 3 2.8 20h18.4L12 3Z"/><path d="M12 9v5M12 17.2h.01"/></>,
+    users: <><path d="M16 20v-1.5a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4V20"/><circle cx="9.5" cy="7" r="3.5"/><path d="M17 11a3.5 3.5 0 1 0-1.2-6.8M17 14.5h.5a4 4 0 0 1 4 4V20"/></>,
+    school: <><path d="m3 10 9-6 9 6-9 6-9-6Z"/><path d="M6 12.2V17c3 2.2 9 2.2 12 0v-4.8M21 10v6"/></>,
+    company: <><path d="M4 21V5.5A1.5 1.5 0 0 1 5.5 4h7A1.5 1.5 0 0 1 14 5.5V21M14 9.5A1.5 1.5 0 0 1 15.5 8h3A1.5 1.5 0 0 1 20 9.5V21M2 21h20M7 8h2M7 12h2M7 16h2M16 12h2M16 16h2"/></>,
+    shield: <><path d="M12 3 20 6v5.5c0 5-3.3 8.8-8 10.5-4.7-1.7-8-5.5-8-10.5V6l8-3Z"/><path d="m8.5 12 2.2 2.2 4.8-5"/></>,
+    chart: <><path d="M4 19V5M4 19h17"/><path d="m7 15 3-4 3 2 5-7"/></>,
+    chat: <><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v7a2.5 2.5 0 0 1-2.5 2.5H11l-5 4v-4.2a2.5 2.5 0 0 1-2-2.3v-7Z"/></>,
+    settings: <><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-1.7 1.7-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-2.4v-.2a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L8 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H6.6v-2.4h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L8 8.6l1.7-1.7.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6v-.2h2.4v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1 1.7 1.7-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2V14h-.2a1.7 1.7 0 0 0-1.6 1Z"/></>,
+    content: <><path d="M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z"/><path d="M8 8h8M8 12h8M8 16h5"/></>,
+    pending: <><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3 2"/></>,
+    partner: <><path d="M8.5 12.5 6 15a3 3 0 0 0 4.2 4.2l2.1-2.1M15.5 11.5 18 9a3 3 0 0 0-4.2-4.2l-2.1 2.1"/><path d="m9 15 6-6"/></>,
+    student: <><path d="m3 9 9-5 9 5-9 5-9-5Z"/><path d="M7 11.2V17c2.8 2 7.2 2 10 0v-5.8M21 9v6"/></>,
+    briefcase: <><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18M10 12v2h4v-2"/></>,
+    close: <><path d="m6 6 12 12M18 6 6 18"/></>,
+    logout: <><path d="M10 5H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h4M14 16l4-4-4-4M18 12H9"/></>,
+    refresh: <><path d="M20 11a8 8 0 0 0-14.8-3L3 11M4 5v5h5"/><path d="M4 13a8 8 0 0 0 14.8 3L21 13M20 19v-5h-5"/></>,
+    sun: <><circle cx="12" cy="12" r="3.5"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></>,
+    moon: <path d="M20 15.2A8 8 0 0 1 8.8 4a8.4 8.4 0 1 0 11.2 11.2Z"/>,
+    search: <><circle cx="10.8" cy="10.8" r="6.5"/><path d="m16 16 4.5 4.5"/></>,
+    location: <><path d="M19 10c0 5-7 10-7 10S5 15 5 10a7 7 0 1 1 14 0Z"/><circle cx="12" cy="10" r="2.3"/></>,
+    lock: <><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></>,
+    video: <><rect x="3" y="6" width="13" height="12" rx="2"/><path d="m16 10 5-3v10l-5-3Z"/></>,
+    back: <><path d="M19 12H5M11 18l-6-6 6-6"/></>,
+    arrow: <path d="M5 12h14M13 6l6 6-6 6"/>,
+    check: <path d="m5 12 4 4L19 6"/>,
+  };
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={className}>
+      {paths[name] || paths.dashboard}
+    </svg>
+  );
+}
+
 function PainelAdmin({ irPara, tema, alterarTema }) {
   const [dados, setDados] = useState({
     usuarios: 0,
@@ -27,6 +64,9 @@ function PainelAdmin({ irPara, tema, alterarTema }) {
   const [empresas, setEmpresas] = useState([]);
   const [moderacoes, setModeracoes] = useState([]);
   const [conversas, setConversas] = useState([]);
+  const [solicitacoesChat, setSolicitacoesChat] = useState([]);
+  const [alertasIA, setAlertasIA] = useState([]);
+  const [psicologosRegistros, setPsicologosRegistros] = useState([]);
 
   const [buscaEscola, setBuscaEscola] = useState("");
   const [buscaEmpresa, setBuscaEmpresa] = useState("");
@@ -70,40 +110,63 @@ function PainelAdmin({ irPara, tema, alterarTema }) {
 
   async function carregarDados() {
     try {
-      const [perfisResult, psicologosResult, postsResult, chatsResult, denunciasResult] =
-        await Promise.all([
-          supabase
-            .from("perfis")
-            .select(
-              "id,nome,foto_url,selo,verificacao_psicologo,psicologo_parceiro,criado_em"
-            ),
-          supabase
-            .from("psicologos")
-            .select(
-              "id,usuario_id,nome,email,telefone,crp,estado_crp,area_atuacao,verificado,ativo,disponivel,created_at"
-            ),
-          supabase
-            .from("posts_ambiente")
-            .select("*")
-            .order("criado_em", { ascending: false }),
-          supabase.from("conversas").select("*"),
-          supabase
-            .from("denuncias")
-            .select("*")
-            .order("criado_em", { ascending: false }),
-        ]);
+      const [
+        perfisResult,
+        usuariosAuthResult,
+        psicologosResult,
+        postsResult,
+        chatsResult,
+        solicitacoesChatResult,
+        denunciasResult,
+        alertasResult,
+      ] = await Promise.all([
+        supabase
+          .from("perfis")
+          .select("id,nome,foto_url,selo,verificacao_psicologo,psicologo_parceiro,criado_em"),
+        supabase.rpc("painel_admin_usuarios"),
+        supabase
+          .from("psicologos")
+          .select("id,usuario_id,nome,email,telefone,crp,estado_crp,area_atuacao,verificado,ativo,disponivel,created_at"),
+        supabase
+          .from("posts_ambiente")
+          .select("id,usuario_id,texto,nome_usuario,foto_usuario,criado_em,apoiadores")
+          .order("criado_em", { ascending: false }),
+        supabase
+          .from("conversas")
+          .select("id,solicitacao_id,solicitante_id,destinatario_id,status,iniciada_em,criada_em,ultima_mensagem_em,desabafo_post_id")
+          .order("criada_em", { ascending: false }),
+        supabase
+          .from("solicitacoes_chat")
+          .select("id,solicitante_id,destinatario_id,desabafo_id,status,criado_em,atualizado_em,categoria,urgencia,motivo,desabafo_post_id")
+          .order("criado_em", { ascending: false }),
+        supabase
+          .from("denuncias")
+          .select("id,publicacao_id,denunciante_id,motivo,descricao,status,analisada_por,resposta_admin,criada_em,analisada_em")
+          .order("criada_em", { ascending: false }),
+        supabase
+          .from("alertas_ia")
+          .select("id,publicacao_id,classificacao,tipo_situacao,motivo,prioridade,ambiente,resolvido,created_at,texto,visualizado,visualizado_em")
+          .order("created_at", { ascending: false }),
+      ]);
 
       if (perfisResult.error) throw perfisResult.error;
+      if (usuariosAuthResult.error) throw usuariosAuthResult.error;
       if (psicologosResult.error) throw psicologosResult.error;
       if (postsResult.error) throw postsResult.error;
       if (chatsResult.error) throw chatsResult.error;
+      if (solicitacoesChatResult.error) throw solicitacoesChatResult.error;
       if (denunciasResult.error) throw denunciasResult.error;
+      if (alertasResult.error) throw alertasResult.error;
 
       const perfis = perfisResult.data || [];
+      const usuariosAuth = usuariosAuthResult.data || [];
       const registrosPsicologos = psicologosResult.data || [];
+      setPsicologosRegistros(registrosPsicologos);
       const posts = postsResult.data || [];
       const chats = chatsResult.data || [];
+      const solicitacoesChat = solicitacoesChatResult.data || [];
       const denuncias = denunciasResult.data || [];
+      const alertas = alertasResult.data || [];
 
       // A tabela perfis não possui tipo_usuario. Para não inventar
       // uma coluna no banco, o tipo de psicólogo é identificado pela
@@ -116,6 +179,10 @@ function PainelAdmin({ irPara, tema, alterarTema }) {
           .map((item) => [String(item.usuario_id), item])
       );
 
+      const mapaAuth = new Map(
+        usuariosAuth.map((item) => [String(item.id), item])
+      );
+
       const mapaContasLocais = new Map();
       contasLocais.forEach((conta) => {
         const chaves = [conta.id, conta.usuario_id, conta.email]
@@ -125,12 +192,18 @@ function PainelAdmin({ irPara, tema, alterarTema }) {
       });
 
       const contas = perfis.map((perfil) => {
+        const authUsuario = mapaAuth.get(String(perfil.id));
+        const metadata = authUsuario?.metadata || {};
         const psicologo = mapaPsicologos.get(String(perfil.id));
         const contaLocal =
           mapaContasLocais.get(String(perfil.id)) ||
           mapaContasLocais.get(String(perfil.email || ""));
 
-        let tipoUsuario = contaLocal?.tipo_usuario || "usuario";
+        let tipoUsuario =
+          metadata.tipo_usuario ||
+          metadata.tipo ||
+          contaLocal?.tipo_usuario ||
+          "usuario";
 
         if (psicologo) {
           tipoUsuario = "psicologo";
@@ -146,6 +219,9 @@ function PainelAdmin({ irPara, tema, alterarTema }) {
           ...perfil,
           ...(contaLocal || {}),
           ...perfil,
+          email: authUsuario?.email || psicologo?.email || contaLocal?.email || "",
+          confirmado_em: authUsuario?.confirmado_em || null,
+          ultimo_login: authUsuario?.ultimo_login || null,
           tipo_usuario: tipoUsuario,
           verificacao_psicologo: verificacao,
           psicologo_parceiro:
@@ -156,23 +232,22 @@ function PainelAdmin({ irPara, tema, alterarTema }) {
           estado_crp: psicologo?.estado_crp || contaLocal?.estado_crp || "",
           area_atuacao:
             psicologo?.area_atuacao || contaLocal?.area_atuacao || "",
-          email: psicologo?.email || contaLocal?.email || "",
           psicologo_id: psicologo?.id || null,
         };
       });
 
       // Contas antigas que ainda estão no localStorage e não possuem
       // perfil no banco não entram como usuários reais do Supabase.
-      const psicologos = contas.filter(
+      const psicologosUsuarios = contas.filter(
         (usuario) => usuario.tipo_usuario === "psicologo"
       );
-      const pendentes = psicologos.filter(
+      const pendentes = psicologosUsuarios.filter(
         (usuario) => usuario.verificacao_psicologo === "pendente"
       );
-      const aprovados = psicologos.filter(
+      const aprovados = psicologosUsuarios.filter(
         (usuario) => usuario.verificacao_psicologo === "aprovado"
       );
-      const recusados = psicologos.filter(
+      const recusados = psicologosUsuarios.filter(
         (usuario) => usuario.verificacao_psicologo === "recusado"
       );
       const colaboradores = contas.filter(
@@ -185,33 +260,24 @@ function PainelAdmin({ irPara, tema, alterarTema }) {
       const moderacoesDeDenuncias = denuncias.map((item) => ({
         ...item,
         _origem: "denuncia",
-        conteudo:
-          item.descricao ||
-          item.conteudo ||
-          item.motivo ||
-          "Denúncia registrada",
-        categoria: item.categoria || item.motivo || "Denúncia",
-        usuario: item.usuario || "Anônimo",
+        conteudo: item.descricao || item.motivo || "Denúncia registrada",
+        categoria: item.motivo || "Denúncia",
+        usuario: item.denunciante_id ? "Usuário identificado internamente" : "Anônimo",
+        status: item.status || "pendente",
       }));
 
-      const moderacoesDePosts = posts
-        .filter((post) => post.alerta || post.moderado)
-        .map((post) => ({
-          ...post,
-          _origem: "post",
-          conteudo: post.texto || "Conteúdo sinalizado",
-          categoria:
-            post.categoria ||
-            post.urgencia ||
-            post.classificacao ||
-            "Conteúdo sinalizado",
-          usuario: "Anônimo",
-          status: post.ativo === false ? "removido" : "pendente",
-        }));
+      const moderacoesDeAlertas = alertas.map((item) => ({
+        ...item,
+        _origem: "alerta_ia",
+        conteudo: item.texto || item.motivo || item.tipo_situacao || "Alerta gerado pela IA",
+        categoria: item.classificacao || item.tipo_situacao || "Alerta",
+        usuario: "Anônimo",
+        status: item.resolvido ? "resolvido" : "pendente",
+      }));
 
       const moderacoesSalvas = [
         ...moderacoesDeDenuncias,
-        ...moderacoesDePosts,
+        ...moderacoesDeAlertas,
       ];
 
       const escolasSalvas = lerLocalStorage("pulsanEscolas");
@@ -221,22 +287,25 @@ function PainelAdmin({ irPara, tema, alterarTema }) {
       setEscolas(escolasSalvas);
       setEmpresas(empresasSalvas);
       setModeracoes(moderacoesSalvas);
-      setConversas(chats);
+      setConversas(chats.map((conversa) => ({
+        ...conversa,
+        _participantes: 2,
+        _privada: true,
+      })));
+      setSolicitacoesChat(solicitacoesChat);
+      setAlertasIA(alertas);
 
       setDados({
-        usuarios: contas.length,
-        psicologos: psicologos.length,
+        usuarios: usuariosAuth.length || contas.length,
+        psicologos: psicologosUsuarios.length,
         pendentes: pendentes.length,
         aprovados: aprovados.length,
         recusados: recusados.length,
         colaboradores: colaboradores.length,
         alunos: alunos.length,
-        alertas: posts.filter(
-          (post) =>
-            post.alerta ||
-            post.urgencia === "grave" ||
-            post.urgencia === "urgente"
-        ).length,
+        // Alertas reais vêm da tabela alertas_ia.
+        // O contador considera os alertas ainda não resolvidos.
+        alertas: alertas.filter((alerta) => !Boolean(alerta.resolvido)).length,
         escolas: escolasSalvas.length,
         empresas: empresasSalvas.length,
         moderacoes: moderacoesSalvas.length,
@@ -493,57 +562,111 @@ function PainelAdmin({ irPara, tema, alterarTema }) {
 
   async function alterarModeracao(id, status) {
     const item = moderacoes.find((registro) => String(registro.id) === String(id));
-
     if (!item) return;
 
-    const agora = new Date().toISOString();
+    try {
+      if (item._origem === "alerta_ia") {
+        const resolvido = status === "removido" || status === "resolvido";
+        const { error } = await supabase
+          .from("alertas_ia")
+          .update({
+            resolvido,
+            visualizado: true,
+            visualizado_em: new Date().toISOString(),
+          })
+          .eq("id", item.id);
 
-    if (item._origem === "post") {
-      const atualizacao =
-        status === "removido"
-          ? {
-              ativo: false,
-              moderado: true,
-              moderacao_motivo: "Removido pela equipe Pulsan.",
-              moderado_em: agora,
-            }
-          : {
-              ativo: true,
-              moderado: false,
-              moderacao_motivo: null,
-              moderado_em: agora,
-            };
+        if (error) throw error;
+      } else if (item._origem === "denuncia") {
+        const novoStatus = status === "removido" ? "resolvida" : "analisada";
+        const { error } = await supabase
+          .from("denuncias")
+          .update({
+            status: novoStatus,
+            analisada_por: null,
+            analisada_em: new Date().toISOString(),
+            resposta_admin:
+              status === "removido"
+                ? "Ocorrência analisada pela equipe Pulsan."
+                : "Conteúdo mantido após análise da equipe Pulsan.",
+          })
+          .eq("id", item.id);
 
-      const { error } = await supabase
-        .from("posts_ambiente")
-        .update(atualizacao)
-        .eq("id", item.id);
-
-      if (error) {
-        console.error("Erro ao atualizar moderação do conteúdo:", error);
-        alert("Não foi possível atualizar este conteúdo.");
-        return;
+        if (error) throw error;
       }
-    } else if (item._origem === "denuncia") {
-      const { error } = await supabase
-        .from("denuncias")
-        .update({ status })
-        .eq("id", item.id);
 
-      if (error) {
-        console.error("Erro ao atualizar denúncia:", error);
-        alert("Não foi possível atualizar esta denúncia.");
-        return;
-      }
+      await carregarDados();
+    } catch (erro) {
+      console.error("Erro ao atualizar moderação:", erro);
+      alert("Não foi possível atualizar esta ocorrência.");
     }
-
-    await carregarDados();
   }
 
   function limparModeracoes() {
     // As ocorrências permanecem registradas no banco para auditoria.
     // O botão apenas atualiza a lista, evitando apagar evidências reais.
     carregarDados();
+  }
+
+  async function alterarStatusPsicologo(psicologo, acao) {
+    if (!psicologo?.id) return;
+
+    try {
+      const aprovado = acao === "aprovar";
+      const recusado = acao === "recusar";
+
+      const atualizacaoPsicologo = {
+        verificado: aprovado,
+        ativo: aprovado,
+      };
+
+      const { error: erroPsicologo } = await supabase
+        .from("psicologos")
+        .update(atualizacaoPsicologo)
+        .eq("id", psicologo.id);
+
+      if (erroPsicologo) throw erroPsicologo;
+
+      if (psicologo.usuario_id) {
+        const atualizacaoPerfil = {
+          verificacao_psicologo: aprovado
+            ? "aprovado"
+            : recusado
+              ? "recusado"
+              : "pendente",
+          psicologo_parceiro: aprovado,
+        };
+
+        const { error: erroPerfil } = await supabase
+          .from("perfis")
+          .update(atualizacaoPerfil)
+          .eq("id", psicologo.usuario_id);
+
+        if (erroPerfil) throw erroPerfil;
+      }
+
+      await carregarDados();
+    } catch (erro) {
+      console.error("Erro ao atualizar psicólogo:", erro);
+      alert("Não foi possível atualizar o cadastro do psicólogo.");
+    }
+  }
+
+  async function alterarAtivoPsicologo(psicologo) {
+    if (!psicologo?.id) return;
+
+    try {
+      const { error } = await supabase
+        .from("psicologos")
+        .update({ ativo: !Boolean(psicologo.ativo) })
+        .eq("id", psicologo.id);
+
+      if (error) throw error;
+      await carregarDados();
+    } catch (erro) {
+      console.error("Erro ao alterar status do psicólogo:", erro);
+      alert("Não foi possível alterar o status do psicólogo.");
+    }
   }
 
   function alterarConfiguracao(chave) {
@@ -557,6 +680,21 @@ function PainelAdmin({ irPara, tema, alterarTema }) {
     localStorage.setItem(
       "pulsanConfiguracoesAdmin",
       JSON.stringify(novaConfiguracao)
+    );
+  }
+
+  if (paginaAdmin === "conteudo") {
+    return <PaginaConteudoPulsan voltarInicio={voltarInicio} />;
+  }
+
+  if (paginaAdmin === "gestao-psicologos") {
+    return (
+      <PaginaGestaoPsicologos
+        psicologos={psicologosRegistros}
+        voltarInicio={voltarInicio}
+        alterarStatus={alterarStatusPsicologo}
+        alterarAtivo={alterarAtivoPsicologo}
+      />
     );
   }
 
@@ -623,6 +761,7 @@ function PainelAdmin({ irPara, tema, alterarTema }) {
         empresas={empresas}
         moderacoes={moderacoes}
         conversas={conversas}
+        solicitacoes={solicitacoesChat}
         voltarInicio={voltarInicio}
       />
     );
@@ -632,6 +771,7 @@ function PainelAdmin({ irPara, tema, alterarTema }) {
     return (
       <PaginaConversas
         conversas={conversas}
+        solicitacoes={solicitacoesChat}
         voltarInicio={voltarInicio}
       />
     );
@@ -1169,15 +1309,16 @@ function PainelAdmin({ irPara, tema, alterarTema }) {
 
           <nav className="pulsan-admin-nav">
             <button type="button" onClick={() => setPaginaAdmin("inicio")}>⌂ &nbsp; Visão geral</button>
-            <button type="button" onClick={() => irPara("gestao-psicologos")}>🧠 &nbsp; Psicólogos</button>
-            <button type="button" onClick={() => irPara("alertas")}>🚨 &nbsp; Alertas</button>
-            <button type="button" onClick={abrirUsuarios}>👥 &nbsp; Usuários</button>
-            <button type="button" onClick={() => abrirPagina("escolas")}>🏫 &nbsp; Escolas</button>
-            <button type="button" onClick={() => abrirPagina("empresas")}>🏢 &nbsp; Empresas</button>
-            <button type="button" onClick={() => abrirPagina("moderacao")}>🛡️ &nbsp; Moderação</button>
-            <button type="button" onClick={() => abrirPagina("relatorios")}>📊 &nbsp; Relatórios</button>
-            <button type="button" onClick={() => abrirPagina("conversas")}>💬 &nbsp; Conversas</button>
-            <button type="button" onClick={() => abrirPagina("configuracoes")}>⚙️ &nbsp; Configurações</button>
+            <button type="button" onClick={() => abrirPagina("gestao-psicologos")}><Icon name="brain" size={17} /> &nbsp; Psicólogos</button>
+            <button type="button" onClick={() => irPara("alertas")}><Icon name="alert" size={17} /> &nbsp; Alertas</button>
+            <button type="button" onClick={abrirUsuarios}><Icon name="users" size={17} /> &nbsp; Usuários</button>
+            <button type="button" onClick={() => abrirPagina("escolas")}><Icon name="school" size={17} /> &nbsp; Escolas</button>
+            <button type="button" onClick={() => abrirPagina("empresas")}><Icon name="company" size={17} /> &nbsp; Empresas</button>
+            <button type="button" onClick={() => abrirPagina("moderacao")}><Icon name="shield" size={17} /> &nbsp; Moderação</button>
+            <button type="button" onClick={() => abrirPagina("relatorios")}><Icon name="chart" size={17} /> &nbsp; Relatórios</button>
+            <button type="button" onClick={() => abrirPagina("conversas")}><Icon name="chat" size={17} /> &nbsp; Conversas</button>
+            <button type="button" onClick={() => abrirPagina("configuracoes")}><Icon name="settings" size={17} /> &nbsp; Configurações</button>
+             <button type="button" onClick={() => abrirPagina("conteudo")}><Icon name="content" size={17} /> &nbsp; Conteúdo Pulsan</button>
           </nav>
 
           <div className="pulsan-admin-sidebar-spacer" />
@@ -1212,7 +1353,7 @@ function PainelAdmin({ irPara, tema, alterarTema }) {
 
         <section className="pulsan-admin-content">
           <div className="pulsan-admin-topbar">
-            <div className="pulsan-admin-kicker">🛡️ Área restrita · Equipe Pulsan</div>
+            <div className="pulsan-admin-kicker"><Icon name="shield" size={15} /> Área restrita · Equipe Pulsan</div>
 
             <div className="pulsan-admin-actions">
               <button
@@ -1221,7 +1362,7 @@ function PainelAdmin({ irPara, tema, alterarTema }) {
                 onClick={carregarDados}
                 title="Atualizar dados"
               >
-                ↻ Atualizar
+                <Icon name="refresh" size={16} /> Atualizar
               </button>
 
               {typeof alterarTema === "function" && (
@@ -1230,7 +1371,7 @@ function PainelAdmin({ irPara, tema, alterarTema }) {
                   className="pulsan-admin-action"
                   onClick={() => alterarTema(tema === "dark" ? "light" : "dark")}
                 >
-                  {tema === "dark" ? "☀️ Claro" : "🌙 Escuro"}
+                  {tema === "dark" ? <><Icon name="sun" size={16} /> Claro</> : <><Icon name="moon" size={16} /> Escuro</>}
                 </button>
               )}
             </div>
@@ -1265,18 +1406,18 @@ function PainelAdmin({ irPara, tema, alterarTema }) {
           </div>
 
           <div className="pulsan-admin-stats">
-            <CardResumoModerno icone="👥" titulo="Usuários" valor={dados.usuarios} descricao="Contas cadastradas" />
-            <CardResumoModerno icone="🧠" titulo="Psicólogos" valor={dados.psicologos} descricao="Profissionais cadastrados" />
-            <CardResumoModerno icone="⏳" titulo="Pendentes" valor={dados.pendentes} descricao="Aguardando aprovação" />
-            <CardResumoModerno icone="🤝" titulo="Parceiros" valor={dados.aprovados} descricao="Psicólogos aprovados" />
-            <CardResumoModerno icone="🚨" titulo="Alertas" valor={dados.alertas} descricao="Alertas registrados" />
-            <CardResumoModerno icone="🎓" titulo="Alunos" valor={dados.alunos} descricao="Usuários alunos" />
-            <CardResumoModerno icone="💼" titulo="Colaboradores" valor={dados.colaboradores} descricao="Usuários colaboradores" />
-            <CardResumoModerno icone="🏫" titulo="Escolas" valor={dados.escolas} descricao="Instituições cadastradas" />
-            <CardResumoModerno icone="🏢" titulo="Empresas" valor={dados.empresas} descricao="Empresas cadastradas" />
-            <CardResumoModerno icone="🛡️" titulo="Moderação" valor={dados.moderacoes} descricao="Ocorrências registradas" />
-            <CardResumoModerno icone="💬" titulo="Conversas" valor={dados.conversas} descricao="Conversas registradas" />
-            <CardResumoModerno icone="❌" titulo="Recusados" valor={dados.recusados} descricao="Psicólogos recusados" />
+            <CardResumoModerno icone="users" titulo="Usuários" valor={dados.usuarios} descricao="Contas cadastradas" />
+            <CardResumoModerno icone="brain" titulo="Psicólogos" valor={dados.psicologos} descricao="Profissionais cadastrados" />
+            <CardResumoModerno icone="pending" titulo="Pendentes" valor={dados.pendentes} descricao="Aguardando aprovação" />
+            <CardResumoModerno icone="partner" titulo="Parceiros" valor={dados.aprovados} descricao="Psicólogos aprovados" />
+            <CardResumoModerno icone="alert" titulo="Alertas" valor={dados.alertas} descricao="Alertas registrados" />
+            <CardResumoModerno icone="student" titulo="Alunos" valor={dados.alunos} descricao="Usuários alunos" />
+            <CardResumoModerno icone="briefcase" titulo="Colaboradores" valor={dados.colaboradores} descricao="Usuários colaboradores" />
+            <CardResumoModerno icone="school" titulo="Escolas" valor={dados.escolas} descricao="Instituições cadastradas" />
+            <CardResumoModerno icone="company" titulo="Empresas" valor={dados.empresas} descricao="Empresas cadastradas" />
+            <CardResumoModerno icone="shield" titulo="Moderação" valor={dados.moderacoes} descricao="Ocorrências registradas" />
+            <CardResumoModerno icone="chat" titulo="Conversas" valor={dados.conversas} descricao="Conversas registradas" />
+            <CardResumoModerno icone="close" titulo="Recusados" valor={dados.recusados} descricao="Psicólogos recusados" />
           </div>
 
           <div className="pulsan-admin-section-title">
@@ -1286,16 +1427,16 @@ function PainelAdmin({ irPara, tema, alterarTema }) {
 
           <div className="pulsan-admin-tools">
             <CardAdministracaoModerno
-              icone="🧠"
+              icone="brain"
               titulo="Gestão de Psicólogos"
               descricao="Analise documentos, acompanhe verificações e aprove ou recuse profissionais."
               destaque={dados.pendentes}
               textoDestaque={dados.pendentes > 0 ? `${dados.pendentes} aguardando análise` : "Tudo em dia"}
-              onClick={() => irPara("gestao-psicologos")}
+              onClick={() => abrirPagina("gestao-psicologos")}
             />
 
             <CardAdministracaoModerno
-              icone="🚨"
+              icone="alert"
               titulo="Alertas"
               descricao="Acompanhe situações classificadas e encaminhamentos da plataforma."
               destaque={dados.alertas}
@@ -1303,20 +1444,21 @@ function PainelAdmin({ irPara, tema, alterarTema }) {
               onClick={() => irPara("alertas")}
             />
 
-            <CardAdministracaoModerno icone="👥" titulo="Usuários" descricao="Pesquise e filtre as contas cadastradas." onClick={abrirUsuarios} />
-            <CardAdministracaoModerno icone="🏫" titulo="Escolas" descricao="Cadastre, ative, desative ou exclua instituições." onClick={() => abrirPagina("escolas")} />
-            <CardAdministracaoModerno icone="🏢" titulo="Empresas" descricao="Cadastre, ative, desative ou exclua empresas." onClick={() => abrirPagina("empresas")} />
+            <CardAdministracaoModerno icone="users" titulo="Usuários" descricao="Pesquise e filtre as contas cadastradas." onClick={abrirUsuarios} />
+            <CardAdministracaoModerno icone="school" titulo="Escolas" descricao="Cadastre, ative, desative ou exclua instituições." onClick={() => abrirPagina("escolas")} />
+            <CardAdministracaoModerno icone="company" titulo="Empresas" descricao="Cadastre, ative, desative ou exclua empresas." onClick={() => abrirPagina("empresas")} />
             <CardAdministracaoModerno
-              icone="🛡️"
+              icone="shield"
               titulo="Moderação"
               descricao="Analise conteúdos sinalizados e registre a decisão da equipe."
               destaque={dados.moderacoes}
               textoDestaque={`${dados.moderacoes} ocorrência(s)`}
               onClick={() => abrirPagina("moderacao")}
             />
-            <CardAdministracaoModerno icone="📊" titulo="Relatórios" descricao="Consulte os principais indicadores administrativos." onClick={() => abrirPagina("relatorios")} />
-            <CardAdministracaoModerno icone="💬" titulo="Conversas" descricao="Consulte as conversas registradas respeitando o anonimato." onClick={() => abrirPagina("conversas")} />
-            <CardAdministracaoModerno icone="⚙️" titulo="Configurações" descricao="Controle recursos e preferências administrativas." onClick={() => abrirPagina("configuracoes")} />
+            <CardAdministracaoModerno icone="chart" titulo="Relatórios" descricao="Consulte os principais indicadores administrativos." onClick={() => abrirPagina("relatorios")} />
+            <CardAdministracaoModerno icone="chat" titulo="Conversas" descricao="Consulte as conversas registradas respeitando o anonimato." onClick={() => abrirPagina("conversas")} />
+            <CardAdministracaoModerno icone="settings" titulo="Configurações" descricao="Controle recursos e preferências administrativas." onClick={() => abrirPagina("configuracoes")} />
+             <CardAdministracaoModerno icone="content" titulo="Conteúdo Pulsan" descricao="Gerencie reflexões e Momentos Pulsan publicados no aplicativo." onClick={() => abrirPagina("conteudo")} />
           </div>
         </section>
       </div>
@@ -1324,10 +1466,152 @@ function PainelAdmin({ irPara, tema, alterarTema }) {
   );
 }
 
+
+function PaginaConteudoPulsan({ voltarInicio }) {
+  const [aba, setAba] = useState("reflexoes");
+  const [reflexoes, setReflexoes] = useState([]);
+  const [momentos, setMomentos] = useState([]);
+  const [carregando, setCarregando] = useState(true);
+  const [editando, setEditando] = useState(null);
+
+  const sentimentos = [
+    "Cansado", "Ansioso", "Triste", "Pensando demais", "Irritado", "Vazio",
+    "Desanimado", "Com medo", "Inseguro", "Sobrecarregado", "Frustrado",
+    "Medo do futuro", "Depressivo", "Solitário", "Sem esperança",
+  ];
+
+  async function carregar() {
+    setCarregando(true);
+    const [r, m] = await Promise.all([
+      supabase.from("reflexoes").select("id,sentimento,mensagem,pergunta,acao,categoria,nivel,ativa,ativo").order("id", { ascending: false }),
+      supabase.from("momentos_pulsan").select("id,sentimento,titulo,descricao,reflexao,video_url,audio_url,ordem,ativo,created_at,updated_at").order("ordem", { ascending: true }),
+    ]);
+    if (r.error) console.error("Erro ao carregar reflexões:", r.error);
+    if (m.error) console.error("Erro ao carregar Momentos Pulsan:", m.error);
+    setReflexoes(r.data || []);
+    setMomentos(m.data || []);
+    setCarregando(false);
+  }
+
+  useEffect(() => { carregar(); }, []);
+
+  async function excluirReflexao(id) {
+    if (!window.confirm("Excluir esta reflexão?")) return;
+    const { error } = await supabase.from("reflexoes").delete().eq("id", id);
+    if (error) return alert("Não foi possível excluir a reflexão.");
+    carregar();
+  }
+
+  async function alternarReflexao(item) {
+    const ativo = !(item.ativa !== false && item.ativo !== false);
+    const { error } = await supabase.from("reflexoes").update({ ativa: ativo, ativo: ativo }).eq("id", item.id);
+    if (error) return alert("Não foi possível alterar o status da reflexão.");
+    carregar();
+  }
+
+  async function excluirMomento(id) {
+    if (!window.confirm("Excluir este Momento Pulsan?")) return;
+    const { error } = await supabase.from("momentos_pulsan").delete().eq("id", id);
+    if (error) return alert("Não foi possível excluir o momento.");
+    carregar();
+  }
+
+  async function alternarMomento(item) {
+    const { error } = await supabase.from("momentos_pulsan").update({ ativo: !item.ativo, updated_at: new Date().toISOString() }).eq("id", item.id);
+    if (error) return alert("Não foi possível alterar o status do momento.");
+    carregar();
+  }
+
+  if (editando) {
+    return (
+      <PaginaBase titulo={editando.tipo === "momento" ? "Editar Momento Pulsan" : "Editar reflexão"} icone="content" voltarInicio={() => { setEditando(null); carregar(); }}>
+        <EditorConteudoPulsan item={editando.item} tipo={editando.tipo} cancelar={() => setEditando(null)} salvo={() => { setEditando(null); carregar(); }} />
+      </PaginaBase>
+    );
+  }
+
+  return (
+    <PaginaBase titulo="Conteúdo Pulsan" icone="content" voltarInicio={voltarInicio}>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+        <button type="button" style={aba === "reflexoes" ? botaoPrimario : botaoPequeno} onClick={() => setAba("reflexoes")}>Reflexões / Cards</button>
+        <button type="button" style={aba === "momentos" ? botaoPrimario : botaoPequeno} onClick={() => setAba("momentos")}>Momentos Pulsan</button>
+        <button type="button" style={botaoPequeno} onClick={carregar}><Icon name="refresh" size={16} /> Atualizar</button>
+      </div>
+      {carregando ? <EstadoVazio icone="pending" titulo="Carregando conteúdo" texto="Buscando os conteúdos no Supabase." /> : aba === "reflexoes" ? (
+        <div style={lista}>
+          {reflexoes.length === 0 ? <EstadoVazio icone="content" titulo="Nenhuma reflexão" texto="Cadastre a primeira reflexão no painel." /> : reflexoes.map((item) => (
+            <div key={item.id} style={cardLista}>
+              <strong>{item.sentimento || "Sem sentimento"}</strong>
+              <p style={textoSecundario}>{item.mensagem || "Sem mensagem"}</p>
+              {item.pergunta && <p style={textoSecundario}><b>Pergunta:</b> {item.pergunta}</p>}
+              {item.acao && <p style={textoSecundario}><b>Ação:</b> {item.acao}</p>}
+              <div style={detalhes}><span style={badgeNeutro}>{item.categoria || "geral"}</span><span style={badgeNeutro}>{item.nivel || "normal"}</span><span style={item.ativa !== false && item.ativo !== false ? badgeVerde : badgeVermelho}>{item.ativa !== false && item.ativo !== false ? "Ativa" : "Inativa"}</span></div>
+              <div style={acoes}><button type="button" style={botaoPequeno} onClick={() => setEditando({ tipo: "reflexao", item })}>Editar</button><button type="button" style={botaoPequeno} onClick={() => alternarReflexao(item)}>{item.ativa !== false && item.ativo !== false ? "Desativar" : "Ativar"}</button><button type="button" style={botaoPerigo} onClick={() => excluirReflexao(item.id)}>Excluir</button></div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div style={lista}>
+          {momentos.length === 0 ? <EstadoVazio icone="video" titulo="Nenhum Momento Pulsan" texto="Cadastre o primeiro momento no painel." /> : momentos.map((item) => (
+            <div key={item.id} style={cardLista}>
+              <strong>{item.titulo}</strong><div style={textoSecundario}>{item.sentimento}</div><p style={textoSecundario}>{item.descricao || item.reflexao || "Sem descrição"}</p>
+              <div style={detalhes}><span style={badgeNeutro}>Ordem: {item.ordem}</span><span style={badgeNeutro}>Vídeo {item.video_url ? "✓" : "—"}</span><span style={badgeNeutro}>Áudio {item.audio_url ? "✓" : "—"}</span><span style={item.ativo ? badgeVerde : badgeVermelho}>{item.ativo ? "Ativo" : "Inativo"}</span></div>
+              <div style={acoes}><button type="button" style={botaoPequeno} onClick={() => setEditando({ tipo: "momento", item })}>Editar</button><button type="button" style={botaoPequeno} onClick={() => alternarMomento(item)}>{item.ativo ? "Desativar" : "Ativar"}</button><button type="button" style={botaoPerigo} onClick={() => excluirMomento(item.id)}>Excluir</button></div>
+            </div>
+          ))}
+        </div>
+      )}
+    </PaginaBase>
+  );
+}
+
+function EditorConteudoPulsan({ item, tipo, cancelar, salvo }) {
+  const [form, setForm] = useState(tipo === "momento" ? {
+    sentimento: item?.sentimento || "Cansado", titulo: item?.titulo || "", descricao: item?.descricao || "", reflexao: item?.reflexao || "", video_url: item?.video_url || "", audio_url: item?.audio_url || "", ordem: item?.ordem || 1, ativo: item?.ativo !== false,
+  } : {
+    sentimento: item?.sentimento || "Cansado", mensagem: item?.mensagem || "", pergunta: item?.pergunta || "", acao: item?.acao || "", categoria: item?.categoria || "geral", nivel: item?.nivel || "normal", ativa: item?.ativa !== false, ativo: item?.ativo !== false,
+  });
+  const [salvando, setSalvando] = useState(false);
+  const sentimentos = ["Cansado","Ansioso","Triste","Pensando demais","Irritado","Vazio","Desanimado","Com medo","Inseguro","Sobrecarregado","Frustrado","Medo do futuro","Depressivo","Solitário","Sem esperança"];
+  const alterar = (campo, valor) => setForm((f) => ({ ...f, [campo]: valor }));
+  async function salvar() {
+    setSalvando(true);
+    const payload = tipo === "momento" ? { ...form, ordem: Number(form.ordem) || 1, updated_at: new Date().toISOString() } : { ...form, ativa: Boolean(form.ativa), ativo: Boolean(form.ativo) };
+    const q = item?.id ? supabase.from(tipo === "momento" ? "momentos_pulsan" : "reflexoes").update(payload).eq("id", item.id) : supabase.from(tipo === "momento" ? "momentos_pulsan" : "reflexoes").insert(payload);
+    const { error } = await q;
+    setSalvando(false);
+    if (error) { console.error(error); alert("Não foi possível salvar. Confira as colunas e as políticas do Supabase."); return; }
+    salvo();
+  }
+  return <div style={cardLista}>
+    <div style={{ display: "grid", gap: 12 }}>
+      <label>Sentimento<select value={form.sentimento} onChange={(e) => alterar("sentimento", e.target.value)} style={inputStyle}>{sentimentos.map((s) => <option key={s}>{s}</option>)}</select></label>
+      {tipo === "momento" ? <>
+        <label>Título<input value={form.titulo} onChange={(e) => alterar("titulo", e.target.value)} style={inputStyle} /></label>
+        <label>Descrição<textarea value={form.descricao} onChange={(e) => alterar("descricao", e.target.value)} style={{ ...inputStyle, minHeight: 90 }} /></label>
+        <label>Reflexão<textarea value={form.reflexao} onChange={(e) => alterar("reflexao", e.target.value)} style={{ ...inputStyle, minHeight: 90 }} /></label>
+        <label>URL do vídeo<input value={form.video_url} onChange={(e) => alterar("video_url", e.target.value)} style={inputStyle} /></label>
+        <label>URL do áudio<input value={form.audio_url} onChange={(e) => alterar("audio_url", e.target.value)} style={inputStyle} /></label>
+        <label>Ordem<input type="number" value={form.ordem} onChange={(e) => alterar("ordem", e.target.value)} style={inputStyle} /></label>
+        <label><input type="checkbox" checked={form.ativo} onChange={(e) => alterar("ativo", e.target.checked)} /> Ativo</label>
+      </> : <>
+        <label>Mensagem<textarea value={form.mensagem} onChange={(e) => alterar("mensagem", e.target.value)} style={{ ...inputStyle, minHeight: 120 }} /></label>
+        <label>Pergunta<textarea value={form.pergunta} onChange={(e) => alterar("pergunta", e.target.value)} style={{ ...inputStyle, minHeight: 80 }} /></label>
+        <label>Ação<textarea value={form.acao} onChange={(e) => alterar("acao", e.target.value)} style={{ ...inputStyle, minHeight: 80 }} /></label>
+        <label>Categoria<input value={form.categoria} onChange={(e) => alterar("categoria", e.target.value)} style={inputStyle} /></label>
+        <label>Nível<input value={form.nivel} onChange={(e) => alterar("nivel", e.target.value)} style={inputStyle} /></label>
+        <label><input type="checkbox" checked={form.ativa} onChange={(e) => alterar("ativa", e.target.checked)} /> Ativa</label>
+        <label><input type="checkbox" checked={form.ativo} onChange={(e) => alterar("ativo", e.target.checked)} /> Ativo</label>
+      </>}
+      <div style={acoes}><button type="button" style={botaoPrimario} onClick={salvar} disabled={salvando}>{salvando ? "Salvando..." : "Salvar"}</button><button type="button" style={botaoPequeno} onClick={cancelar}>Cancelar</button></div>
+    </div>
+  </div>;
+}
+
 function CardResumoModerno({ icone, titulo, valor, descricao }) {
   return (
     <div className="pulsan-admin-stat">
-      <div className="pulsan-admin-stat-icon">{icone}</div>
+      <div className="pulsan-admin-stat-icon"><Icon name={icone} size={18} /></div>
       <div className="pulsan-admin-stat-value">{valor}</div>
       <div className="pulsan-admin-stat-name">{titulo}</div>
       <div className="pulsan-admin-stat-desc">{descricao}</div>
@@ -1347,14 +1631,14 @@ function CardAdministracaoModerno({
 
   return (
     <button type="button" className="pulsan-admin-tool" onClick={onClick}>
-      <div className="pulsan-admin-tool-icon">{icone}</div>
-      <div className="pulsan-admin-tool-arrow">→</div>
+      <div className="pulsan-admin-tool-icon"><Icon name={icone} size={19} /></div>
+      <div className="pulsan-admin-tool-arrow"><Icon name="arrow" size={15} /></div>
       <h3>{titulo}</h3>
       <p>{descricao}</p>
 
       {possuiDestaque && (
         <span className={`pulsan-admin-tool-badge ${destaque === 0 ? "ok" : ""}`}>
-          {destaque === 0 ? "✓ " : "⏳ "}
+          {destaque === 0 ? <Icon name="check" size={13} /> : <Icon name="pending" size={13} />}
           {textoDestaque}
         </span>
       )}
@@ -1365,6 +1649,119 @@ function CardAdministracaoModerno({
 /* =========================================================
    PÁGINA DE ESCOLAS
 ========================================================= */
+
+function PaginaGestaoPsicologos({
+  psicologos = [],
+  voltarInicio,
+  alterarStatus,
+  alterarAtivo,
+}) {
+  const [busca, setBusca] = useState("");
+  const [filtro, setFiltro] = useState("todos");
+
+  const lista = useMemo(() => {
+    const termo = busca.trim().toLowerCase();
+    return psicologos.filter((p) => {
+      const status = p.verificado
+        ? "aprovado"
+        : p.ativo === false && p.verificado === false
+          ? "pendente"
+          : "pendente";
+
+      const bateFiltro = filtro === "todos" || status === filtro;
+      const bateBusca = !termo || [
+        p.nome,
+        p.email,
+        p.crp,
+        p.estado_crp,
+        p.area_atuacao,
+        p.telefone,
+      ].filter(Boolean).some((valor) => String(valor).toLowerCase().includes(termo));
+
+      return bateFiltro && bateBusca;
+    });
+  }, [psicologos, busca, filtro]);
+
+  const pendentes = psicologos.filter((p) => !p.verificado).length;
+  const aprovados = psicologos.filter((p) => p.verificado).length;
+
+  return (
+    <PaginaBase titulo="Psicólogos parceiros" subtitulo="Analise, aprove e gerencie os profissionais cadastrados no Pulsan." voltarInicio={voltarInicio}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))", gap: 14, marginBottom: 20 }}>
+        <CardResumoModerno icone="brain" titulo="Total" valor={psicologos.length} descricao="Cadastros" />
+        <CardResumoModerno icone="pending" titulo="Pendentes" valor={pendentes} descricao="Aguardando análise" />
+        <CardResumoModerno icone="check" titulo="Aprovados" valor={aprovados} descricao="Parceiros verificados" />
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 190px", gap: 12, marginBottom: 18 }}>
+        <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por nome, e-mail, CRP ou área..." style={inputStyle} />
+        <select value={filtro} onChange={(e) => setFiltro(e.target.value)} style={inputStyle}>
+          <option value="todos">Todos</option>
+          <option value="pendente">Pendentes</option>
+          <option value="aprovado">Aprovados</option>
+        </select>
+      </div>
+
+      {lista.length === 0 ? (
+        <EstadoVazio icone="brain" titulo="Nenhum psicólogo encontrado" texto="Não há cadastros correspondentes aos filtros atuais." />
+      ) : (
+        <div style={{ display: "grid", gap: 14 }}>
+          {lista.map((p) => {
+            const aprovado = Boolean(p.verificado);
+            return (
+              <div key={p.id} style={{ background: "#fff", border: "1px solid #dbe7f5", borderRadius: 20, padding: 18, boxShadow: "0 8px 24px rgba(15,45,91,.06)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+                  <div style={{ display: "flex", gap: 14, alignItems: "flex-start", minWidth: 0 }}>
+                    <div style={{ width: 54, height: 54, borderRadius: "50%", background: "#EAF3FF", display: "grid", placeItems: "center", fontSize: 24, flexShrink: 0 }}><Icon name="brain" size={24} /></div>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 18, fontWeight: 950, color: "#0F2D5B" }}>{p.nome || "Nome não informado"}</div>
+                      <div style={{ marginTop: 4, color: "#5f7692", fontSize: 13 }}>{p.email || "E-mail não informado"}</div>
+                      <div style={{ marginTop: 8, display: "flex", gap: 7, flexWrap: "wrap" }}>
+                        <span style={badgeStyle(aprovado ? "#e9f9ef" : "#fff5dc", aprovado ? "#167347" : "#9a6500")}>{aprovado ? <><Icon name="check" size={13} /> Aprovado</> : <><Icon name="pending" size={13} /> Pendente</>}</span>
+                        <span style={badgeStyle(p.ativo ? "#eef6ff" : "#f2f4f7", p.ativo ? "#2563a8" : "#667085")}>{p.ativo ? "Ativo" : "Inativo"}</span>
+                        {p.disponivel && <span style={badgeStyle("#eefcf8", "#13795b")}>Disponível</span>}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                    {!aprovado && <button type="button" onClick={() => alterarStatus(p, "aprovar")} style={buttonPrimary}>Aprovar</button>}
+                    {!aprovado && <button type="button" onClick={() => alterarStatus(p, "recusar")} style={buttonDanger}>Recusar</button>}
+                    {aprovado && <button type="button" onClick={() => alterarAtivo(p)} style={buttonSecondary}>{p.ativo ? "Desativar" : "Ativar"}</button>}
+                  </div>
+                </div>
+
+                <div style={{ marginTop: 16, display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 10 }}>
+                  <InfoMini titulo="CRP" valor={p.crp || "Não informado"} />
+                  <InfoMini titulo="Estado do CRP" valor={p.estado_crp || "Não informado"} />
+                  <InfoMini titulo="Telefone" valor={p.telefone || "Não informado"} />
+                  <InfoMini titulo="Área de atuação" valor={p.area_atuacao || "Não informada"} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </PaginaBase>
+  );
+}
+
+function InfoMini({ titulo, valor }) {
+  return (
+    <div style={{ background: "#f7faff", borderRadius: 14, padding: 12 }}>
+      <div style={{ fontSize: 11, fontWeight: 850, color: "#7890aa", textTransform: "uppercase" }}>{titulo}</div>
+      <div style={{ marginTop: 4, color: "#183b63", fontWeight: 800, fontSize: 13, wordBreak: "break-word" }}>{valor}</div>
+    </div>
+  );
+}
+
+function badgeStyle(background, color) {
+  return { display: "inline-flex", alignItems: "center", padding: "6px 9px", borderRadius: 999, background, color, fontSize: 11, fontWeight: 900 };
+}
+
+const buttonPrimary = { border: "none", borderRadius: 12, padding: "10px 14px", background: "#3A7DFF", color: "#fff", fontWeight: 900, cursor: "pointer" };
+const buttonDanger = { border: "1px solid #f1b5b5", borderRadius: 12, padding: "10px 14px", background: "#fff5f5", color: "#a33434", fontWeight: 900, cursor: "pointer" };
+const buttonSecondary = { border: "1px solid #cbd9ea", borderRadius: 12, padding: "10px 14px", background: "#fff", color: "#23496f", fontWeight: 900, cursor: "pointer" };
 
 function PaginaEscolas({
   escolas,
@@ -1378,14 +1775,14 @@ function PaginaEscolas({
   return (
     <PaginaBase
       titulo="Gestão de Escolas"
-      icone="🏫"
+      icone="school"
       voltarInicio={voltarInicio}
     >
       <div style={barraAcao}>
         <input
           value={busca}
           onChange={(e) => setBusca(e.target.value)}
-          placeholder="🔎 Buscar escola..."
+          placeholder="Buscar escola..."
           style={inputStyle}
         />
 
@@ -1405,7 +1802,7 @@ function PaginaEscolas({
 
       {escolas.length === 0 ? (
         <EstadoVazio
-          icone="🏫"
+          icone="school"
           titulo="Nenhuma escola cadastrada"
           texto="As instituições cadastradas aparecerão aqui."
         />
@@ -1414,7 +1811,7 @@ function PaginaEscolas({
           {escolas.map((escola) => (
             <div key={escola.id} style={cardLista}>
               <div style={linhaPrincipal}>
-                <div style={avatarGrande}>🏫</div>
+                <div style={avatarGrande}><Icon name="school" size={24} /></div>
 
                 <div style={{ flex: 1 }}>
                   <strong>{escola.nome}</strong>
@@ -1426,7 +1823,7 @@ function PaginaEscolas({
                   <div style={detalhes}>
                     {escola.cidade && (
                       <span style={badgeNeutro}>
-                        📍 {escola.cidade}
+                        <span style={{display:"inline-flex",alignItems:"center",gap:5}}><Icon name="location" size={13} />{escola.cidade}</span>
                       </span>
                     )}
 
@@ -1488,14 +1885,14 @@ function PaginaEmpresas({
   return (
     <PaginaBase
       titulo="Gestão de Empresas"
-      icone="🏢"
+      icone="company"
       voltarInicio={voltarInicio}
     >
       <div style={barraAcao}>
         <input
           value={busca}
           onChange={(e) => setBusca(e.target.value)}
-          placeholder="🔎 Buscar empresa..."
+          placeholder="Buscar empresa..."
           style={inputStyle}
         />
 
@@ -1515,7 +1912,7 @@ function PaginaEmpresas({
 
       {empresas.length === 0 ? (
         <EstadoVazio
-          icone="🏢"
+          icone="company"
           titulo="Nenhuma empresa cadastrada"
           texto="As empresas participantes aparecerão aqui."
         />
@@ -1524,7 +1921,7 @@ function PaginaEmpresas({
           {empresas.map((empresa) => (
             <div key={empresa.id} style={cardLista}>
               <div style={linhaPrincipal}>
-                <div style={avatarGrande}>🏢</div>
+                <div style={avatarGrande}><Icon name="company" size={24} /></div>
 
                 <div style={{ flex: 1 }}>
                   <strong>{empresa.nome}</strong>
@@ -1597,14 +1994,14 @@ function PaginaModeracao({
   return (
     <PaginaBase
       titulo="Moderação"
-      icone="🛡️"
+      icone="shield"
       voltarInicio={voltarInicio}
     >
       <div style={barraAcao}>
         <input
           value={busca}
           onChange={(e) => setBusca(e.target.value)}
-          placeholder="🔎 Buscar ocorrência..."
+          placeholder="Buscar ocorrência..."
           style={inputStyle}
         />
 
@@ -1621,7 +2018,7 @@ function PaginaModeracao({
 
       {moderacoes.length === 0 ? (
         <EstadoVazio
-          icone="🛡️"
+          icone="shield"
           titulo="Nenhuma ocorrência"
           texto="Conteúdos sinalizados para moderação aparecerão aqui."
         />
@@ -1632,8 +2029,8 @@ function PaginaModeracao({
               <div style={linhaPrincipal}>
                 <div style={avatarGrande}>
                   {item.categoria === "grave"
-                    ? "🔴"
-                    : "🟡"}
+                    ? <Icon name="alert" size={22} />
+                    : <Icon name="pending" size={22} />}
                 </div>
 
                 <div style={{ flex: 1 }}>
@@ -1729,7 +2126,7 @@ function PaginaRelatorios({
   return (
     <PaginaBase
       titulo="Relatórios"
-      icone="📊"
+      icone="chart"
       voltarInicio={voltarInicio}
     >
       <div style={gridRelatorios}>
@@ -1783,7 +2180,7 @@ function PaginaRelatorios({
       </div>
 
       <div style={infoBox}>
-        <strong>📈 Indicadores da plataforma</strong>
+        <strong style={{display:"inline-flex",alignItems:"center",gap:7}}><Icon name="chart" size={17} /> Indicadores da plataforma</strong>
 
         <p style={textoSecundario}>
           Esta área será ampliada posteriormente com
@@ -1799,65 +2196,188 @@ function PaginaRelatorios({
    CONVERSAS
 ========================================================= */
 
-function PaginaConversas({ conversas, voltarInicio }) {
+function mascararIdConversa(id) {
+  if (!id) return "Participante não identificado";
+  const valor = String(id);
+  if (valor.length <= 10) return "Participante protegido";
+  return `Participante ••••${valor.slice(-6)}`;
+}
+
+function PaginaConversas({ conversas, solicitacoes = [], voltarInicio }) {
+  const pendentes = solicitacoes.filter(
+    (solicitacao) => String(solicitacao.status || "").toLowerCase() === "pendente"
+  );
+
   return (
     <PaginaBase
-      titulo="Conversas"
-      icone="💬"
+      titulo="Conversas privadas"
+      icone="chat"
       voltarInicio={voltarInicio}
     >
+      <div style={gridResumo}>
+        <div style={resumoCard}>
+          <span style={resumoNumero}>{conversas.length}</span>
+          <span style={resumoLabel}>Conversas iniciadas</span>
+        </div>
+        <div style={resumoCard}>
+          <span style={resumoNumero}>{pendentes.length}</span>
+          <span style={resumoLabel}>Solicitações pendentes</span>
+        </div>
+        <div style={resumoCard}>
+          <span style={resumoNumero}>2</span>
+          <span style={resumoLabel}>Pessoas por conversa</span>
+        </div>
+      </div>
+
       {conversas.length === 0 ? (
         <EstadoVazio
-          icone="💬"
+          icone="chat"
           titulo="Nenhuma conversa registrada"
-          texto="As conversas da plataforma aparecerão aqui quando o recurso estiver conectado."
+          texto="As conversas privadas aparecerão aqui quando duas pessoas iniciarem um atendimento entre si."
         />
       ) : (
         <div style={lista}>
-          {conversas.map((conversa, index) => (
-            <div
-              key={conversa.id || index}
-              style={cardLista}
-            >
-              <div style={linhaPrincipal}>
-                <div style={avatarGrande}>💬</div>
+          {conversas.map((conversa, index) => {
+            const status = String(conversa.status || "ativa").toLowerCase();
+            const statusTexto =
+              status === "ativa"
+                ? "Ativa"
+                : status === "encerrada"
+                ? "Encerrada"
+                : status;
 
-                <div style={{ flex: 1 }}>
-                  <strong>
-                    {conversa.titulo ||
-                      "Conversa anônima"}
-                  </strong>
+            return (
+              <div
+                key={conversa.id || index}
+                style={cardLista}
+              >
+                <div style={linhaPrincipal}>
+                  <div style={avatarGrande}><Icon name="lock" size={16} /></div>
 
-                  <div style={textoSecundario}>
-                    {conversa.status ||
-                      "Em andamento"}
-                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <strong>Conversa privada</strong>
 
-                  {conversa.criado_em && (
-                    <div style={dataTexto}>
-                      {new Date(
-                        conversa.criado_em
-                      ).toLocaleString("pt-BR")}
+                    <div style={textoSecundario}>
+                      Somente os dois participantes possuem acesso ao conteúdo desta conversa.
                     </div>
-                  )}
+
+                    <div style={participantesConversa}>
+                      <span style={participanteChip}>
+                        {mascararIdConversa(conversa.solicitante_id)}
+                      </span>
+                      <span style={separadorParticipantes}>↔</span>
+                      <span style={participanteChip}>
+                        {mascararIdConversa(conversa.destinatario_id)}
+                      </span>
+                    </div>
+
+                    <div style={metaConversa}>
+                      <span style={statusChip(status)}>{statusTexto}</span>
+                      <span>
+                        {conversa.ultima_mensagem_em
+                          ? `Última mensagem: ${new Date(conversa.ultima_mensagem_em).toLocaleString("pt-BR")}`
+                          : conversa.criada_em
+                          ? `Criada: ${new Date(conversa.criada_em).toLocaleString("pt-BR")}`
+                          : "Data não informada"}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
       <div style={infoBox}>
-        <strong>🔐 Privacidade</strong>
-
+        <strong style={{display:"inline-flex",alignItems:"center",gap:7}}><Icon name="lock" size={17} /> Privacidade das conversas</strong>
         <p style={textoSecundario}>
-          O painel administrativo deve mostrar apenas
-          informações permitidas pelas regras de
-          anonimato da plataforma.
+          Cada conversa é vinculada a exatamente dois participantes: o solicitante e o destinatário.
+          O painel administrativo não carrega nem exibe o conteúdo das mensagens privadas.
+        </p>
+        <p style={textoSecundario}>
+          As mensagens permanecem na tabela de mensagens da conversa e o acesso é controlado pelas
+          políticas de segurança do Supabase, permitindo leitura e envio somente aos participantes daquela conversa.
         </p>
       </div>
     </PaginaBase>
   );
+}
+
+
+const gridResumo = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))",
+  gap: 12,
+  marginBottom: 18,
+};
+
+const resumoCard = {
+  background: "rgba(255,255,255,0.05)",
+  border: "1px solid rgba(168,199,255,0.22)",
+  borderRadius: 16,
+  padding: "16px 18px",
+  display: "flex",
+  flexDirection: "column",
+  gap: 4,
+};
+
+const resumoNumero = {
+  fontSize: 24,
+  fontWeight: 900,
+};
+
+const resumoLabel = {
+  fontSize: 12,
+  opacity: 0.75,
+};
+
+const participantesConversa = {
+  display: "flex",
+  alignItems: "center",
+  gap: 8,
+  flexWrap: "wrap",
+  marginTop: 12,
+};
+
+const participanteChip = {
+  display: "inline-flex",
+  alignItems: "center",
+  minHeight: 30,
+  padding: "6px 10px",
+  borderRadius: 999,
+  background: "rgba(58,125,255,0.12)",
+  border: "1px solid rgba(168,199,255,0.22)",
+  fontSize: 12,
+  fontWeight: 800,
+};
+
+const separadorParticipantes = {
+  opacity: 0.7,
+  fontWeight: 900,
+};
+
+const metaConversa = {
+  display: "flex",
+  alignItems: "center",
+  gap: 10,
+  flexWrap: "wrap",
+  marginTop: 12,
+  fontSize: 11,
+  opacity: 0.8,
+};
+
+function statusChip(status) {
+  return {
+    display: "inline-flex",
+    alignItems: "center",
+    padding: "5px 9px",
+    borderRadius: 999,
+    background: status === "ativa" ? "rgba(46, 204, 113, 0.13)" : "rgba(168,199,255,0.12)",
+    border: "1px solid rgba(168,199,255,0.22)",
+    fontWeight: 900,
+    textTransform: "capitalize",
+  };
 }
 
 /* =========================================================
@@ -1874,7 +2394,7 @@ function PaginaConfiguracoes({
   return (
     <PaginaBase
       titulo="Configurações"
-      icone="⚙️"
+      icone="settings"
       voltarInicio={voltarInicio}
     >
       <div style={lista}>
@@ -1949,8 +2469,8 @@ function PaginaConfiguracoes({
               style={botaoPequeno}
             >
               {tema === "dark"
-                ? "☀️ Claro"
-                : "🌙 Escuro"}
+                ? <><Icon name="sun" size={16} /> Claro</>
+                : <><Icon name="moon" size={16} /> Escuro</>}
             </button>
           </div>
         )}
@@ -2038,7 +2558,7 @@ function PaginaBase({
             onClick={voltarInicio}
             style={botaoVoltar}
           >
-            ←
+            <Icon name="back" size={18} />
           </button>
 
           <div>
@@ -2051,7 +2571,7 @@ function PaginaBase({
                 marginBottom: "4px",
               }}
             >
-              🛡️ Equipe Pulsan
+              <span style={{display:"inline-flex",alignItems:"center",gap:6}}><Icon name="shield" size={14} /> Equipe Pulsan</span>
             </div>
 
             <h1
@@ -2087,13 +2607,13 @@ function PaginaUsuarios({
   function nomeTipo(tipo) {
     switch (tipo) {
       case "psicologo":
-        return "🧠 Psicólogo";
+        return "Psicólogo";
       case "aluno":
-        return "🎓 Aluno";
+        return "Aluno";
       case "colaborador":
-        return "💼 Colaborador";
+        return "Colaborador";
       case "equipe_pulsan":
-        return "🛡️ Equipe Pulsan";
+        return "Equipe Pulsan";
       default:
         return tipo || "Usuário";
     }
@@ -2165,7 +2685,7 @@ function PaginaUsuarios({
             onClick={voltarInicio}
             style={botaoVoltar}
           >
-            ←
+            <Icon name="back" size={18} />
           </button>
 
           <div>
@@ -2178,7 +2698,7 @@ function PaginaUsuarios({
                 marginBottom: "4px",
               }}
             >
-              🛡️ Equipe Pulsan
+              <span style={{display:"inline-flex",alignItems:"center",gap:6}}><Icon name="shield" size={14} /> Equipe Pulsan</span>
             </div>
 
             <h1
@@ -2229,7 +2749,7 @@ function PaginaUsuarios({
             onChange={(e) =>
               setBuscaUsuario(e.target.value)
             }
-            placeholder="🔎 Buscar por nome, e-mail ou CRP..."
+            placeholder="Buscar por nome, e-mail ou CRP..."
             style={inputStyle}
           />
 
@@ -2245,19 +2765,19 @@ function PaginaUsuarios({
             </option>
 
             <option value="aluno">
-              🎓 Alunos
+              <span style={{display:"inline-flex",alignItems:"center",gap:6}}><Icon name="student" size={15} /> Alunos</span>
             </option>
 
             <option value="colaborador">
-              💼 Colaboradores
+              <span style={{display:"inline-flex",alignItems:"center",gap:6}}><Icon name="briefcase" size={15} /> Colaboradores</span>
             </option>
 
             <option value="psicologo">
-              🧠 Psicólogos
+              <span style={{display:"inline-flex",alignItems:"center",gap:6}}><Icon name="brain" size={15} /> Psicólogos</span>
             </option>
 
             <option value="equipe_pulsan">
-              🛡️ Equipe Pulsan
+              <span style={{display:"inline-flex",alignItems:"center",gap:6}}><Icon name="shield" size={14} /> Equipe Pulsan</span>
             </option>
           </select>
         </div>
@@ -2270,7 +2790,7 @@ function PaginaUsuarios({
 
         {usuarios.length === 0 ? (
           <EstadoVazio
-            icone="🔎"
+            icone="search"
             titulo="Nenhum usuário encontrado"
             texto="Tente mudar a busca ou o filtro."
           />
@@ -2298,7 +2818,7 @@ function PaginaUsuarios({
                         }}
                       />
                     ) : (
-                      "👤"
+                      <Icon name="users" size={18} />
                     )}
                   </div>
 
@@ -2442,11 +2962,11 @@ function CardAdministracao({
         }}
       >
         <div style={{ fontSize: "28px" }}>
-          {icone}
+          <Icon name={icone} size={28} />
         </div>
 
-        <span style={{ fontSize: "20px" }}>
-          →
+        <span style={{ fontSize: "20px", display: "inline-flex" }}>
+          <Icon name="arrow" size={18} />
         </span>
       </div>
 
@@ -2483,7 +3003,7 @@ function CardAdministracao({
                 : "#20a66a",
           }}
         >
-          {destaque > 0 ? "⏳ " : "✓ "}
+          {destaque > 0 ? <Icon name="pending" size={13} /> : <Icon name="check" size={13} />}
           {textoDestaque}
         </div>
       )}

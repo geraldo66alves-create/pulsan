@@ -1,6 +1,42 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
 
+function Icon({ name, size = 18, stroke = "currentColor", strokeWidth = 1.9 }) {
+  const common = {
+    width: size,
+    height: size,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke,
+    strokeWidth,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    "aria-hidden": true,
+    style: { flex: "0 0 auto", display: "inline-block", verticalAlign: "middle" },
+  };
+
+  const paths = {
+    heart: <><path d="M20.8 8.8c0 5.1-8.8 10-8.8 10s-8.8-4.9-8.8-10A4.8 4.8 0 0 1 12 6.1a4.8 4.8 0 0 1 8.8 2.7Z" /></>,
+    user: <><circle cx="12" cy="8" r="3.5" /><path d="M5 20c.7-3.3 3.1-5 7-5s6.3 1.7 7 5" /></>,
+    bell: <><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" /><path d="M10 21h4" /></>,
+    lock: <><rect x="5" y="10" width="14" height="10" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /></>,
+    users: <><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2" /><circle cx="9.5" cy="7" r="3" /><path d="M17 8a3 3 0 0 1 0 6M21 21v-2a4 4 0 0 0-3-3.87" /></>,
+    message: <><path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5H7l-4 3v-6.2A7.5 7.5 0 1 1 20 11.5Z" /></>,
+    trash: <><path d="M4 7h16" /><path d="M10 11v6M14 11v6" /><path d="M6 7l1 14h10l1-14M9 7V4h6v3" /></>,
+    flag: <><path d="M5 21V4" /><path d="M5 5c4-3 7 3 14 0v9c-7 3-10-3-14 0" /></>,
+    check: <path d="m5 12 4 4L19 6" />,
+    support: <><path d="M12 21a9 9 0 1 0-9-9 9 9 0 0 0 9 9Z" /><path d="M8 12h8M12 8v8" /></>,
+    share: <><circle cx="18" cy="5" r="2.5" /><circle cx="6" cy="12" r="2.5" /><circle cx="18" cy="19" r="2.5" /><path d="m8.2 10.8 7.6-4.4M8.2 13.2l7.6 4.4" /></>,
+    edit: <><path d="m4 20 4.2-1 10.3-10.3a2.1 2.1 0 0 0-3-3L5.2 16 4 20Z" /><path d="m14.5 7.5 2 2" /></>,
+    alert: <><path d="M12 3 2.8 20h18.4L12 3Z" /><path d="M12 9v5M12 17h.01" /></>,
+    shield: <><path d="M12 3 20 6v5c0 5-3.3 8.4-8 10-4.7-1.6-8-5-8-10V6l8-3Z" /><path d="m9 12 2 2 4-4" /></>,
+    flame: <><path d="M12 21c4 0 7-2.8 7-6.6 0-3.2-2-5.6-4.2-7.9.1 2-1 3.4-2.1 4.3.2-3.3-1.3-5.6-3.5-7.8.1 3.8-4.2 5.7-4.2 10.2C5 17.6 8.1 21 12 21Z" /></>,
+  };
+
+  return <svg {...common}>{paths[name] || paths.heart}</svg>;
+}
+
+
 function Ambiente({ irPara, tema = "claro" }) {
   // O tema é controlado centralmente pelo App.jsx e alterado pelo Perfil.
   const modoEscuro = tema === "escuro";
@@ -442,7 +478,7 @@ function Ambiente({ irPara, tema = "claro" }) {
 
   async function compartilharSequenciaApoio() {
     const dias = obterSequenciaApoio();
-    const mensagem = `Já estou há ${dias} dias espalhando apoio no Pulsan 💙. Você também pode fazer a diferença!`;
+    const mensagem = `Já estou há ${dias} dias espalhando apoio no Pulsan. Você também pode fazer a diferença!`;
 
     if (navigator.share) {
       try {
@@ -703,7 +739,7 @@ function Ambiente({ irPara, tema = "claro" }) {
     }
 
     if (solicitacaoPendente) {
-      alert("Você já enviou uma solicitação para este desabafo. 💙");
+      alert("Você já enviou uma solicitação para este desabafo.");
       return;
     }
 
@@ -732,7 +768,7 @@ function Ambiente({ irPara, tema = "claro" }) {
       return;
     }
 
-    alert("Solicitação de chat enviada! 💙");
+    alert("Solicitação de chat enviada!");
   } catch (erro) {
     console.error("Erro inesperado ao solicitar conversa:", erro);
     alert(
@@ -819,7 +855,7 @@ function Ambiente({ irPara, tema = "claro" }) {
     if (item.prioridade === "urgente" || item.urgencia === "grave") {
       return {
         tipo: "urgente",
-        icone: "🔴",
+        icone: "alert",
         titulo: "Precisa de atenção",
         texto: "Este desabafo pode precisar de um cuidado mais próximo.",
         fundo: "#FFF1F2",
@@ -831,7 +867,7 @@ function Ambiente({ irPara, tema = "claro" }) {
     if (item.prioridade === "importante" || item.urgencia === "intermediario") {
       return {
         tipo: "apoio",
-        icone: "🟡",
+        icone: "support",
         titulo: "Precisa de apoio",
         texto: "Uma palavra de acolhimento pode fazer diferença.",
         fundo: "#FFF9E8",
@@ -842,7 +878,7 @@ function Ambiente({ irPara, tema = "claro" }) {
 
     return {
       tipo: "conversa",
-      icone: "🟢",
+      icone: "check",
       titulo: "Aberto para conversa",
       texto: "Um espaço para ouvir e compartilhar apoio.",
       fundo: "#ECFDF5",
@@ -1132,14 +1168,14 @@ function Ambiente({ irPara, tema = "claro" }) {
 
           <nav className="ambiente-nav" aria-label="Navegação do Ambiente">
             <button className={`ambiente-nav-btn ${aba === "feed" ? "active" : ""}`} onClick={() => setAba("feed")}>
-              💙 <span>Comunidade</span>
+              <Icon name="heart" size={17} /> <span>Comunidade</span>
             </button>
             <button className={`ambiente-nav-btn ${aba === "meus" ? "active" : ""}`} onClick={() => setAba("meus")}>
-              👤 <span>Meus desabafos</span>
+              <Icon name="user" size={17} /> <span>Meus desabafos</span>
             </button>
             {notificacoesNaoLidas > 0 && (
               <button className="ambiente-nav-btn" onClick={marcarNotificacoesComoLidas} title="Marcar notificações como lidas">
-                🔔 <span>{notificacoesNaoLidas}</span>
+                <Icon name="bell" size={17} /> <span>{notificacoesNaoLidas}</span>
               </button>
             )}
           </nav>
@@ -1152,7 +1188,7 @@ function Ambiente({ irPara, tema = "claro" }) {
             <div style={{ display: "flex", justifyContent: "space-between", gap: 18, alignItems: "flex-start", flexWrap: "wrap" }}>
               <div style={{ maxWidth: 650 }}>
                 <div style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "#fff", border: "1px solid #C9DCFA", borderRadius: 999, padding: "7px 11px", color: "#245DBF", fontSize: 12, fontWeight: 800 }}>
-                  💙 AMBIENTE PULSAN
+                  <Icon name="heart" size={15} /> AMBIENTE PULSAN
                 </div>
                 <h1 style={{ margin: "14px 0 8px", fontSize: "clamp(26px, 4vw, 38px)", lineHeight: 1.1, letterSpacing: "-1px" }}>
                   Aqui, você pode falar. E também pode acolher.
@@ -1165,9 +1201,9 @@ function Ambiente({ irPara, tema = "claro" }) {
             </div>
 
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 20 }}>
-              <div style={{ background: "rgba(255,255,255,.82)", border: "1px solid #D7E6FA", borderRadius: 14, padding: "10px 13px", color: "#0F2D5B", fontSize: 13 }}>🔒 Identidade protegida</div>
-              <div style={{ background: "rgba(255,255,255,.82)", border: "1px solid #D7E6FA", borderRadius: 14, padding: "10px 13px", color: "#0F2D5B", fontSize: 13 }}>🤝 Apoio entre pessoas</div>
-              <div style={{ background: "rgba(255,255,255,.82)", border: "1px solid #D7E6FA", borderRadius: 14, padding: "10px 13px", color: "#0F2D5B", fontSize: 13 }}>💬 Conversas com consentimento</div>
+              <div style={{ background: "rgba(255,255,255,.82)", border: "1px solid #D7E6FA", borderRadius: 14, padding: "10px 13px", color: "#0F2D5B", fontSize: 13 }}><Icon name="lock" size={15} /> Identidade protegida</div>
+              <div style={{ background: "rgba(255,255,255,.82)", border: "1px solid #D7E6FA", borderRadius: 14, padding: "10px 13px", color: "#0F2D5B", fontSize: 13 }}><Icon name="users" size={15} /> Apoio entre pessoas</div>
+              <div style={{ background: "rgba(255,255,255,.82)", border: "1px solid #D7E6FA", borderRadius: 14, padding: "10px 13px", color: "#0F2D5B", fontSize: 13 }}><Icon name="message" size={15} /> Conversas com consentimento</div>
             </div>
           </div>
         </section>
@@ -1175,7 +1211,7 @@ function Ambiente({ irPara, tema = "claro" }) {
         {notificacoesNaoLidas > 0 && (
           <section className="ambiente-card" style={{ marginBottom: 18, padding: 16, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, background: "#F3F8FF", borderColor: "#A8C7FF" }}>
             <div>
-              <strong style={{ color: "#0F2D5B" }}>🔔 Novidade no seu desabafo</strong>
+              <strong style={{ color: "#0F2D5B" }}><Icon name="bell" size={17} /> Novidade no seu desabafo</strong>
               <div style={{ marginTop: 3, color: "#58708F", fontSize: 13 }}>
                 Você tem {notificacoesNaoLidas} novo(s) comentário(s) para conferir.
               </div>
@@ -1197,7 +1233,7 @@ function Ambiente({ irPara, tema = "claro" }) {
 
             {carregandoDesabafos && (
               <div className="ambiente-card" style={{ padding: 35, textAlign: "center", color: "#5E7594" }}>
-                <div style={{ fontSize: 30, marginBottom: 8 }}>💙</div>
+                <div style={{ fontSize: 30, marginBottom: 8 }}><Icon name="heart" size={23} /></div>
                 Carregando o espaço de apoio...
               </div>
             )}
@@ -1223,7 +1259,7 @@ function Ambiente({ irPara, tema = "claro" }) {
                 <article className="ambiente-card ambiente-post" key={item.id || index}>
                   <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                     <div style={{ width: 48, height: 48, flex: "0 0 48px", borderRadius: "50%", background: "linear-gradient(135deg,#EAF3FF,#A8C7FF)", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", border: "2px solid #fff", boxShadow: "0 2px 10px rgba(58,125,255,.12)" }}>
-                      {item.fotoUsuario ? <img src={item.fotoUsuario} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ fontSize: 22 }}>👤</span>}
+                      {item.fotoUsuario ? <img src={item.fotoUsuario} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ fontSize: 22 }}><Icon name="user" size={22} /></span>}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <strong style={{ color: "#0F2D5B" }}>{item.nomeUsuario || "Usuário anônimo"}</strong>
@@ -1233,14 +1269,14 @@ function Ambiente({ irPara, tema = "claro" }) {
                       </div>
                     </div>
                     {aba === "meus" && dono ? (
-                      <button onClick={() => deletarDesabafo(item.id)} title="Deletar desabafo" aria-label="Deletar desabafo" style={{ border: 0, background: "transparent", fontSize: 18, cursor: "pointer" }}>🗑️</button>
+                      <button onClick={() => deletarDesabafo(item.id)} title="Deletar desabafo" aria-label="Deletar desabafo" style={{ border: 0, background: "transparent", fontSize: 18, cursor: "pointer" }}><Icon name="trash" size={18} /></button>
                     ) : !dono ? (
-                      <button onClick={() => denunciarDesabafo(item)} title="Denunciar desabafo" aria-label="Denunciar desabafo" style={{ border: 0, background: "transparent", color: "#5E7594", fontSize: 12, fontWeight: 750, cursor: "pointer" }}>🚩</button>
+                      <button onClick={() => denunciarDesabafo(item)} title="Denunciar desabafo" aria-label="Denunciar desabafo" style={{ border: 0, background: "transparent", color: "#5E7594", fontSize: 12, fontWeight: 750, cursor: "pointer" }}><Icon name="flag" size={18} /></button>
                     ) : null}
                   </div>
 
                   <div style={{ marginTop: 17, background: urgencia.fundo, border: `1px solid ${urgencia.borda}`, borderRadius: 14, padding: "10px 12px", display: "flex", gap: 9, alignItems: "flex-start" }}>
-                    <span>{urgencia.icone}</span>
+                    <span style={{ display: "inline-flex", paddingTop: 1 }}><Icon name={urgencia.icone} size={17} /></span>
                     <div>
                       <strong style={{ display: "block", color: urgencia.textoCor, fontSize: 12 }}>{urgencia.titulo}</strong>
                       <span style={{ color: urgencia.textoCor, opacity: .82, fontSize: 11 }}>{urgencia.texto}</span>
@@ -1252,19 +1288,19 @@ function Ambiente({ irPara, tema = "claro" }) {
                   </p>
 
                   <div style={{ marginTop: 15, paddingTop: 12, borderTop: "1px solid #EDF2F8", color: "#7186A1", fontSize: 12 }}>
-                    🔒 <strong style={{ color: "#496887" }}>Privacidade:</strong> quem publicou este desabafo permanece anônimo. O foco aqui é o que essa pessoa está sentindo.
+                    <Icon name="lock" size={14} /> <strong style={{ color: "#496887" }}>Privacidade:</strong> quem publicou este desabafo permanece anônimo. O foco aqui é o que essa pessoa está sentindo.
                   </div>
 
                   <div className="ambiente-actions">
                     <button className={`ambiente-action ${jaApoiou ? "supported" : ""}`} onClick={() => apoiar(item.id)}>
-                      {jaApoiou ? "💙 Apoiando" : "🤍 Apoiar"}{apoiadores.length > 0 ? ` ${apoiadores.length}` : ""}
+                      {jaApoiou ? <><Icon name="heart" size={16} /> Apoiando</> : <><Icon name="heart" size={16} /> Apoiar</>}{apoiadores.length > 0 ? ` ${apoiadores.length}` : ""}
                     </button>
                     <button className="ambiente-action" onClick={() => setComentariosAbertos(comentariosAbertos === item.id ? null : item.id)}>
-                      💬 Comentar{comentarios.length > 0 ? ` ${comentarios.length}` : ""}
+                      <Icon name="message" size={16} /> Comentar{comentarios.length > 0 ? ` ${comentarios.length}` : ""}
                     </button>
                     {!dono && (
                       <button className="ambiente-action primary" onClick={() => solicitarChat(item)}>
-                        🤝 Oferecer conversa privada
+                        <><Icon name="users" size={16} /> Oferecer conversa privada</>
                       </button>
                     )}
                   </div>
@@ -1285,7 +1321,7 @@ function Ambiente({ irPara, tema = "claro" }) {
                       {comentarios.map((coment) => (
                         <div className="ambiente-comment" key={coment.id}>
                           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <div style={{ width: 28, height: 28, borderRadius: "50%", background: "#EAF3FF", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13 }}>💙</div>
+                            <div style={{ width: 28, height: 28, borderRadius: "50%", background: "#EAF3FF", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13 }}><Icon name="heart" size={23} /></div>
                             <strong style={{ fontSize: 12, color: "#365A82" }}>{coment.nome || "Anônimo"}</strong>
                             {coment.data && <span style={{ color: "#8AA0B9", fontSize: 10 }}>• {formatarTempoRelativo(coment.data)}</span>}
                           </div>
@@ -1309,7 +1345,7 @@ function Ambiente({ irPara, tema = "claro" }) {
           <aside className="ambiente-side">
             <div className="ambiente-card" style={{ padding: 20, marginBottom: 16 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{ width: 44, height: 44, borderRadius: 15, background: "#EAF3FF", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 23 }}>💙</div>
+                <div style={{ width: 44, height: 44, borderRadius: 15, background: "#EAF3FF", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 23 }}><Icon name="heart" size={23} /></div>
                 <div>
                   <strong style={{ display: "block", color: "#0F2D5B" }}>Como fazer parte?</strong>
                   <span style={{ color: "#7186A1", fontSize: 12 }}>Pequenas atitudes também acolhem.</span>
@@ -1323,7 +1359,7 @@ function Ambiente({ irPara, tema = "claro" }) {
             </div>
 
             <div className="ambiente-card" style={{ padding: 20, background: "linear-gradient(145deg,#0F2D5B,#173E78)", color: "#fff", border: "none" }}>
-              <div style={{ fontSize: 25 }}>🔒</div>
+              <div style={{ fontSize: 25 }}><Icon name="lock" size={25} /></div>
               <h3 style={{ margin: "10px 0 7px", color: "#fff" }}>Seu espaço é protegido</h3>
               <p style={{ margin: 0, color: "#DDEBFF", fontSize: 13, lineHeight: 1.6 }}>
                 No Ambiente, o desabafo é o centro da conversa. A identidade de quem compartilha deve permanecer protegida.
@@ -1333,7 +1369,7 @@ function Ambiente({ irPara, tema = "claro" }) {
             <div className="ambiente-card" style={{ marginTop: 16, padding: 20 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
                 <div>
-                  <strong style={{ color: "#0F2D5B" }}>🔥 Sequência de apoio</strong>
+                  <strong style={{ color: "#0F2D5B" }}><Icon name="flame" size={17} /> Sequência de apoio</strong>
                   <p style={{ margin: "5px 0 0", color: "#7186A1", fontSize: 12 }}>Dias espalhando apoio.</p>
                 </div>
                 <div style={{ minWidth: 58, height: 58, borderRadius: "50%", background: "#EAF3FF", border: "2px solid #A8C7FF", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
@@ -1346,7 +1382,7 @@ function Ambiente({ irPara, tema = "claro" }) {
               </p>
               {[7, 14, 30].includes(sequenciaAtual) && (
                 <button className="ambiente-action primary" style={{ width: "100%", marginTop: 12 }} onClick={compartilharSequenciaApoio}>
-                  📣 Compartilhar minha sequência
+                  <Icon name="share" size={16} /> Compartilhar minha sequência
                 </button>
               )}
             </div>
@@ -1355,7 +1391,7 @@ function Ambiente({ irPara, tema = "claro" }) {
       </main>
 
       <button className="ambiente-mini-fab" onClick={() => setAba(aba === "meus" ? "feed" : "meus")} title="Alternar entre comunidade e meus desabafos" aria-label="Alternar entre comunidade e meus desabafos">⋯</button>
-      <button className="ambiente-fab" onClick={() => irPara("desabafar")} title="Desabafar" aria-label="Desabafar">✎</button>
+      <button className="ambiente-fab" onClick={() => irPara("desabafar")} title="Desabafar" aria-label="Desabafar"><Icon name="edit" size={20} /></button>
     </div>
   );
 }
