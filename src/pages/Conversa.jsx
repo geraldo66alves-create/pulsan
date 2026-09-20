@@ -6,6 +6,10 @@ function ConversaPrincipal({ irPara, tema = "claro" }) {
   const [tela, setTela] = useState("lista");
   const [usuario, setUsuario] = useState(null);
 
+  // No celular, solicitações e conversas recentes funcionam como abas.
+  // Em telas maiores, os dois painéis continuam visíveis lado a lado.
+  const [abaMobile, setAbaMobile] = useState("solicitacoes");
+
   const [solicitacoes, setSolicitacoes] = useState([]);
   const [recentes, setRecentes] = useState([]);
   const [notificacoesSolicitacoes, setNotificacoesSolicitacoes] = useState(false);
@@ -246,6 +250,7 @@ function ConversaPrincipal({ irPara, tema = "claro" }) {
               textoSelo: psicologoAprovado
                 ? "Psicólogo parceiro"
                 : seloExplicito || "Apoiador de confiança",
+              identidadeRevelada: true,
               desabafo:
                 post?.texto ||
                 "A pessoa deseja conversar com você.",
@@ -1413,11 +1418,44 @@ function ConversaPrincipal({ irPara, tema = "claro" }) {
             </div>
           ) : (
             <>
+              {/* ABAS NO CELULAR */}
+              <div className="pulsan-mobile-tabs" role="tablist" aria-label="Área de conversas">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={abaMobile === "solicitacoes"}
+                  className={abaMobile === "solicitacoes" ? "ativo" : ""}
+                  onClick={() => setAbaMobile("solicitacoes")}
+                >
+                  <span>💬</span>
+                  <strong>Solicitações</strong>
+                  <b>{solicitacoes.length}</b>
+                  {notificacoesSolicitacoes && <i aria-label="Novas solicitações" />}
+                </button>
+
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={abaMobile === "recentes"}
+                  className={abaMobile === "recentes" ? "ativo" : ""}
+                  onClick={() => setAbaMobile("recentes")}
+                >
+                  <span>🕊️</span>
+                  <strong>Recentes</strong>
+                  <b>{recentes.length}</b>
+                  {notificacoesRecentes && <i aria-label="Novas mensagens" />}
+                </button>
+              </div>
+
               {/* PAINÉIS PRINCIPAIS */}
               <div className="pulsan-conversas-grid">
 
                 {/* SOLICITAÇÕES */}
-                <section className="pulsan-section pulsan-panel pulsan-panel-request">
+                <section
+                  className={`pulsan-section pulsan-panel pulsan-panel-request ${
+                    abaMobile === "solicitacoes" ? "pulsan-mobile-active" : "pulsan-mobile-hidden"
+                  }`}
+                >
                   <div className="pulsan-section-title">
                     <div className="pulsan-title-with-icon">
                       <div className="pulsan-section-icon request-icon">💬</div>
@@ -1486,6 +1524,12 @@ function ConversaPrincipal({ irPara, tema = "claro" }) {
                               💭 A partir de um desabafo
                             </span>
 
+                            {pedido.identidadeRevelada && (
+                              <span className="pulsan-identity-revealed">
+                                🔓 Identidade revelada para você
+                              </span>
+                            )}
+
                             <div className="pulsan-person-meta">
                               <span>
                                 ⭐ {pedido.mediaAvaliacoes || "Novo"}
@@ -1536,7 +1580,11 @@ function ConversaPrincipal({ irPara, tema = "claro" }) {
                 </section>
 
                 {/* RECENTES */}
-                <section className="pulsan-section pulsan-panel pulsan-panel-recent">
+                <section
+                  className={`pulsan-section pulsan-panel pulsan-panel-recent ${
+                    abaMobile === "recentes" ? "pulsan-mobile-active" : "pulsan-mobile-hidden"
+                  }`}
+                >
                   <div className="pulsan-section-title">
                     <div className="pulsan-title-with-icon">
                       <div className="pulsan-section-icon recent-icon">🕊️</div>
@@ -3529,6 +3577,40 @@ const CSS = `
 }
 
 /* =========================================================
+   ABAS DE CONVERSAS — CELULAR
+========================================================= */
+
+.pulsan-mobile-tabs {
+  display: none;
+}
+
+.pulsan-mobile-hidden {
+  display: block;
+}
+
+.pulsan-identity-revealed {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  margin-top: 7px;
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: rgba(58,125,255,.08);
+  border: 1px solid rgba(58,125,255,.13);
+  color: #3A67B8;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.pulsan-dark .pulsan-identity-revealed {
+  background: rgba(58,125,255,.14);
+  border-color: rgba(168,199,255,.15);
+  color: #CFE0FF;
+}
+
+/* =========================================================
    RESPONSIVO
 ========================================================= */
 
@@ -3586,15 +3668,126 @@ const CSS = `
     padding-top: 15px;
   }
 
-  .pulsan-conversas-grid {
+  .pulsan-mobile-tabs {
+    display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
+    gap: 8px;
     margin-top: 15px;
+    padding: 5px;
+    border-radius: 18px;
+    background: rgba(234,243,255,.72);
+    border: 1px solid rgba(58,125,255,.10);
+    box-shadow: 0 8px 24px rgba(15,45,91,.05);
+  }
+
+  .pulsan-mobile-tabs button {
+    position: relative;
+    min-width: 0;
+    min-height: 50px;
+    border: 0;
+    border-radius: 14px;
+    background: transparent;
+    color: var(--pulsan-text-soft);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 8px 10px;
+    cursor: pointer;
+    font: inherit;
+  }
+
+  .pulsan-mobile-tabs button > span {
+    font-size: 17px;
+    flex: 0 0 auto;
+  }
+
+  .pulsan-mobile-tabs button strong {
+    font-size: 11px;
+    white-space: nowrap;
+  }
+
+  .pulsan-mobile-tabs button b {
+    min-width: 22px;
+    height: 22px;
+    display: inline-grid;
+    place-items: center;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.75);
+    color: var(--pulsan-blue);
+    font-size: 9px;
+  }
+
+  .pulsan-mobile-tabs button i {
+    position: absolute;
+    top: 7px;
+    right: 7px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #3A7DFF;
+    box-shadow: 0 0 0 3px rgba(58,125,255,.12);
+  }
+
+  .pulsan-mobile-tabs button.ativo {
+    background: #ffffff;
+    color: var(--pulsan-deep);
+    box-shadow: 0 7px 18px rgba(15,45,91,.08);
+  }
+
+  .pulsan-mobile-tabs button.ativo b {
+    background: #EAF3FF;
+  }
+
+  .pulsan-dark .pulsan-mobile-tabs {
+    background: rgba(15,45,91,.72);
+    border-color: rgba(168,199,255,.10);
+  }
+
+  .pulsan-dark .pulsan-mobile-tabs button {
+    color: #A9BAD2;
+  }
+
+  .pulsan-dark .pulsan-mobile-tabs button.ativo {
+    background: #15365F;
+    color: #F4F8FF;
+  }
+
+  .pulsan-dark .pulsan-mobile-tabs button b {
+    background: rgba(58,125,255,.18);
+    color: #CFE0FF;
+  }
+
+  .pulsan-conversas-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin-top: 12px;
+  }
+
+  .pulsan-mobile-hidden {
+    display: none;
+  }
+
+  .pulsan-mobile-active {
+    display: block;
+    animation: pulsanMobilePanelIn .22s ease both;
+  }
+
+  @keyframes pulsanMobilePanelIn {
+    from {
+      opacity: 0;
+      transform: translateY(5px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 
   .pulsan-panel {
-    min-height: 360px;
-    padding: 13px;
+    min-height: 0;
+    padding: 15px;
     border-radius: 20px;
   }
 
@@ -3728,6 +3921,12 @@ const CSS = `
   }
 
   .pulsan-origin {
+    font-size: 8px;
+  }
+
+  .pulsan-identity-revealed {
+    margin-top: 6px;
+    padding: 5px 7px;
     font-size: 8px;
   }
 
