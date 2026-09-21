@@ -1,6 +1,138 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 
+function Icone({
+  nome,
+  tamanho = 20,
+  espessura = 2,
+  cor = "currentColor",
+  className = "",
+}) {
+  const props = {
+    width: tamanho,
+    height: tamanho,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: cor,
+    strokeWidth: espessura,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    className,
+    "aria-hidden": true,
+  };
+
+  const caminhos = {
+    usuario: (
+      <>
+        <circle cx="12" cy="8" r="3.5" />
+        <path d="M5.5 20c.7-3.3 3-5 6.5-5s5.8 1.7 6.5 5" />
+      </>
+    ),
+    editar: (
+      <>
+        <path d="M4 20h4l10.8-10.8a2.1 2.1 0 0 0-3-3L5 17v3Z" />
+        <path d="m14.8 7.2 2 2" />
+      </>
+    ),
+    conversa: (
+      <>
+        <path d="M5 5.5h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H11l-4.5 3v-3.1A2 2 0 0 1 4 17.5v-10a2 2 0 0 1 1-2Z" />
+        <path d="M8 10h8M8 13h5" />
+      </>
+    ),
+    coracao: <path d="M20.8 8.8c0 5.3-8.8 10.1-8.8 10.1S3.2 14.1 3.2 8.8A4.7 4.7 0 0 1 12 6.2a4.7 4.7 0 0 1 8.8 2.6Z" />,
+    estrela: (
+      <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-2.9-5.6 2.9 1.1-6.2L3 9.6l6.2-.9L12 3Z" />
+    ),
+    trofeu: (
+      <>
+        <path d="M8 4h8v4.5a4 4 0 0 1-8 0V4Z" />
+        <path d="M8 6H5a2 2 0 0 0 2 4M16 6h3a2 2 0 0 1-2 4" />
+        <path d="M12 12.5V17M8.5 20h7M10 17h4" />
+      </>
+    ),
+    premio: (
+      <>
+        <path d="M7 8h10v11H7z" />
+        <path d="M7 11H4.5A2.5 2.5 0 0 1 2 8.5V7h5M17 11h2.5A2.5 2.5 0 0 0 22 8.5V7h-5" />
+        <path d="M12 8v11M9 5.5A2.5 2.5 0 1 1 12 8V5.5A2.5 2.5 0 1 0 9 8M15 5.5A2.5 2.5 0 1 0 12 8V5.5A2.5 2.5 0 1 1 15 8" />
+      </>
+    ),
+    cadeado: (
+      <>
+        <rect x="5" y="10" width="14" height="10" rx="2" />
+        <path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v2" />
+      </>
+    ),
+    escudo: (
+      <path d="M12 3 19 6v5c0 4.7-3 7.8-7 10-4-2.2-7-5.3-7-10V6l7-3Z" />
+    ),
+    acessibilidade: (
+      <>
+        <circle cx="12" cy="4.5" r="1.7" />
+        <path d="M5 8.5h14M12 8.5v11M8.5 20l3.5-5 3.5 5M8 13l4 2 4-2" />
+      </>
+    ),
+    sol: (
+      <>
+        <circle cx="12" cy="12" r="4" />
+        <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+      </>
+    ),
+    lua: (
+      <path d="M20 15.5A8.5 8.5 0 0 1 8.5 4 8.7 8.7 0 1 0 20 15.5Z" />
+    ),
+    salvar: (
+      <>
+        <path d="M5 4h12l2 2v14H5z" />
+        <path d="M8 4v5h7V4M8 20v-7h8v7" />
+      </>
+    ),
+    imagem: (
+      <>
+        <rect x="4" y="5" width="16" height="14" rx="2" />
+        <circle cx="9" cy="10" r="1.5" />
+        <path d="m5 17 4.5-4.5 3 3 2-2 4.5 4.5" />
+      </>
+    ),
+    sair: (
+      <>
+        <path d="M10 5H5v14h5M14 8l4 4-4 4M10 12h8" />
+      </>
+    ),
+    protecao: (
+      <>
+        <path d="M12 3 19 6v5c0 4.7-3 7.8-7 10-4-2.2-7-5.3-7-10V6l7-3Z" />
+        <path d="m9 12 2 2 4-4" />
+      </>
+    ),
+    borboleta: (
+      <>
+        <path d="M12 9.5c-1.2-3.6-4.2-6-6.5-5.2-2.1.7-1.9 4.2-.3 6.2 1.3 1.7 3.5 2.1 5.8.8" />
+        <path d="M12 9.5c1.2-3.6 4.2-6 6.5-5.2 2.1.7 1.9 4.2.3 6.2-1.3 1.7-3.5 2.1-5.8.8" />
+        <path d="M12 9.5v9M10.3 20h3.4M10.5 6.5 9 4.2M13.5 6.5 15 4.2" />
+      </>
+    ),
+    vagalume: (
+      <>
+        <path d="M9 10c-2.5-2.2-5.3-1.5-6.5 0 1.2 2.7 3.8 4 6.2 2.8M15 10c2.5-2.2 5.3-1.5 6.5 0-1.2 2.7-3.8 4-6.2 2.8" />
+        <ellipse cx="12" cy="13" rx="3.2" ry="5" />
+        <path d="M10.5 18h3M10 21h4M12 8V4" />
+      </>
+    ),
+    camaleao: (
+      <>
+        <path d="M4 14c0-4 3.3-7 7.5-7H15c2.8 0 5 1.8 5 4.3 0 2.7-2.3 4.7-5.2 4.7H11" />
+        <circle cx="16.2" cy="11.2" r=".7" fill={cor} stroke="none" />
+        <path d="M4 14c-1.5 1.2-1.7 3-.4 4.1 1.2 1 3.1.5 3.5-1.1M11 16c-.8 1.6-2.2 2.6-4.2 2.6" />
+      </>
+    ),
+  };
+
+  return <svg {...props}>{caminhos[nome] || caminhos.coracao}</svg>;
+}
+
+
 function Perfil({
   irPara,
   tema = "claro",
@@ -360,7 +492,7 @@ function Perfil({
 
       setEditando(false);
       setMensagem(
-        `Perfil atualizado com sucesso! 💙${mensagemEmail}`
+        `Perfil atualizado com sucesso!${mensagemEmail}`
       );
     } catch (e) {
       console.error("Erro ao salvar perfil:", e);
@@ -503,7 +635,7 @@ function Perfil({
         }
 
         .perfil-hero::after {
-          content: "✦";
+          content: "";
           position: absolute;
           right: 48px;
           bottom: 30px;
@@ -1011,13 +1143,15 @@ function Perfil({
         }
 
         .perfil-points::after {
-          content: "🦋";
+          content: "";
           position: absolute;
           right: 26px;
           top: 19px;
-          font-size: 46px;
-          opacity: .18;
-          transform: rotate(-8deg);
+          width: 76px;
+          height: 76px;
+          border: 1px solid rgba(255,255,255,.16);
+          border-radius: 50%;
+          opacity: .7;
         }
 
         .perfil-points h2 {
@@ -1264,7 +1398,7 @@ function Perfil({
                   {foto ? (
                     <img src={foto} alt="Foto do perfil" />
                   ) : (
-                    "👤"
+                    <Icone nome="usuario" tamanho={48} cor={cores.azul} />
                   )}
                 </div>
 
@@ -1275,14 +1409,14 @@ function Perfil({
                     onClick={iniciarEdicao}
                     aria-label="Editar foto do perfil"
                   >
-                    ✏️
+                    <Icone nome="editar" tamanho={18} cor="#FFFFFF" />
                   </button>
                 )}
               </div>
 
               <div style={{ minWidth: 0 }}>
                 <span className="perfil-kicker">
-                  ✦ MEU ESPAÇO PULSAN
+                  <Icone nome="borboleta" tamanho={14} cor={cores.azul} /> MEU ESPAÇO PULSAN
                 </span>
 
                 {!editando ? (
@@ -1301,13 +1435,13 @@ function Perfil({
                     <div className="perfil-badges">
                       {possuiSeloPsicologo && (
                         <span className="perfil-badge">
-                          🧠 Psicólogo parceiro
+                          <><Icone nome="protecao" tamanho={15} cor={cores.azul} /> Psicólogo parceiro</>
                         </span>
                       )}
 
                       {possuiSeloApoiador && (
                         <span className="perfil-badge">
-                          🏅 Apoiador de confiança
+                          <><Icone nome="trofeu" tamanho={15} cor={cores.azul} /> Apoiador de confiança</>
                         </span>
                       )}
                     </div>
@@ -1318,7 +1452,7 @@ function Perfil({
                         className="perfil-primary"
                         onClick={iniciarEdicao}
                       >
-                        ✏️ Editar meu perfil
+                        <Icone nome="editar" tamanho={18} cor="#FFFFFF" /> Editar meu perfil
                       </button>
 
                     </div>
@@ -1354,25 +1488,25 @@ function Perfil({
 
             <div className="perfil-stats">
               <div className="perfil-stat">
-                <div className="perfil-stat-icon">💬</div>
+                <div className="perfil-stat-icon"><Icone nome="conversa" tamanho={22} cor={cores.azul} /></div>
                 <strong>{quantidadeAvaliacoes}</strong>
                 <span>Avaliações recebidas</span>
               </div>
 
               <div className="perfil-stat">
-                <div className="perfil-stat-icon">💙</div>
+                <div className="perfil-stat-icon"><Icone nome="coracao" tamanho={22} cor={cores.azul} /></div>
                 <strong>{quantidadeAjudas}</strong>
                 <span>Pessoas ajudadas</span>
               </div>
 
               <div className="perfil-stat">
-                <div className="perfil-stat-icon">⭐</div>
+                <div className="perfil-stat-icon"><Icone nome="estrela" tamanho={22} cor={cores.azul} /></div>
                 <strong>{media}</strong>
                 <span>Média das avaliações</span>
               </div>
 
               <div className="perfil-stat">
-                <div className="perfil-stat-icon">🏆</div>
+                <div className="perfil-stat-icon"><Icone nome="trofeu" tamanho={22} cor={cores.azul} /></div>
                 <strong>{pontos}</strong>
                 <span>Pontos acumulados</span>
               </div>
@@ -1387,7 +1521,7 @@ function Perfil({
           >
             <div className="perfil-section-title">
               <div>
-                <h2>✏️ Seus dados</h2>
+                <h2 style={{ display: "flex", alignItems: "center", gap: 8 }}><Icone nome="editar" tamanho={19} cor={cores.azul} /> Seus dados</h2>
                 <span>Você pode atualizar sua imagem, nome e e-mail.</span>
               </div>
             </div>
@@ -1401,12 +1535,12 @@ function Perfil({
                       alt="Pré-visualização"
                     />
                   ) : (
-                    "👤"
+                    <Icone nome="usuario" tamanho={48} cor={cores.azul} />
                   )}
                 </div>
 
                 <label className="perfil-upload">
-                  🖼️ Trocar imagem
+                  <Icone nome="imagem" tamanho={17} cor="#FFFFFF" /> Trocar imagem
                   <input
                     type="file"
                     accept="image/png,image/jpeg,image/webp"
@@ -1464,7 +1598,7 @@ function Perfil({
                 </div>
 
                 <div className="perfil-notice">
-                  🔐 A alteração do e-mail usa a autenticação do
+                  <Icone nome="cadeado" tamanho={16} cor={cores.azul} /> A alteração do e-mail usa a autenticação do
                   Supabase. Dependendo da configuração da conta,
                   pode ser necessário confirmar o novo endereço.
                 </div>
@@ -1485,7 +1619,9 @@ function Perfil({
                     onClick={salvarPerfil}
                     disabled={salvando}
                   >
-                    {salvando ? "Salvando..." : "💾 Salvar alterações"}
+                    {salvando ? "Salvando..." : (
+                      <><Icone nome="salvar" tamanho={17} cor="#FFFFFF" /> Salvar alterações</>
+                    )}
                   </button>
                 </div>
               </div>
@@ -1511,14 +1647,14 @@ function Perfil({
         >
           <div className="perfil-section-title">
             <div>
-              <h2>💙 A essência do Pulsan</h2>
+              <h2 style={{ display: "flex", alignItems: "center", gap: 8 }}><Icone nome="coracao" tamanho={19} cor={cores.azul} /> A essência do Pulsan</h2>
               <span>Mais do que um perfil</span>
             </div>
           </div>
 
           <div className="perfil-feature-grid">
             <div className="perfil-feature">
-              <div className="perfil-feature-icon">🦋</div>
+              <div className="perfil-feature-icon"><Icone nome="borboleta" tamanho={22} cor={cores.azul} /></div>
               <strong>Transformação</strong>
               <p>
                 Assim como a borboleta, cada pessoa pode encontrar
@@ -1527,7 +1663,7 @@ function Perfil({
             </div>
 
             <div className="perfil-feature">
-              <div className="perfil-feature-icon">🪲</div>
+              <div className="perfil-feature-icon"><Icone nome="vagalume" tamanho={22} cor={cores.azul} /></div>
               <strong>Um ponto de luz</strong>
               <p>
                 O acolhimento pode iluminar momentos difíceis e
@@ -1536,7 +1672,7 @@ function Perfil({
             </div>
 
             <div className="perfil-feature">
-              <div className="perfil-feature-icon">🦎</div>
+              <div className="perfil-feature-icon"><Icone nome="camaleao" tamanho={22} cor={cores.azul} /></div>
               <strong>Sem medo de julgamento</strong>
               <p>
                 Você não precisa esconder o que sente para fazer
@@ -1552,7 +1688,7 @@ function Perfil({
         >
           <div className="perfil-section-title">
             <div>
-              <h2>👤 Seus dados</h2>
+              <h2 style={{ display: "flex", alignItems: "center", gap: 8 }}><Icone nome="usuario" tamanho={19} cor={cores.azul} /> Seus dados</h2>
               <span>Informações da sua conta</span>
             </div>
 
@@ -1563,7 +1699,7 @@ function Perfil({
                 onClick={iniciarEdicao}
                 style={{ padding: "9px 12px" }}
               >
-                ✏️ Editar
+                <><Icone nome="editar" tamanho={16} cor={cores.texto} /> Editar</>
               </button>
             )}
           </div>
@@ -1605,14 +1741,14 @@ function Perfil({
         >
           <div className="perfil-section-title">
             <div>
-              <h2>🔒 Segurança e privacidade</h2>
+              <h2 style={{ display: "flex", alignItems: "center", gap: 8 }}><Icone nome="cadeado" tamanho={19} cor={cores.azul} /> Segurança e privacidade</h2>
               <span>Seu espaço deve continuar sendo seguro.</span>
             </div>
           </div>
 
           <div className="perfil-security">
             <div className="perfil-security-item">
-              <div className="perfil-security-icon">🔐</div>
+              <div className="perfil-security-icon"><Icone nome="cadeado" tamanho={20} cor={cores.azul} /></div>
               <div>
                 <strong>Privacidade</strong>
                 <span>
@@ -1622,7 +1758,7 @@ function Perfil({
             </div>
 
             <div className="perfil-security-item">
-              <div className="perfil-security-icon">🛡️</div>
+              <div className="perfil-security-icon"><Icone nome="escudo" tamanho={20} cor={cores.azul} /></div>
               <div>
                 <strong>Proteção</strong>
                 <span>
@@ -1642,7 +1778,7 @@ function Perfil({
                 cursor: "pointer",
               }}
             >
-              <div className="perfil-security-icon">♿</div>
+              <div className="perfil-security-icon"><Icone nome="acessibilidade" tamanho={20} cor={cores.azul} /></div>
               <div>
                 <strong>Acessibilidade</strong>
                 <span>
@@ -1660,7 +1796,7 @@ function Perfil({
           <div className="perfil-theme">
             <div className="perfil-theme-info">
               <div className="perfil-theme-icon">
-                {escuro ? "🌙" : "☀️"}
+                {escuro ? <Icone nome="lua" tamanho={22} cor={cores.azul} /> : <Icone nome="sol" tamanho={22} cor={cores.azul} />}
               </div>
               <div>
                 <strong>Aparência do Pulsan</strong>
@@ -1677,7 +1813,17 @@ function Perfil({
               className="perfil-theme-button"
               onClick={alternarTema}
             >
-              {escuro ? "☀️ Usar modo claro" : "🌙 Usar modo escuro"}
+              {
+                escuro ? (
+                  <>
+                    <Icone nome="sol" tamanho={17} cor={escuro ? "#FFFFFF" : "#245AA8"} /> Usar modo claro
+                  </>
+                ) : (
+                  <>
+                    <Icone nome="lua" tamanho={17} cor="#245AA8" /> Usar modo escuro
+                  </>
+                )
+              }
             </button>
           </div>
         </section>
@@ -1686,7 +1832,7 @@ function Perfil({
           className="perfil-section perfil-points"
           style={estilos.card}
         >
-          <h2>🏆 Seu impacto também importa</h2>
+          <h2 style={{ display: "flex", alignItems: "center", gap: 8 }}><Icone nome="trofeu" tamanho={20} cor="#FFFFFF" /> Seu impacto também importa</h2>
           <p>
             Quando você acolhe alguém com respeito, ajuda a construir
             uma comunidade onde pedir ajuda e oferecer apoio fazem
@@ -1698,7 +1844,7 @@ function Perfil({
             className="perfil-points-button"
             onClick={() => irPara("premios")}
           >
-            🎁 Ver benefícios e prêmios
+            <><Icone nome="premio" tamanho={17} cor="#245AA8" /> Ver benefícios e prêmios</>
           </button>
         </section>
 
@@ -1707,7 +1853,7 @@ function Perfil({
           className="perfil-logout"
           onClick={sair}
         >
-          🚪 Sair da conta
+          <><Icone nome="sair" tamanho={18} cor="#B64A4A" /> Sair da conta</>
         </button>
       </main>
 
@@ -1716,7 +1862,7 @@ function Perfil({
           type="button"
           onClick={() => irPara("solicitacoes")}
         >
-          <div>💬</div>
+          <div><Icone nome="conversa" tamanho={23} cor="currentColor" /></div>
           Conversas
         </button>
 
@@ -1724,7 +1870,7 @@ function Perfil({
           type="button"
           onClick={() => irPara("ajudar")}
         >
-          <div>💚</div>
+          <div><Icone nome="coracao" tamanho={23} cor="currentColor" /></div>
           Ajudar
         </button>
 
@@ -1732,7 +1878,7 @@ function Perfil({
           type="button"
           className="ativo"
         >
-          <div>👤</div>
+          <div><Icone nome="usuario" tamanho={23} cor="currentColor" /></div>
           Perfil
         </button>
       </nav>

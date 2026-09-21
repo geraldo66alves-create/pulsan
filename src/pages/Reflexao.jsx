@@ -654,6 +654,10 @@ function Reflexao({ irPara, tema, alterarTema }) {
   const [frasePulsan, setFrasePulsan] = useState("");
 const [carregandoFrasePulsan, setCarregandoFrasePulsan] = useState(false);
 const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
+  const frasesUsadasPulsanRef = useRef(new Set());
+  const frasesUsadasTextoPulsanRef = useRef(new Set());
+  const reflexoesVistasRef = useRef(new Set());
+  const audioFundoRetomarMomentoRef = useRef(false);
 
   // Sequência dos Momentos Pulsan.
   // 0 = Momento 1, 1 = Momento 2, 2 = Momento 3...
@@ -713,23 +717,24 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
     if (!item?.momento?.video || !item?.momento?.audio) return 0;
     const usados = new Set(historicoAtual);
 
-    // Procura os pares existentes sem depender de um limite fixo de 7.
-    for (let numero = 0; numero < 100; numero += 1) {
+    // O primeiro Momento usa diretamente os arquivos-base configurados no sentimento.
+    // Não fazemos HEAD no arquivo inicial, pois isso pode falhar em alguns ambientes Vite/servidores.
+    if (!usados.has(0)) return 0;
+
+    // Para os próximos Momentos, procura o par vídeo + áudio correspondente.
+    for (let numero = 1; numero < 100; numero += 1) {
       if (usados.has(numero)) continue;
       const video = obterArquivoDaSequencia(item.momento.video, numero);
       const audio = obterArquivoDaSequencia(item.momento.audio, numero);
-      const [videoExiste, audioExiste] = await Promise.all([arquivoExiste(video), arquivoExiste(audio)]);
+      const [videoExiste, audioExiste] = await Promise.all([
+        arquivoExiste(video),
+        arquivoExiste(audio),
+      ]);
       if (videoExiste && audioExiste) return numero;
     }
 
     // Quando todos os pares disponíveis já foram vistos, começa um novo ciclo.
     salvarHistoricoMomentos(idSentimento, []);
-    for (let numero = 0; numero < 100; numero += 1) {
-      const video = obterArquivoDaSequencia(item.momento.video, numero);
-      const audio = obterArquivoDaSequencia(item.momento.audio, numero);
-      const [videoExiste, audioExiste] = await Promise.all([arquivoExiste(video), arquivoExiste(audio)]);
-      if (videoExiste && audioExiste) return numero;
-    }
     return 0;
   }
 
@@ -884,8 +889,20 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
 
     setErroMomentoAudio(false);
 
-    if (!audioMomentoRef.current) {
-      const audio = new Audio(obterAudioMomento());
+    const arquivoAudio = obterAudioMomento();
+
+    if (
+      !audioMomentoRef.current ||
+      audioMomentoRef.current.dataset?.pulsanSrc !== arquivoAudio
+    ) {
+      if (audioMomentoRef.current) {
+        audioMomentoRef.current.pause();
+        audioMomentoRef.current = null;
+      }
+
+      const audio = new Audio(arquivoAudio);
+      audio.dataset = audio.dataset || {};
+      audio.dataset.pulsanSrc = arquivoAudio;
 
       audio.volume = 0.65;
       audio.preload = "auto";
@@ -927,74 +944,152 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
      ESCOLHER SENTIMENTO
   ========================================================= */
 
-  async function carregarFrasePulsan(id) {
-  setCarregandoFrasePulsan(true);
-
-  const sentimentoBanco =
-    id === "pensando"
-      ? "pensando demais"
-      : id === "medo"
-        ? "com medo"
-        : id;
-
-  const { data, error } = await supabase
-    .from("frases_pulsan")
-    .select("id, frase")
-    .eq("sentimento", sentimentoBanco)
-    .eq("ativa", true);
-
-  if (error) {
-    console.error("Erro ao carregar frase Pulsan:", error);
-
-    setFrasePulsan(
-      "Você não precisa enfrentar tudo sozinho."
-    );
-
-    setCarregandoFrasePulsan(false);
-    return;
+  function obterChaveHistoricoFrase(idSentimento) {
+    return `pulsanFrasesPulsanUsadas:${idSentimento}`;
   }
 
-  if (data && data.length > 0) {
-    let frasesDisponiveis = data.filter(
-      (item) => !frasesUsadasPulsan.includes(item.id)
-    );
+  function carregarHistoricoFrases(idSentimento) {
+    try {
+      const salvo = localStorage.getItem(obterChaveHistoricoFrase(idSentimento));
+      const dados = salvo ? JSON.parse(salvo) : [];
+      return Array.isArray(dados) ? dados.map(String) : [];
+    } catch (_) {
+      return [];
+    }
+  }
 
-    if (frasesDisponiveis.length === 0) {
-      frasesDisponiveis = data;
-      setFrasesUsadasPulsan([]);
+  function salvarHistoricoFrases(idSentimento, valores) {
+    try {
+      localStorage.setItem(
+        obterChaveHistoricoFrase(idSentimento),
+        JSON.stringify([...new Set(valores)])
+      );
+    } catch (_) {}
+  }
+
+  async function carregarFrasePulsan(id) {
+    setCarregandoFrasePulsan(true);
+
+    const sentimentoBanco =
+      id === "pensando"
+        ? "pensando demais"
+        : id === "medo"
+          ? "com medo"
+          : id;
+
+    const { data, error } = await supabase
+      .from("frases_pulsan")
+      .select("id, frase")
+      .ilike("sentimento", sentimentoBanco)
+      .eq("ativa", true);
+
+    if (error) {
+      console.error("Erro ao carregar frase Pulsan:", error);
+      setFrasePulsan("Você não precisa enfrentar tudo sozinho.");
+      setCarregandoFrasePulsan(false);
+      return;
     }
 
-    const fraseAleatoria =
-      frasesDisponiveis[
-        Math.floor(Math.random() * frasesDisponiveis.length)
-      ];
+    const mapaFrases = new Map();
 
-    setFrasePulsan(fraseAleatoria.frase);
+    (data || []).forEach((item) => {
+      const frase = String(item?.frase || "").trim();
+      if (!frase) return;
 
-    setFrasesUsadasPulsan((anteriores) => [
-      ...anteriores,
-      fraseAleatoria.id,
+      const chaveTexto = frase.replace(/\s+/g, " ").toLowerCase();
+      if (!mapaFrases.has(chaveTexto)) {
+        mapaFrases.set(chaveTexto, { ...item, frase });
+      }
+    });
+
+    const frasesValidas = Array.from(mapaFrases.values());
+
+    const historicoPersistido = carregarHistoricoFrases(id);
+    historicoPersistido.forEach((valor) => {
+      frasesUsadasPulsanRef.current.add(valor);
+      frasesUsadasTextoPulsanRef.current.add(valor);
+    });
+
+    if (!frasesValidas.length) {
+      setFrasePulsan("Você merece cuidado, acolhimento e compreensão.");
+      setCarregandoFrasePulsan(false);
+      return;
+    }
+
+    // Uma frase usada nunca volta nesta sessão para este sentimento.
+    // A verificação é feita pelo ID E pelo texto para impedir duplicação mesmo
+    // quando o banco possuir duas linhas com IDs diferentes e a mesma frase.
+    const disponiveis = frasesValidas.filter((item) => {
+      const idChave = String(item.id);
+      const texto = String(item.frase).replace(/\s+/g, " ").toLowerCase();
+      return (
+        !frasesUsadasPulsanRef.current.has(idChave) &&
+        !frasesUsadasTextoPulsanRef.current.has(texto)
+      );
+    });
+
+    // Não reinicia o ciclo. Se todas as frases já foram usadas, não reutiliza
+    // nenhuma frase antiga. Isso garante que a aba seja sempre diferente.
+    if (!disponiveis.length) {
+      console.warn("[Pulsan] Todas as frases do Momento Pulsan já foram usadas.");
+      setFrasePulsan("");
+      setCarregandoFrasePulsan(false);
+      return;
+    }
+
+    const escolhida =
+      disponiveis[Math.floor(Math.random() * disponiveis.length)];
+
+    const textoEscolhido = String(escolhida.frase)
+      .replace(/\s+/g, " ")
+      .toLowerCase();
+
+    frasesUsadasPulsanRef.current.add(String(escolhida.id));
+    frasesUsadasTextoPulsanRef.current.add(textoEscolhido);
+    salvarHistoricoFrases(id, [
+      ...Array.from(frasesUsadasPulsanRef.current),
+      ...Array.from(frasesUsadasTextoPulsanRef.current),
     ]);
-  } else {
-    setFrasePulsan(
-      "Você merece cuidado, acolhimento e compreensão."
-    );
+    setFrasesUsadasPulsan(Array.from(frasesUsadasPulsanRef.current));
+    setFrasePulsan(escolhida.frase);
+    setCarregandoFrasePulsan(false);
   }
 
-  setCarregandoFrasePulsan(false);
-}
-
  
+  function obterChaveHistoricoReflexoes(idSentimento) {
+    return `pulsanReflexoesVistas:${idSentimento}`;
+  }
+
+  function carregarHistoricoReflexoes(idSentimento) {
+    try {
+      const salvo = localStorage.getItem(obterChaveHistoricoReflexoes(idSentimento));
+      const dados = salvo ? JSON.parse(salvo) : [];
+      return new Set(Array.isArray(dados) ? dados.map(String) : []);
+    } catch (_) {
+      return new Set();
+    }
+  }
+
+  function salvarHistoricoReflexoes(idSentimento) {
+    if (!idSentimento) return;
+    try {
+      localStorage.setItem(
+        obterChaveHistoricoReflexoes(idSentimento),
+        JSON.stringify(Array.from(reflexoesVistasRef.current))
+      );
+    } catch (_) {}
+  }
+
   async function escolherSentimento(id) {
     pararAudioFundo(true);
     pararAudioMomento();
 
     // Entra no sentimento e recupera o próximo Momento ainda não visto.
     setSentimentoSelecionado(id);
+    audioFundoRetomarMomentoRef.current = false;
     const historicoMomento = lerHistoricoMomentos(id);
     const primeiroMomento = await encontrarProximoMomento(id, historicoMomento);
     setMomentoPulsanAtual(primeiroMomento);
-    carregarFrasePulsan(id);
     setCardAtual(0);
     setCardsVistos(0);
     setMostrarMomento(false);
@@ -1002,7 +1097,15 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
     setErroSom(false);
     setErroMomentoAudio(false);
     setPosicaoX(0);
+    audioFundoRetomarMomentoRef.current = false;
+    reflexoesVistasRef.current = new Set();
+    frasesUsadasPulsanRef.current.clear();
+    frasesUsadasTextoPulsanRef.current.clear();
     setErroReflexoes("");
+    frasesUsadasPulsanRef.current.clear();
+    frasesUsadasTextoPulsanRef.current.clear();
+    setFrasesUsadasPulsan([]);
+    setFrasePulsan("");
     setReflexoesBanco([]);
     setCarregandoReflexoes(true);
 
@@ -1016,8 +1119,8 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
 
     const { data, error } = await supabase
       .from("reflexoes")
-      .select("id, mensagem, situacao, horario")
-      .eq("sentimento", sentimentoBanco)
+      .select("id, mensagem, ativa")
+      .ilike("sentimento", sentimentoBanco)
       .eq("ativa", true)
       .limit(200);
 
@@ -1029,6 +1132,10 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
       setCarregandoReflexoes(false);
       return;
     }
+
+    console.info(
+      `[Pulsan] ${data?.length || 0} reflexões carregadas para "${sentimentoBanco}".`
+    );
 
     // Remove duplicadas ANTES de embaralhar as reflexões.
     // A comparação ignora maiúsculas/minúsculas e espaços extras.
@@ -1053,7 +1160,18 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
       mapaReflexoes.values()
     ).sort(() => Math.random() - 0.5);
 
+    reflexoesVistasRef.current = carregarHistoricoReflexoes(id);
+    if (reflexoesEmbaralhadas.length > 0 && reflexoesVistasRef.current.size === 0) {
+      const primeira = reflexoesEmbaralhadas[0];
+      const chavePrimeira = String(primeira)
+        .replace(/\s+/g, " ")
+        .toLowerCase();
+      reflexoesVistasRef.current.add(chavePrimeira);
+      salvarHistoricoReflexoes(id);
+    }
+
     setReflexoesBanco(reflexoesEmbaralhadas);
+    setCardAtual(0);
     setCarregandoReflexoes(false);
 
     window.scrollTo({
@@ -1075,8 +1193,15 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
     if (novoTotal >= 10) {
       setCardsVistos(10);
 
-      // O som de fundo continua exatamente como estava antes do Momento Pulsan.
-      // Não pausamos nem reiniciamos: ele mantém o mesmo áudio, posição e volume.
+      // Ao entrar no Momento Pulsan, o som de fundo é pausado sem reiniciar.
+      // Guardamos se ele estava tocando para retomá-lo exatamente do mesmo ponto.
+      audioFundoRetomarMomentoRef.current = Boolean(
+        audioFundoRef.current && !audioFundoRef.current.paused
+      );
+      if (audioFundoRetomarMomentoRef.current) {
+        audioFundoRef.current.pause();
+        setTocandoFundo(false);
+      }
 
       setTipoMomento(null);
       setMostrarMomento(true);
@@ -1101,37 +1226,45 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
      AVANÇAR CARD — ESQUERDA
   ========================================================= */
 
+  function obterProximaReflexaoNaoVista() {
+    const lista = sentimentoComReflexoes?.reflexoes || [];
+
+    for (let indice = 0; indice < lista.length; indice += 1) {
+      const chave = String(lista[indice])
+        .replace(/\s+/g, " ")
+        .toLowerCase();
+
+      if (!reflexoesVistasRef.current.has(chave)) {
+        reflexoesVistasRef.current.add(chave);
+        salvarHistoricoReflexoes(sentimentoSelecionado);
+        return indice;
+      }
+    }
+
+    return -1;
+  }
+
   function avancarCard() {
     if (!sentimento || mostrarMomento) return;
 
     setPosicaoX(0);
 
-    // Passar para a esquerda também conta como uma reflexão vista.
     if (registrarPassagemCard()) return;
 
-    setCardAtual(
-      (atual) =>
-        (atual + 1) % sentimentoComReflexoes.reflexoes.length
-    );
-  }
+    const proximoIndice = obterProximaReflexaoNaoVista();
 
-  /* =========================================================
-     VOLTAR CARD — DIREITA
-  ========================================================= */
+    if (proximoIndice >= 0) {
+      setCardAtual(proximoIndice);
+    }
+  }
 
   function voltarCard() {
     if (!sentimento || mostrarMomento) return;
 
-    setPosicaoX(0);
-
-    // Passar para a direita também conta como uma reflexão vista.
-    if (registrarPassagemCard()) return;
-
-    setCardAtual((atual) =>
-      atual === 0
-        ? sentimentoComReflexoes.reflexoes.length - 1
-        : atual - 1
-    );
+    // Não volta para uma reflexão já exibida: isso impediria a garantia de
+    // que uma frase seja repetida. O gesto continua sendo aceito, mas o fluxo
+    // permanece somente em reflexões inéditas.
+    avancarCard();
   }
 
   /* =========================================================
@@ -1229,11 +1362,15 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
     setMomentoPulsanAtual(proximoMomento);
     setCardsVistos(0);
 
-    setCardAtual((atual) =>
-      (atual + 1) % sentimentoComReflexoes.reflexoes.length
-    );
+    const proximaReflexao = obterProximaReflexaoNaoVista();
+    if (proximaReflexao >= 0) {
+      setCardAtual(proximaReflexao);
+    }
 
-    continuarAudioFundo();
+    if (audioFundoRetomarMomentoRef.current) {
+      audioFundoRetomarMomentoRef.current = false;
+      continuarAudioFundo();
+    }
 
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -1256,6 +1393,10 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
     setErroSom(false);
     setErroMomentoAudio(false);
     setPosicaoX(0);
+    audioFundoRetomarMomentoRef.current = false;
+    reflexoesVistasRef.current = new Set();
+    frasesUsadasPulsanRef.current.clear();
+    frasesUsadasTextoPulsanRef.current.clear();
 
     window.scrollTo({
       top: 0,
@@ -1603,7 +1744,7 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
   {carregandoFrasePulsan
     ? "Preparando uma frase para este momento..."
     : frasePulsan ||
-      "Você não precisa enfrentar tudo sozinho."}
+      "Você já percorreu todas as frases disponíveis para este momento."}
 </p>
 
                   <span style={styles.quotation}>
