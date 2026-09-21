@@ -1,6 +1,190 @@
 import React, { useEffect, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
 
+
+/* =========================================================
+   ÍCONES — sem emojis, usando SVG inline
+========================================================= */
+
+function Icon({ name, size = 22, strokeWidth = 1.9 }) {
+  const common = {
+    width: size,
+    height: size,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    ariaHidden: true,
+  };
+
+  const paths = {
+    heart: (
+      <>
+        <path d="M20.8 8.7c0 5.2-8.8 10.2-8.8 10.2S3.2 13.9 3.2 8.7A4.7 4.7 0 0 1 12 6.1a4.7 4.7 0 0 1 8.8 2.6Z" />
+      </>
+    ),
+    moon: (
+      <>
+        <path d="M20.2 15.2A8.6 8.6 0 0 1 8.8 3.8 8.7 8.7 0 1 0 20.2 15.2Z" />
+      </>
+    ),
+    cloudRain: (
+      <>
+        <path d="M7 18h9.5a4.5 4.5 0 0 0 .5-9 6.5 6.5 0 0 0-12.2 1.7A3.7 3.7 0 0 0 7 18Z" />
+        <path d="M8 20v1M12 20v1M16 20v1" />
+      </>
+    ),
+    wind: (
+      <>
+        <path d="M3 8h11a3 3 0 1 0-3-3" />
+        <path d="M3 12h15a3 3 0 1 1-3 3" />
+        <path d="M3 16h8" />
+      </>
+    ),
+    waves: (
+      <>
+        <path d="M3 9c2.2 0 2.2 2 4.5 2S9.8 9 12 9s2.2 2 4.5 2S18.8 9 21 9" />
+        <path d="M3 14c2.2 0 2.2 2 4.5 2s2.3-2 4.5-2 2.2 2 4.5 2 2.3-2 4.5-2" />
+      </>
+    ),
+    leaf: (
+      <>
+        <path d="M20 4C10 4 5 8 5 14c0 3 2 5 5 5 6 0 10-5 10-15Z" />
+        <path d="M4 20c3-5 7-8 12-11" />
+      </>
+    ),
+    droplets: (
+      <>
+        <path d="M12 3s5 5.2 5 9a5 5 0 0 1-10 0c0-3.8 5-9 5-9Z" />
+        <path d="M19 5s2 2.1 2 3.5" />
+      </>
+    ),
+    piano: (
+      <>
+        <rect x="3" y="6" width="18" height="12" rx="2" />
+        <path d="M7 6v7M11 6v7M15 6v7M19 6v7" />
+        <path d="M7 13h4M15 13h4" />
+      </>
+    ),
+    eye: (
+      <>
+        <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" />
+        <circle cx="12" cy="12" r="2.5" />
+      </>
+    ),
+    briefcase: (
+      <>
+        <rect x="3" y="7" width="18" height="13" rx="2" />
+        <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18M10 12v2h4v-2" />
+      </>
+    ),
+    spark: (
+      <>
+        <path d="m12 2 1.5 6.5L20 10l-6.5 1.5L12 18l-1.5-6.5L4 10l6.5-1.5L12 2Z" />
+      </>
+    ),
+    mirror: (
+      <>
+        <rect x="7" y="3" width="10" height="18" rx="5" />
+        <path d="M10 8h4M10 12h4M10 16h4" />
+      </>
+    ),
+    people: (
+      <>
+        <circle cx="9" cy="8" r="3" />
+        <path d="M3.5 20a5.5 5.5 0 0 1 11 0" />
+        <circle cx="17" cy="9" r="2.3" />
+        <path d="M15.5 15.5a4.3 4.3 0 0 1 5 4.5" />
+      </>
+    ),
+    candle: (
+      <>
+        <path d="M9 10h6v10H9z" />
+        <path d="M12 10c-2-2 1-3 0-5 3 2 3 4 0 5Z" />
+        <path d="M7 20h10" />
+      </>
+    ),
+    play: <path d="m9 6 10 6-10 6V6Z" />,
+    pause: (
+      <>
+        <path d="M8 6v12M16 6v12" />
+      </>
+    ),
+    arrowRight: (
+      <>
+        <path d="M5 12h14M13 6l6 6-6 6" />
+      </>
+    ),
+    arrowLeft: (
+      <>
+        <path d="M19 12H5M11 6l-6 6 6 6" />
+      </>
+    ),
+    chevronRight: <path d="m9 18 6-6-6-6" />,
+    headphones: (
+      <>
+        <path d="M4 14v-2a8 8 0 0 1 16 0v2" />
+        <path d="M4 14h3v5H5a1 1 0 0 1-1-1v-4ZM20 14h-3v5h2a1 1 0 0 0 1-1v-4Z" />
+      </>
+    ),
+    message: (
+      <>
+        <path d="M20 11.5a7.5 7.5 0 0 1-8 7.5 8.7 8.7 0 0 1-3-.5L4 20l1.5-4A7.4 7.4 0 0 1 4.5 12 7.5 7.5 0 0 1 12 4.5a7.5 7.5 0 0 1 8 7Z" />
+      </>
+    ),
+    home: (
+      <>
+        <path d="m3 11 9-7 9 7" />
+        <path d="M5 10v10h14V10M9 20v-6h6v6" />
+      </>
+    ),
+    user: (
+      <>
+        <circle cx="12" cy="8" r="3.5" />
+        <path d="M5 21a7 7 0 0 1 14 0" />
+      </>
+    ),
+  };
+
+  return <svg {...common}>{paths[name] || paths.spark}</svg>;
+}
+
+const iconesSentimento = {
+  cansado: "moon",
+  ansioso: "wind",
+  triste: "cloudRain",
+  pensando: "message",
+  irritado: "spark",
+  vazio: "eye",
+  desanimado: "leaf",
+  medo: "eye",
+  inseguro: "mirror",
+  sobrecarregado: "briefcase",
+  frustrado: "spark",
+  futuro: "wind",
+  depressivo: "cloudRain",
+  solitario: "people",
+  "sem-esperanca": "candle",
+};
+
+const iconesSom = {
+  chuva: "cloudRain",
+  ondas: "waves",
+  floresta: "leaf",
+  ambiente: "wind",
+  chuvaambiente: "cloudRain",
+  agua: "droplets",
+  piano: "piano",
+  noite: "moon",
+};
+
+function obterIconeSom(arquivo) {
+  const nome = String(arquivo || "").split("/").pop()?.replace(/\.[^.]+$/, "") || "";
+  return iconesSom[nome] || "waves";
+}
+
 /* =========================================================
    SENTIMENTOS
 ========================================================= */
@@ -8,7 +192,7 @@ import { supabase } from "../lib/supabase";
 const sentimentos = [
   {
     id: "cansado",
-    emoji: "😴",
+    icone: "moon",
     nome: "Cansado",
     descricao: "Talvez você precise desacelerar.",
 
@@ -27,19 +211,19 @@ const sentimentos = [
         nome: "Chuva suave",
         descricao: "para desacelerar",
         arquivo: "/sons/chuva.mp3",
-        emoji: "🌧️",
+        icone: "cloudRain",
       },
       {
         nome: "Ondas",
         descricao: "para relaxar",
         arquivo: "/sons/ondas.mp3",
-        emoji: "🌊",
+        icone: "waves",
       },
       {
         nome: "Floresta",
         descricao: "para respirar",
         arquivo: "/sons/floresta.mp3",
-        emoji: "🌿",
+        icone: "leaf",
       },
     ],
 
@@ -56,7 +240,7 @@ const sentimentos = [
 
   {
     id: "ansioso",
-    emoji: "😰",
+    icone: "wind",
     nome: "Ansioso",
     descricao: "Talvez seja hora de voltar para o presente.",
 
@@ -75,25 +259,25 @@ const sentimentos = [
         nome: "Chuva suave",
         descricao: "para acalmar",
         arquivo: "/sons/chuva.mp3",
-        emoji: "",
+        icone: "cloudRain",
       },
       {
         nome: "Ondas tranquilas",
         descricao: "para desacelerar",
         arquivo: "/sons/ondas.mp3",
-        emoji: "🌊",
+        icone: "waves",
       },
       {
         nome: "Som ambiente",
         descricao: "para voltar ao presente",
         arquivo: "/sons/ambiente.mp3",
-        emoji: "🫧",
+        icone: "wind",
       },
        {
         nome: "Chuva e Som Abiente",
         descricao: "para voltar ao presente",
         arquivo: "/sons/chuvaambiente.mp3",
-        emoji: "🫧🌧️",
+        icone: "cloudRain",
       },
     ],
 
@@ -110,7 +294,7 @@ const sentimentos = [
 
   {
     id: "triste",
-    emoji: "😔",
+    icone: "cloudRain",
     nome: "Triste",
     descricao: "Talvez esse sentimento precise ser ouvido.",
 
@@ -129,19 +313,19 @@ const sentimentos = [
         nome: "Chuva",
         descricao: "para acolher o momento",
         arquivo: "/sons/chuva.mp3",
-        emoji: "🌧️",
+        icone: "cloudRain",
       },
       {
         nome: "Piano suave",
         descricao: "para contemplar",
         arquivo: "/sons/piano.mp3",
-        emoji: "🎹",
+        icone: "piano",
       },
       {
         nome: "Noite tranquila",
         descricao: "para ficar em silêncio",
         arquivo: "/sons/noite.mp3",
-        emoji: "🌙",
+        icone: "moon",
       },
     ],
 
@@ -158,7 +342,7 @@ const sentimentos = [
 
   {
     id: "pensando",
-    emoji: "💭",
+    icone: "message",
     nome: "Pensando demais",
     descricao: "Talvez nem todo pensamento precise ser seguido.",
 
@@ -177,19 +361,19 @@ const sentimentos = [
         nome: "Floresta",
         descricao: "para limpar a mente",
         arquivo: "/sons/floresta.mp3",
-        emoji: "🌿",
+        icone: "leaf",
       },
       {
         nome: "Água",
         descricao: "para desacelerar",
         arquivo: "/sons/agua.mp3",
-        emoji: "💧",
+        icone: "droplets",
       },
       {
         nome: "Chuva leve",
         descricao: "para contemplar",
         arquivo: "/sons/chuva.mp3",
-        emoji: "🌧️",
+        icone: "cloudRain",
       },
     ],
 
@@ -206,7 +390,7 @@ const sentimentos = [
 
   {
     id: "irritado",
-    emoji: "😡",
+    icone: "spark",
     nome: "Irritado",
     descricao: "Talvez exista algo por trás dessa raiva.",
 
@@ -225,19 +409,19 @@ const sentimentos = [
         nome: "Chuva",
         descricao: "para desacelerar",
         arquivo: "/sons/chuva.mp3",
-        emoji: "🌧️",
+        icone: "cloudRain",
       },
       {
         nome: "Ondas",
         descricao: "para respirar",
         arquivo: "/sons/ondas.mp3",
-        emoji: "🌊",
+        icone: "waves",
       },
       {
         nome: "Floresta",
         descricao: "para se afastar do excesso",
         arquivo: "/sons/floresta.mp3",
-        emoji: "🌿",
+        icone: "leaf",
       },
     ],
 
@@ -254,7 +438,7 @@ const sentimentos = [
 
   {
     id: "vazio",
-    emoji: "😶",
+    icone: "eye",
     nome: "Vazio",
     descricao: "Talvez você não precise preencher esse espaço imediatamente.",
 
@@ -273,19 +457,19 @@ const sentimentos = [
         nome: "Noite tranquila",
         descricao: "para contemplar",
         arquivo: "/sons/noite.mp3",
-        emoji: "🌙",
+        icone: "moon",
       },
       {
         nome: "Chuva",
         descricao: "para acolher",
         arquivo: "/sons/chuva.mp3",
-        emoji: "🌧️",
+        icone: "cloudRain",
       },
       {
         nome: "Piano",
         descricao: "para refletir",
         arquivo: "/sons/piano.mp3",
-        emoji: "🎹",
+        icone: "piano",
       },
     ],
 
@@ -302,7 +486,7 @@ const sentimentos = [
 
   {
     id: "desanimado",
-    emoji: "🥀",
+    icone: "leaf",
     nome: "Desanimado",
     descricao: "Talvez o caminho precise mudar, não terminar.",
 
@@ -321,19 +505,19 @@ const sentimentos = [
         nome: "Floresta",
         descricao: "para renovar",
         arquivo: "/sons/floresta.mp3",
-        emoji: "🌿",
+        icone: "leaf",
       },
       {
         nome: "Ondas",
         descricao: "para desacelerar",
         arquivo: "/sons/ondas.mp3",
-        emoji: "🌊",
+        icone: "waves",
       },
       {
         nome: "Piano suave",
         descricao: "para contemplar",
         arquivo: "/sons/piano.mp3",
-        emoji: "🎹",
+        icone: "piano",
       },
     ],
 
@@ -350,7 +534,7 @@ const sentimentos = [
 
   {
     id: "medo",
-    emoji: "😨",
+    icone: "eye",
     nome: "Com medo",
     descricao: "Talvez o medo esteja tentando dizer alguma coisa.",
 
@@ -369,19 +553,19 @@ const sentimentos = [
         nome: "Som ambiente",
         descricao: "para desacelerar",
         arquivo: "/sons/ambiente.mp3",
-        emoji: "🫧",
+        icone: "wind",
       },
       {
         nome: "Ondas",
         descricao: "para acalmar",
         arquivo: "/sons/ondas.mp3",
-        emoji: "🌊",
+        icone: "waves",
       },
       {
         nome: "Chuva",
         descricao: "para voltar ao presente",
         arquivo: "/sons/chuva.mp3",
-        emoji: "🌧️",
+        icone: "cloudRain",
       },
     ],
 
@@ -398,7 +582,7 @@ const sentimentos = [
 
   {
     id: "inseguro",
-    emoji: "🪞",
+    icone: "mirror",
     nome: "Inseguro",
     descricao: "Talvez seu valor não dependa da opinião dos outros.",
 
@@ -417,19 +601,19 @@ const sentimentos = [
         nome: "Piano suave",
         descricao: "para acolher",
         arquivo: "/sons/piano.mp3",
-        emoji: "🎹",
+        icone: "piano",
       },
       {
         nome: "Chuva",
         descricao: "para desacelerar",
         arquivo: "/sons/chuva.mp3",
-        emoji: "🌧️",
+        icone: "cloudRain",
       },
       {
         nome: "Floresta",
         descricao: "para respirar",
         arquivo: "/sons/floresta.mp3",
-        emoji: "🌿",
+        icone: "leaf",
       },
     ],
 
@@ -446,7 +630,7 @@ const sentimentos = [
 
   {
     id: "sobrecarregado",
-    emoji: "💼",
+    icone: "briefcase",
     nome: "Sobrecarregado",
     descricao: "Você não precisa carregar tudo sozinho.",
 
@@ -465,19 +649,19 @@ const sentimentos = [
         nome: "Chuva",
         descricao: "para desacelerar",
         arquivo: "/sons/chuva.mp3",
-        emoji: "🌧️",
+        icone: "cloudRain",
       },
       {
         nome: "Floresta",
         descricao: "para respirar",
         arquivo: "/sons/floresta.mp3",
-        emoji: "🌿",
+        icone: "leaf",
       },
       {
         nome: "Ondas",
         descricao: "para relaxar",
         arquivo: "/sons/ondas.mp3",
-        emoji: "🌊",
+        icone: "waves",
       },
     ],
 
@@ -494,7 +678,7 @@ const sentimentos = [
 
   {
     id: "frustrado",
-    emoji: "😤",
+    icone: "spark",
     nome: "Frustrado",
     descricao: "Talvez você esteja cansado de tentar sem ver resultado.",
     reflexoes: [
@@ -505,9 +689,9 @@ const sentimentos = [
       "Talvez o resultado não tenha vindo ainda, mas isso não apaga o que você tentou.",
     ],
     sons: [
-      { nome: "Chuva suave", descricao: "para desacelerar", arquivo: "/sons/chuva.mp3", emoji: "🌧️" },
-      { nome: "Ondas", descricao: "para aliviar a tensão", arquivo: "/sons/ondas.mp3", emoji: "🌊" },
-      { nome: "Piano suave", descricao: "para reorganizar os pensamentos", arquivo: "/sons/piano.mp3", emoji: "🎹" },
+      { nome: "Chuva suave", descricao: "para desacelerar", arquivo: "/sons/chuva.mp3", icone: "cloudRain" },
+      { nome: "Ondas", descricao: "para aliviar a tensão", arquivo: "/sons/ondas.mp3", icone: "waves" },
+      { nome: "Piano suave", descricao: "para reorganizar os pensamentos", arquivo: "/sons/piano.mp3", icone: "piano" },
     ],
     momento: {
       titulo: "Você não precisa acertar tudo de primeira.",
@@ -520,7 +704,7 @@ const sentimentos = [
 
   {
     id: "futuro",
-    emoji: "🔮",
+    icone: "wind",
     nome: "Medo do futuro",
     descricao: "Talvez você esteja tentando controlar o que ainda não aconteceu.",
     reflexoes: [
@@ -531,9 +715,9 @@ const sentimentos = [
       "Qual é o menor passo possível que está ao seu alcance neste momento?",
     ],
     sons: [
-      { nome: "Som ambiente", descricao: "para voltar ao presente", arquivo: "/sons/ambiente.mp3", emoji: "🫧" },
-      { nome: "Chuva", descricao: "para acalmar", arquivo: "/sons/chuva.mp3", emoji: "🌧️" },
-      { nome: "Floresta", descricao: "para respirar", arquivo: "/sons/floresta.mp3", emoji: "🌿" },
+      { nome: "Som ambiente", descricao: "para voltar ao presente", arquivo: "/sons/ambiente.mp3", icone: "wind" },
+      { nome: "Chuva", descricao: "para acalmar", arquivo: "/sons/chuva.mp3", icone: "cloudRain" },
+      { nome: "Floresta", descricao: "para respirar", arquivo: "/sons/floresta.mp3", icone: "leaf" },
     ],
     momento: {
       titulo: "Você não precisa conhecer todo o caminho.",
@@ -546,7 +730,7 @@ const sentimentos = [
 
   {
     id: "depressivo",
-    emoji: "🌧️",
+    icone: "cloudRain",
     nome: "Depressivo",
     descricao: "Você merece acolhimento, cuidado e apoio.",
     reflexoes: [
@@ -557,9 +741,9 @@ const sentimentos = [
       "Você não precisa resolver a vida inteira para dar um pequeno passo agora.",
     ],
     sons: [
-      { nome: "Piano suave", descricao: "para acolher", arquivo: "/sons/piano.mp3", emoji: "🎹" },
-      { nome: "Chuva leve", descricao: "para permanecer no momento", arquivo: "/sons/chuva.mp3", emoji: "🌧️" },
-      { nome: "Noite tranquila", descricao: "para respirar em silêncio", arquivo: "/sons/noite.mp3", emoji: "🌙" },
+      { nome: "Piano suave", descricao: "para acolher", arquivo: "/sons/piano.mp3", icone: "piano" },
+      { nome: "Chuva leve", descricao: "para permanecer no momento", arquivo: "/sons/chuva.mp3", icone: "cloudRain" },
+      { nome: "Noite tranquila", descricao: "para respirar em silêncio", arquivo: "/sons/noite.mp3", icone: "moon" },
     ],
     momento: {
       titulo: "Você merece cuidado, não cobrança.",
@@ -572,7 +756,7 @@ const sentimentos = [
 
   {
     id: "solitario",
-    emoji: "🫂",
+    icone: "people",
     nome: "Solitário",
     descricao: "Talvez você esteja precisando de conexão e acolhimento.",
     reflexoes: [
@@ -583,9 +767,9 @@ const sentimentos = [
       "Você consegue pensar em alguém com quem poderia dividir um pouco do que está sentindo?",
     ],
     sons: [
-      { nome: "Piano suave", descricao: "para acolher", arquivo: "/sons/piano.mp3", emoji: "🎹" },
-      { nome: "Chuva", descricao: "para ficar consigo", arquivo: "/sons/chuva.mp3", emoji: "🌧️" },
-      { nome: "Ondas", descricao: "para respirar", arquivo: "/sons/ondas.mp3", emoji: "🌊" },
+      { nome: "Piano suave", descricao: "para acolher", arquivo: "/sons/piano.mp3", icone: "piano" },
+      { nome: "Chuva", descricao: "para ficar consigo", arquivo: "/sons/chuva.mp3", icone: "cloudRain" },
+      { nome: "Ondas", descricao: "para respirar", arquivo: "/sons/ondas.mp3", icone: "waves" },
     ],
     momento: {
       titulo: "Você merece ser ouvido.",
@@ -598,7 +782,7 @@ const sentimentos = [
 
   {
     id: "sem-esperanca",
-    emoji: "🕯️",
+    icone: "candle",
     nome: "Sem esperança",
     descricao: "Talvez hoje você não consiga enxergar uma saída, mas não precisa enfrentar isso sozinho.",
     reflexoes: [
@@ -609,9 +793,9 @@ const sentimentos = [
       "Sua dor merece apoio real e não precisa ser carregada em silêncio.",
     ],
     sons: [
-      { nome: "Piano suave", descricao: "para acolher", arquivo: "/sons/piano.mp3", emoji: "🎹" },
-      { nome: "Chuva leve", descricao: "para respirar", arquivo: "/sons/chuva.mp3", emoji: "🌧️" },
-      { nome: "Floresta", descricao: "para permanecer presente", arquivo: "/sons/floresta.mp3", emoji: "🌿" },
+      { nome: "Piano suave", descricao: "para acolher", arquivo: "/sons/piano.mp3", icone: "piano" },
+      { nome: "Chuva leve", descricao: "para respirar", arquivo: "/sons/chuva.mp3", icone: "cloudRain" },
+      { nome: "Floresta", descricao: "para permanecer presente", arquivo: "/sons/floresta.mp3", icone: "leaf" },
     ],
     momento: {
       titulo: "Você não precisa atravessar isso sozinho.",
@@ -638,7 +822,7 @@ function Reflexao({ irPara, tema, alterarTema }) {
   const [erroReflexoes, setErroReflexoes] = useState("");
 
   // Quantidade de cards vistos desde o último Momento Pulsan
-  const [cardsVistos, setCardsVistos] = useState(0);
+  const [cardsVistos, setCardsVistos] = useState(1);
 
   const [mostrarMomento, setMostrarMomento] = useState(false);
   const [tipoMomento, setTipoMomento] = useState(null);
@@ -1028,11 +1212,29 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
       );
     });
 
-    // Não reinicia o ciclo. Se todas as frases já foram usadas, não reutiliza
-    // nenhuma frase antiga. Isso garante que a aba seja sempre diferente.
+    // Prioridade: nunca repetir enquanto ainda houver outra frase disponível.
+    // Quando todas já foram usadas, inicia um novo ciclo para não deixar o
+    // Momento Pulsan sem conteúdo.
     if (!disponiveis.length) {
-      console.warn("[Pulsan] Todas as frases do Momento Pulsan já foram usadas.");
-      setFrasePulsan("");
+      frasesUsadasPulsanRef.current.clear();
+      frasesUsadasTextoPulsanRef.current.clear();
+      salvarHistoricoFrases(id, []);
+
+      const novaEscolha =
+        frasesValidas[Math.floor(Math.random() * frasesValidas.length)];
+
+      const novoTexto = String(novaEscolha.frase)
+        .replace(/\s+/g, " ")
+        .toLowerCase();
+
+      frasesUsadasPulsanRef.current.add(String(novaEscolha.id));
+      frasesUsadasTextoPulsanRef.current.add(novoTexto);
+      salvarHistoricoFrases(id, [
+        String(novaEscolha.id),
+        novoTexto,
+      ]);
+      setFrasesUsadasPulsan([String(novaEscolha.id)]);
+      setFrasePulsan(novaEscolha.frase);
       setCarregandoFrasePulsan(false);
       return;
     }
@@ -1091,7 +1293,7 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
     const primeiroMomento = await encontrarProximoMomento(id, historicoMomento);
     setMomentoPulsanAtual(primeiroMomento);
     setCardAtual(0);
-    setCardsVistos(0);
+    setCardsVistos(1);
     setMostrarMomento(false);
     setTipoMomento(null);
     setErroSom(false);
@@ -1102,8 +1304,6 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
     frasesUsadasPulsanRef.current.clear();
     frasesUsadasTextoPulsanRef.current.clear();
     setErroReflexoes("");
-    frasesUsadasPulsanRef.current.clear();
-    frasesUsadasTextoPulsanRef.current.clear();
     setFrasesUsadasPulsan([]);
     setFrasePulsan("");
     setReflexoesBanco([]);
@@ -1119,8 +1319,9 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
 
     const { data, error } = await supabase
       .from("reflexoes")
-      .select("id, mensagem, ativa")
+      .select("id, mensagem, ativa, situacao")
       .ilike("sentimento", sentimentoBanco)
+      .ilike("situacao", sentimentoBanco)
       .eq("ativa", true)
       .limit(200);
 
@@ -1161,8 +1362,22 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
     ).sort(() => Math.random() - 0.5);
 
     reflexoesVistasRef.current = carregarHistoricoReflexoes(id);
-    if (reflexoesEmbaralhadas.length > 0 && reflexoesVistasRef.current.size === 0) {
-      const primeira = reflexoesEmbaralhadas[0];
+
+    // O card inicial também precisa respeitar o histórico. Ao voltar para
+    // um sentimento, começa na primeira reflexão ainda não vista.
+    let indiceInicial = reflexoesEmbaralhadas.findIndex((reflexao) => {
+      const chave = String(reflexao).replace(/\s+/g, " ").toLowerCase();
+      return !reflexoesVistasRef.current.has(chave);
+    });
+
+    // Se todas as reflexões disponíveis já foram vistas, inicia um novo ciclo.
+    if (indiceInicial < 0 && reflexoesEmbaralhadas.length > 0) {
+      reflexoesVistasRef.current = new Set();
+      indiceInicial = 0;
+    }
+
+    if (indiceInicial >= 0) {
+      const primeira = reflexoesEmbaralhadas[indiceInicial];
       const chavePrimeira = String(primeira)
         .replace(/\s+/g, " ")
         .toLowerCase();
@@ -1171,7 +1386,8 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
     }
 
     setReflexoesBanco(reflexoesEmbaralhadas);
-    setCardAtual(0);
+    setCardAtual(indiceInicial >= 0 ? indiceInicial : 0);
+    setCardsVistos(reflexoesEmbaralhadas.length > 0 ? 1 : 0);
     setCarregandoReflexoes(false);
 
     window.scrollTo({
@@ -1187,10 +1403,10 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
   function registrarPassagemCard() {
     if (!sentimento || mostrarMomento) return false;
 
-    const novoTotal = cardsVistos + 1;
-
-    // A contagem é interna e considera tanto direita quanto esquerda.
-    if (novoTotal >= 10) {
+    // cardsVistos representa o número de reflexões que a pessoa já viu
+    // neste ciclo. O primeiro card já começa como 1.
+    // Assim: 10 cards inéditos -> Momento Pulsan.
+    if (cardsVistos >= 10) {
       setCardsVistos(10);
 
       // Ao entrar no Momento Pulsan, o som de fundo é pausado sem reiniciar.
@@ -1207,8 +1423,8 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
       setMostrarMomento(true);
       registrarMomentoComoVisto(momentoPulsanAtual);
       if (sentimentoSelecionado) {
-  carregarFrasePulsan(sentimentoSelecionado);
-}
+        carregarFrasePulsan(sentimentoSelecionado);
+      }
 
       window.scrollTo({
         top: 0,
@@ -1218,7 +1434,7 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
       return true;
     }
 
-    setCardsVistos(novoTotal);
+    setCardsVistos(cardsVistos + 1);
     return false;
   }
 
@@ -1239,6 +1455,22 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
         salvarHistoricoReflexoes(sentimentoSelecionado);
         return indice;
       }
+    }
+
+    // Quando todas as reflexões disponíveis foram percorridas, inicia um
+    // novo ciclo. Isso só acontece depois de realmente esgotar as opções.
+    if (lista.length > 0) {
+      reflexoesVistasRef.current = new Set();
+
+      const primeiroIndice = 0;
+      const primeira = lista[primeiroIndice];
+      const chavePrimeira = String(primeira)
+        .replace(/\s+/g, " ")
+        .toLowerCase();
+
+      reflexoesVistasRef.current.add(chavePrimeira);
+      salvarHistoricoReflexoes(sentimentoSelecionado);
+      return primeiroIndice;
     }
 
     return -1;
@@ -1360,7 +1592,7 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
     // Só aqui o Momento Pulsan muda.
     // O novo índice traz um novo par: vídeo + áudio do mesmo momento.
     setMomentoPulsanAtual(proximoMomento);
-    setCardsVistos(0);
+    setCardsVistos(1);
 
     const proximaReflexao = obterProximaReflexaoNaoVista();
     if (proximaReflexao >= 0) {
@@ -1459,7 +1691,7 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
                  style={styles.sentimentoCard}
               >
                 <span style={styles.sentimentoEmoji}>
-                  {item.emoji}
+                  <Icon name={iconesSentimento[item.id] || "heart"} size={25} strokeWidth={1.8} />
                 </span>
 
                 <span style={styles.sentimentoNome}>
@@ -1474,7 +1706,7 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
           </section>
 
           <div style={styles.fraseInicio}>
-            <span>✦</span>
+            <span><Icon name="spark" size={18} /></span>
 
             <p>
               Você não precisa saber exatamente o que
@@ -1504,12 +1736,12 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
             onClick={voltarSentimentos}
             style={styles.voltar}
           >
-            ← Escolher outro momento
+            <><Icon name="arrowLeft" size={17} /> Escolher outro momento</>
           </button>
 
           <section style={styles.momento}>
             <div style={styles.momentoTag}>
-              ✨ MOMENTO PULSAN {momentoPulsanAtual + 1}
+              <><Icon name="spark" size={16} /> MOMENTO PULSAN {momentoPulsanAtual + 1}</>
             </div>
 
             <h1 style={styles.momentoTitulo}>
@@ -1557,7 +1789,7 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
                  style={styles.conteudoBotao}
               >
                 <div style={styles.conteudoIcone}>
-                  ▶
+                  <Icon name="play" size={20} />
                 </div>
 
                 <div style={styles.conteudoTexto}>
@@ -1572,7 +1804,7 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
                 </div>
 
                 <span style={styles.seta}>
-                  →
+                  <Icon name="arrowRight" size={20} />
                 </span>
               </button>
 
@@ -1637,7 +1869,7 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
                  style={styles.conteudoBotao}
               >
                 <div style={styles.conteudoIconeAudio}>
-                  🎧
+                  <Icon name="headphones" size={21} />
                 </div>
 
                 <div style={styles.conteudoTexto}>
@@ -1652,14 +1884,14 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
                 </div>
 
                 <span style={styles.seta}>
-                  →
+                  <Icon name="arrowRight" size={20} />
                 </span>
               </button>
 
               {tipoMomento === "audio" && (
                 <div style={styles.audioMomento}>
                   <div style={styles.audioMomentoIcone}>
-                    🎧
+                    <Icon name="headphones" size={20} />
                   </div>
 
                   <div style={styles.audioMomentoTexto}>
@@ -1677,9 +1909,11 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
                     onClick={tocarAudioMomento}
                     style={styles.playPequeno}
                   >
-                    {tocandoMomentoAudio
-                      ? "❚❚"
-                      : "▶"}
+                    {tocandoMomentoAudio ? (
+                      <Icon name="pause" size={17} />
+                    ) : (
+                      <Icon name="play" size={17} />
+                    )}
                   </button>
                 </div>
               )}
@@ -1715,7 +1949,7 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
                  style={styles.conteudoBotao}
               >
                 <div style={styles.conteudoIconeReflexao}>
-                  💭
+                  <Icon name="message" size={20} />
                 </div>
 
                 <div style={styles.conteudoTexto}>
@@ -1730,7 +1964,7 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
                 </div>
 
                 <span style={styles.seta}>
-                  →
+                  <Icon name="arrowRight" size={20} />
                 </span>
               </button>
 
@@ -1764,7 +1998,7 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
               className="pulsan-continuar"
               style={styles.continuar}
             >
-              Continuar reflexões →
+              Continuar reflexões <Icon name="arrowRight" size={18} />
             </button>
 
             <button
@@ -1810,7 +2044,7 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
             onClick={voltarSentimentos}
             style={styles.voltar}
           >
-            ← Voltar
+            <><Icon name="arrowLeft" size={17} /> Voltar</>
           </button>
           <div style={styles.fraseInicio}>
             <p>{erroReflexoes}</p>
@@ -1834,7 +2068,7 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
           onClick={voltarSentimentos}
           style={styles.voltar}
         >
-          ← {sentimento.emoji} {sentimento.nome}
+          <Icon name="arrowLeft" size={17} /> <Icon name={iconesSentimento[sentimento.id] || "heart"} size={18} strokeWidth={1.8} /> {sentimento.nome}
         </button>
 
         {/* =================================================
@@ -1868,8 +2102,8 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
           onPointerCancel={finalizarArrasto}
         >
           <div style={styles.flashCardTopo}>
-            <span>
-              {sentimento.emoji}
+            <span style={styles.iconeSentimentoCard}>
+              <Icon name={iconesSentimento[sentimento.id] || "heart"} size={24} strokeWidth={1.8} />
             </span>
 
             <span>
@@ -1882,7 +2116,7 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
           </p>
 
           <div style={styles.flashCardRodape}>
-            <span>✦</span>
+            <span><Icon name="spark" size={18} /></span>
 
             <small>
               Apenas leia. Não precisa responder.
@@ -1895,13 +2129,13 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
         ================================================= */}
 
         <div style={styles.arrasteIndicacao}>
-          <span>←</span>
+          <span><Icon name="arrowLeft" size={18} /></span>
 
           <span>
             Arraste o card para mudar
           </span>
 
-          <span>→</span>
+          <span><Icon name="arrowRight" size={18} /></span>
         </div>
 
         {/* =================================================
@@ -1934,8 +2168,8 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
                         : styles.som
                     }
                   >
-                    <span style={styles.somEmoji}>
-                      {som.emoji}
+                    <span style={styles.somIcone}>
+                      <Icon name={obterIconeSom(som.arquivo)} size={22} strokeWidth={1.8} />
                     </span>
 
                     <span style={styles.somInfo}>
@@ -1949,9 +2183,11 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
                     </span>
 
                     <span style={styles.somPlay}>
-                      {estaTocando
-                        ? "❚❚"
-                        : "▶"}
+                      {estaTocando ? (
+                        <Icon name="pause" size={16} />
+                      ) : (
+                        <Icon name="play" size={16} />
+                      )}
                     </span>
                   </button>
                 );
@@ -2016,7 +2252,7 @@ function Header({ irPara }) {
       </button>
 
       <div style={styles.headerPerfil}>
-        👤
+        <Icon name="user" size={20} strokeWidth={1.8} />
       </div>
     </header>
   );
@@ -2030,12 +2266,12 @@ function MenuInferior() {
   return (
     <nav style={styles.menu}>
       <div style={styles.menuItem}>
-        <span>🏠</span>
+        <span><Icon name="home" size={20} /></span>
         <small>Início</small>
       </div>
 
       <div style={styles.menuItem}>
-        <span>💬</span>
+        <span><Icon name="message" size={20} /></span>
         <small>Conversas</small>
       </div>
 
@@ -2045,12 +2281,12 @@ function MenuInferior() {
           ...styles.menuAtivo,
         }}
       >
-        <span>💭</span>
+        <span><Icon name="heart" size={20} /></span>
         <small>Reflexão</small>
       </div>
 
       <div style={styles.menuItem}>
-        <span>👤</span>
+        <span><Icon name="user" size={20} /></span>
         <small>Perfil</small>
       </div>
     </nav>
@@ -2385,7 +2621,7 @@ const styles = {
     boxShadow: "0 6px 18px rgba(58,125,255,0.13)",
   },
 
-  somEmoji: {
+  somIcone: {
     width: "31px",
     height: "31px",
     borderRadius: "10px",
@@ -2550,8 +2786,10 @@ const styles = {
 
   seta: {
     color: "#3A7DFF",
-    fontSize: "21px",
-    fontWeight: "700",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
   },
 
   areaVideo: {
@@ -2617,6 +2855,9 @@ const styles = {
     color: "#ffffff",
     cursor: "pointer",
     boxShadow: "0 7px 16px rgba(58,125,255,0.2)",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   reflexaoProfunda: {
@@ -2645,6 +2886,10 @@ const styles = {
 
   continuar: {
     width: "100%",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "7px",
     border: "none",
     background:
       "linear-gradient(135deg, #3A7DFF, #5b92ff)",
