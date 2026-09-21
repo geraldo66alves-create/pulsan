@@ -823,6 +823,7 @@ function Reflexao({ irPara, tema, alterarTema }) {
 
   // Quantidade de cards vistos desde o último Momento Pulsan
   const [cardsVistos, setCardsVistos] = useState(1);
+  const cardsVistosRef = useRef(1);
 
   const [mostrarMomento, setMostrarMomento] = useState(false);
   const [tipoMomento, setTipoMomento] = useState(null);
@@ -1293,6 +1294,7 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
     const primeiroMomento = await encontrarProximoMomento(id, historicoMomento);
     setMomentoPulsanAtual(primeiroMomento);
     setCardAtual(0);
+    cardsVistosRef.current = 1;
     setCardsVistos(1);
     setMostrarMomento(false);
     setTipoMomento(null);
@@ -1406,7 +1408,8 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
     // cardsVistos representa o número de reflexões que a pessoa já viu
     // neste ciclo. O primeiro card já começa como 1.
     // Assim: 10 cards inéditos -> Momento Pulsan.
-    if (cardsVistos >= 10) {
+    if (cardsVistosRef.current >= 10) {
+      cardsVistosRef.current = 10;
       setCardsVistos(10);
 
       // Ao entrar no Momento Pulsan, o som de fundo é pausado sem reiniciar.
@@ -1434,7 +1437,9 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
       return true;
     }
 
-    setCardsVistos(cardsVistos + 1);
+    const novoTotal = Math.min(cardsVistosRef.current + 1, 10);
+    cardsVistosRef.current = novoTotal;
+    setCardsVistos(novoTotal);
     return false;
   }
 
@@ -1592,6 +1597,7 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
     // Só aqui o Momento Pulsan muda.
     // O novo índice traz um novo par: vídeo + áudio do mesmo momento.
     setMomentoPulsanAtual(proximoMomento);
+    cardsVistosRef.current = 1;
     setCardsVistos(1);
 
     const proximaReflexao = obterProximaReflexaoNaoVista();
@@ -1617,6 +1623,7 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
 
     setSentimentoSelecionado(null);
     setCardAtual(0);
+    cardsVistosRef.current = 0;
     setCardsVistos(0);
     setMomentoPulsanAtual(0);
     setMostrarMomento(false);
