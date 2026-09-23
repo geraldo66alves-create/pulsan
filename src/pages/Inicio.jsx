@@ -1,11 +1,81 @@
 import React, { useEffect, useRef, useState } from "react";
 
+
+function Icon({ name, size = 22, strokeWidth = 1.9, className = "" }) {
+  const common = {
+    width: size,
+    height: size,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    className,
+    "aria-hidden": true,
+  };
+
+  const paths = {
+    message: (
+      <>
+        <path d="M20 11.5a7.5 7.5 0 0 1-8 7.45 8.8 8.8 0 0 1-3.25-.62L4 20l1.67-3.42A7.4 7.4 0 0 1 4.5 11.5 7.5 7.5 0 0 1 12 4a7.5 7.5 0 0 1 8 7.5Z" />
+        <path d="M8 11.5h.01M12 11.5h.01M16 11.5h.01" />
+      </>
+    ),
+    headphones: (
+      <>
+        <path d="M4 14v-2a8 8 0 0 1 16 0v2" />
+        <path d="M4 14h3v5H5a1 1 0 0 1-1-1v-4ZM20 14h-3v5h2a1 1 0 0 0 1-1v-4Z" />
+      </>
+    ),
+    heartHandshake: (
+      <>
+        <path d="m12 20-1.3-1.2C5.6 14.15 3 11.8 3 8.9A4.4 4.4 0 0 1 7.4 4.5c1.7 0 3.1.8 4.1 2 1-1.2 2.4-2 4.1-2A4.4 4.4 0 0 1 20 8.9c0 2.9-2.6 5.25-7.7 9.9L12 20Z" />
+        <path d="m8.5 11.5 2 1.8a2 2 0 0 0 2.7-.05l1.2-1.15M7 10.5l2.1 1.9M17 10.5l-2.1 1.9" />
+      </>
+    ),
+    users: (
+      <>
+        <path d="M16 21v-1.6a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4V21" />
+        <circle cx="9.5" cy="7.5" r="3.5" />
+        <path d="M17 11a3.3 3.3 0 0 0 0-6.4M21 21v-1.6a4 4 0 0 0-3-3.86" />
+      </>
+    ),
+    building: (
+      <>
+        <path d="M4 21V5a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v16M16 8h3a1 1 0 0 1 1 1v12M8 8h2M8 12h2M8 16h2M12 8h2M12 12h2M12 16h2M3 21h18" />
+      </>
+    ),
+    school: (
+      <>
+        <path d="m3 10 9-5 9 5-9 5-9-5Z" />
+        <path d="M7 12.2V16c2.7 2 7.3 2 10 0v-3.8M21 10v6" />
+      </>
+    ),
+    lock: (
+      <>
+        <rect x="5" y="10" width="14" height="10" rx="2" />
+        <path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3" />
+      </>
+    ),
+    eye: (
+      <>
+        <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" />
+        <circle cx="12" cy="12" r="2.5" />
+      </>
+    ),
+    check: <path d="m5 12 4 4L19 6" />,
+  };
+
+  return <svg {...common}>{paths[name] || paths.message}</svg>;
+}
+
 const BUBBLE_ONE = "Às vezes eu só precisava que alguém me escutasse.";
-const BUBBLE_TWO = "Você não precisa enfrentar tudo sozinho. 💙";
+const BUBBLE_TWO = "Você não precisa enfrentar tudo sozinho.";
 
 const SOBRE_DATA = [
   {
-    icon: "💭",
+    icon: "message",
     titulo: "Falar",
     texto:
       "Compartilhe aquilo que está sentindo e coloque em palavras o que muitas vezes fica guardado.",
@@ -13,14 +83,14 @@ const SOBRE_DATA = [
       "Sem formulários, sem categorias obrigatórias — só o espaço em branco e o que você precisa dizer.",
   },
   {
-    icon: "👂",
+    icon: "headphones",
     titulo: "Ser ouvido",
     texto: "Encontre pessoas dispostas a ouvir e oferecer uma palavra de apoio.",
     extra:
       "Quem responde escolheu estar ali. Cada comentário é alguém que decidiu prestar atenção.",
   },
   {
-    icon: "💙",
+    icon: "heartHandshake",
     titulo: "Acolher",
     texto: "Incentive relações baseadas em empatia, respeito e compreensão.",
     extra:
@@ -31,21 +101,21 @@ const SOBRE_DATA = [
 const PASSOS_DATA = [
   {
     numero: "01",
-    icon: "💭",
+    icon: "message",
     titulo: "Compartilhe",
     texto: "Escreva sobre o que você está sentindo em um espaço pensado para acolher.",
     exemplo: "Seu desabafo entra no Ambiente sem nome, sem foto, sem rastro.",
   },
   {
     numero: "02",
-    icon: "🤝",
+    icon: "users",
     titulo: "Receba apoio",
     texto: "Pessoas dispostas a ajudar podem demonstrar interesse em conversar.",
     exemplo: "Um pedido de conversa chega para você aceitar ou recusar — a escolha é sempre sua.",
   },
   {
     numero: "03",
-    icon: "💬",
+    icon: "message",
     titulo: "Converse",
     texto: "Quando houver aceitação, vocês podem iniciar uma conversa privada.",
     exemplo: "A conversa fica só entre vocês dois, separada de tudo o mais no Ambiente.",
@@ -54,19 +124,19 @@ const PASSOS_DATA = [
 
 const PUBLICO_DATA = [
   {
-    icon: "🏢",
+    icon: "building",
     titulo: "Empresas",
     texto: "Incentivar uma cultura de escuta, acolhimento e cuidado entre colaboradores.",
     voz: "“Descobri que dois colegas do meu time estavam passando pela mesma semana difícil que eu.”",
   },
   {
-    icon: "🎓",
+    icon: "school",
     titulo: "Escolas",
     texto: "Criar espaços de diálogo e atenção às relações e ao bem-estar dos estudantes.",
     voz: "“Consegui contar o que estava acontecendo sem precisar dizer meu nome na frente da turma.”",
   },
   {
-    icon: "👥",
+    icon: "users",
     titulo: "Comunidade",
     texto: "Aproximar pessoas através da empatia, escuta e apoio mútuo.",
     voz: "“Respondi ao desabafo de alguém e, sem saber quem era, consegui ajudar.”",
@@ -212,17 +282,17 @@ function Inicio({ irPara }) {
 
           <div className="inicio-hero-info">
             <div>
-              <span>🔒</span>
+              <span><Icon name="lock" size={16} /></span>
               <small>Privacidade</small>
             </div>
 
             <div>
-              <span>💙</span>
+              <span><Icon name="heartHandshake" size={15} /></span>
               <small>Acolhimento</small>
             </div>
 
             <div>
-              <span>🤝</span>
+              <span><Icon name="users" size={15} /></span>
               <small>Escuta</small>
             </div>
           </div>
@@ -248,7 +318,7 @@ function Inicio({ irPara }) {
           <div className="hero-card-top">
             <span className="hero-card-dot"></span>
             <span>Espaço seguro</span>
-            <span className="hero-card-lock">🔒</span>
+            <span className="hero-card-lock"><Icon name="lock" size={14} /></span>
           </div>
 
           <div className="hero-bubble bubble-one" aria-live="polite">
@@ -264,7 +334,7 @@ function Inicio({ irPara }) {
           )}
 
           <div className="hero-card-bottom">
-            <div className="hero-mini-avatar">💬</div>
+            <div className="hero-mini-avatar"><Icon name="message" size={19} /></div>
 
             <div>
               <strong>Um lugar para falar</strong>
@@ -316,7 +386,7 @@ function Inicio({ irPara }) {
                 onClick={() => setActiveSobre(index)}
                 aria-expanded={isActive}
               >
-                <div className="card-icon">{item.icon}</div>
+                <div className="card-icon"><Icon name={item.icon} size={22} /></div>
                 <h3>{item.titulo}</h3>
                 <p>{item.texto}</p>
 
@@ -370,7 +440,7 @@ function Inicio({ irPara }) {
                     onClick={() => setActiveStep(index)}
                   >
                     <div className="passo-numero">{passo.numero}</div>
-                    <div className="passo-icon">{passo.icon}</div>
+                    <div className="passo-icon"><Icon name={passo.icon} size={27} /></div>
                     <h3>{passo.titulo}</h3>
                     <p>{passo.texto}</p>
                   </button>
@@ -382,7 +452,7 @@ function Inicio({ irPara }) {
           </div>
 
           <div className="passo-exemplo">
-            <span>💬</span>
+            <span><Icon name="message" size={16} /></span>
             <p>{PASSOS_DATA[activeStep].exemplo}</p>
           </div>
         </div>
@@ -419,7 +489,7 @@ function Inicio({ irPara }) {
             >
               <div className="publico-flip-inner">
                 <div className="publico-card publico-front">
-                  <span>{item.icon}</span>
+                  <span><Icon name={item.icon} size={22} /></span>
                   <div>
                     <h3>{item.titulo}</h3>
                     <p>{item.texto}</p>
@@ -443,7 +513,7 @@ function Inicio({ irPara }) {
       <section id="seguranca" className="inicio-section inicio-seguranca">
         <div className="seguranca-visual">
           <div className="seguranca-circle">
-            <div>🔒</div>
+            <div><Icon name="lock" size={38} /></div>
           </div>
 
           <span className="seguranca-orbit orbit-one"></span>
@@ -474,7 +544,7 @@ function Inicio({ irPara }) {
             <span className={`seguranca-demo-nome${anonReveal ? " protegido" : ""}`}>
               {anonReveal ? "Anônimo" : "Ana Lima"}
             </span>
-            <span className="seguranca-demo-icone">{anonReveal ? "🔒" : "👁️"}</span>
+            <span className="seguranca-demo-icone">{anonReveal ? <Icon name="lock" size={14} /> : <Icon name="eye" size={14} />}</span>
           </button>
           <small className="seguranca-demo-legenda">
             {anonReveal
@@ -484,17 +554,17 @@ function Inicio({ irPara }) {
 
           <div className="seguranca-lista">
             <div>
-              <span>✓</span>
+              <span><Icon name="check" size={13} /></span>
               <p>Identidade protegida nos desabafos</p>
             </div>
 
             <div>
-              <span>✓</span>
+              <span><Icon name="check" size={13} /></span>
               <p>Conversas privadas entre as pessoas envolvidas</p>
             </div>
 
             <div>
-              <span>✓</span>
+              <span><Icon name="check" size={13} /></span>
               <p>Ambiente baseado em respeito e acolhimento</p>
             </div>
           </div>
@@ -836,6 +906,10 @@ function Inicio({ irPara }) {
         }
 
         .inicio-hero-info span {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          color: #3a7dff;
           font-size: 14px;
         }
 
@@ -947,6 +1021,9 @@ function Inicio({ irPara }) {
 
         .hero-card-lock {
           margin-left: auto;
+          display: inline-flex;
+          align-items: center;
+          color: #3a7dff;
         }
 
         .hero-bubble {
@@ -1023,6 +1100,7 @@ function Inicio({ irPara }) {
 
           border-radius: 13px;
           background: #ffffff;
+          color: #3a7dff;
         }
 
         .hero-card-bottom div:last-child {
@@ -1181,6 +1259,7 @@ function Inicio({ irPara }) {
 
           border-radius: 15px;
           background: #ffffff;
+          color: #3a7dff;
 
           font-size: 23px;
         }
@@ -1327,6 +1406,7 @@ function Inicio({ irPara }) {
 
           border-radius: 20px;
           background: #eaf3ff;
+          color: #3a7dff;
 
           font-size: 27px;
 
@@ -1372,6 +1452,10 @@ function Inicio({ irPara }) {
         }
 
         .passo-exemplo span {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          color: #3a7dff;
           font-size: 16px;
         }
 
@@ -1495,6 +1579,7 @@ function Inicio({ irPara }) {
 
           border-radius: 15px;
           background: #eaf3ff;
+          color: #3a7dff;
 
           font-size: 22px;
         }
@@ -1567,6 +1652,7 @@ function Inicio({ irPara }) {
           border-radius: 30px;
 
           background: #ffffff;
+          color: #3a7dff;
 
           font-size: 38px;
 
@@ -1640,7 +1726,10 @@ function Inicio({ irPara }) {
         }
 
         .seguranca-demo-icone {
-          font-size: 14px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          color: #3a7dff;
         }
 
         .seguranca-demo-legenda {

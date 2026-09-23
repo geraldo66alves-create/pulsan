@@ -685,6 +685,78 @@ function InstalacaoPulsan() {
 }
 
 // =====================================================
+// SESSÃO DA CONTA — PERSISTÊNCIA CONFORME O MODO DE USO
+// =====================================================
+// No navegador: a conta fica apenas durante a sessão da aba/janela.
+// No Pulsan instalado: a conta permanece no dispositivo até o usuário
+// escolher "Sair da conta".
+const CHAVES_SESSAO_PULSAN = [
+  "usuarioLogado",
+  "pulsanUsuarioAtual",
+  "pulsanNome",
+  "pulsanEmail",
+  "pulsanFoto",
+  "pulsanTipo",
+  "pulsanCRP",
+  "pulsanVerificacaoPsicologo",
+  "pulsanPsicologoParceiro",
+  "pulsanDocumentoProfissional",
+  "pulsanNomeDocumento",
+  "pulsanEquipePulsan",
+  "pulsanAcessoAdmin",
+  "pulsanAreaAcesso",
+];
+
+function pulsAnEstaInstalado() {
+  if (typeof window === "undefined") return false;
+
+  return Boolean(
+    window.matchMedia?.("(display-mode: standalone)")?.matches ||
+    window.navigator.standalone === true ||
+    document.referrer.startsWith("android-app://")
+  );
+}
+
+let sessaoNavegadorInicializada = false;
+
+function normalizarSessaoPulsan() {
+  if (typeof window === "undefined") return;
+
+  const instalado = pulsAnEstaInstalado();
+
+  try {
+    if (instalado) {
+      // No aplicativo instalado, a sessão permanente fica no localStorage.
+      // Se houver uma sessão temporária, ela é promovida para a persistente.
+      CHAVES_SESSAO_PULSAN.forEach((chave) => {
+        const valorSessao = window.sessionStorage.getItem(chave);
+
+        if (valorSessao !== null) {
+          window.localStorage.setItem(chave, valorSessao);
+          window.sessionStorage.removeItem(chave);
+        }
+      });
+
+      return;
+    }
+
+    // A primeira carga do Pulsan no navegador limpa qualquer sessão
+    // persistida de uma visita anterior.
+    if (!sessaoNavegadorInicializada) {
+      CHAVES_SESSAO_PULSAN.forEach((chave) => {
+        window.localStorage.removeItem(chave);
+      });
+
+      sessaoNavegadorInicializada = true;
+    }
+  } catch (erro) {
+    console.error("Erro ao ajustar a sessão do Pulsan:", erro);
+  }
+}
+
+normalizarSessaoPulsan();
+
+// =====================================================
 // APP
 // =====================================================
 
@@ -695,25 +767,33 @@ function App() {
   function usuarioEhAdministradorInicial() {
     if (typeof window === "undefined") return false;
 
+    // Mantém a sessão coerente com o local de uso:
+    // navegador = sessionStorage | aplicativo instalado = localStorage.
+    normalizarSessaoPulsan();
+
+    const armazenamento = pulsAnEstaInstalado()
+      ? window.localStorage
+      : window.sessionStorage;
+
     // Chave criada no login administrativo.
-    if (localStorage.getItem("pulsanAcessoAdmin") === "true") {
+    if (armazenamento.getItem("pulsanAcessoAdmin") === "true") {
       return true;
     }
 
     // Chave de área de acesso definida pelo Login.
     // "administrativo" significa que esta conta NÃO deve entrar
     // na experiência normal do usuário.
-    if (localStorage.getItem("pulsanAreaAcesso") === "administrativo") {
+    if (armazenamento.getItem("pulsanAreaAcesso") === "administrativo") {
       return true;
     }
 
     // Compatibilidade com a identificação antiga da equipe Pulsan.
-    if (localStorage.getItem("pulsanEquipePulsan") === "true") {
+    if (armazenamento.getItem("pulsanEquipePulsan") === "true") {
       return true;
     }
 
     const tipoSalvo = (
-      localStorage.getItem("pulsanTipo") || ""
+      armazenamento.getItem("pulsanTipo") || ""
     ).toLowerCase().trim();
 
     if (["admin", "administrador", "equipe_pulsan"].includes(tipoSalvo)) {
@@ -723,7 +803,7 @@ function App() {
     // Confere também os dados do usuário salvo pelo Login.
     for (const chave of ["usuarioLogado", "pulsanUsuarioAtual"]) {
       try {
-        const dado = localStorage.getItem(chave);
+        const dado = armazenamento.getItem(chave);
         if (!dado) continue;
 
         const usuario = JSON.parse(dado);
@@ -755,28 +835,51 @@ function App() {
   );
 
   function usuarioEstaLogado() {
+    if (typeof window === "undefined") return false;
+
+    normalizarSessaoPulsan();
+
+    if (!pulsAnEstaInstalado()) {
+      // O Login atual grava as chaves em localStorage.
+      // Assim que a autenticação é concluída, transferimos essas chaves
+      // para sessionStorage, mantendo a conta somente nesta sessão.
+      const possuiLoginLocal =
+        window.localStorage.getItem("usuarioLogado") ||
+        window.localStorage.getItem("pulsanUsuarioAtual");
+
+      if (possuiLoginLocal) {
+        CHAVES_SESSAO_PULSAN.forEach((chave) => {
+          const valor = window.localStorage.getItem(chave);
+
+          if (valor !== null) {
+            window.sessionStorage.setItem(chave, valor);
+            window.localStorage.removeItem(chave);
+          }
+        });
+      }
+    }
+
+    const armazenamento = pulsAnEstaInstalado()
+      ? window.localStorage
+      : window.sessionStorage;
+
     return Boolean(
-      localStorage.getItem("usuarioLogado") ||
-      localStorage.getItem("pulsanUsuarioAtual")
+      armazenamento.getItem("usuarioLogado") ||
+      armazenamento.getItem("pulsanUsuarioAtual")
     );
   }
 
   function sairDaConta() {
-    [
-      "usuarioLogado",
-      "pulsanUsuarioAtual",
-      "pulsanNome",
-      "pulsanEmail",
-      "pulsanFoto",
-      "pulsanTipo",
-      "pulsanCRP",
-      "pulsanVerificacaoPsicologo",
-      "pulsanPsicologoParceiro",
-      "pulsanDocumentoProfissional",
-      "pulsanNomeDocumento",
-      "pulsanEquipePulsan",
-      "pulsanAcessoAdmin",
-    ].forEach((chave) => localStorage.removeItem(chave));
+    // O logout é explícito: limpa a sessão tanto do navegador
+    // quanto do aplicativo instalado.
+    CHAVES_SESSAO_PULSAN.forEach((chave) => {
+      try {
+        window.localStorage.removeItem(chave);
+        window.sessionStorage.removeItem(chave);
+      } catch {
+        // Ignora falhas de armazenamento para concluir o logout.
+      }
+    });
 
     setPagina("inicio");
   }
@@ -850,6 +953,102 @@ function App() {
       JSON.stringify(acessibilidade)
     );
   }, [acessibilidade]);
+
+  // =====================================================
+  // VLIBRAS — ACESSIBILIDADE DIGITAL EM LIBRAS
+  // =====================================================
+  // O VLibras é carregado apenas quando a opção Libras está
+  // ativada. O script oficial cria o avatar 3D e realiza a
+  // tradução automática do conteúdo em Português para Libras.
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof document === "undefined") {
+      return;
+    }
+
+    const atualizarBotaoVLibras = () => {
+      const botao = window.VLibrasWidget?.initBtn;
+
+      if (!botao) return;
+
+      botao.style.display = acessibilidade.libras ? "block" : "none";
+      botao.setAttribute(
+        "aria-hidden",
+        acessibilidade.libras ? "false" : "true"
+      );
+    };
+
+    // O VLibras deve ser carregado uma única vez durante a sessão.
+    if (window.__PULSAN_VLIBRAS_CARREGADO__) {
+      atualizarBotaoVLibras();
+      return;
+    }
+
+    if (!acessibilidade.libras) {
+      return;
+    }
+
+    window.__PULSAN_VLIBRAS_CARREGADO__ = true;
+
+    const inicializarVLibras = () => {
+      try {
+        if (window.VLibras?.Widget && !window.__PULSAN_VLIBRAS_WIDGET__) {
+          window.__PULSAN_VLIBRAS_WIDGET__ = new window.VLibras.Widget({
+            rootPath: "https://vlibras.gov.br/app",
+            avatar: "random",
+            position: "R",
+          });
+        }
+
+        // O botão pode aparecer alguns instantes depois da criação do widget.
+        let tentativas = 0;
+        const sincronizar = () => {
+          atualizarBotaoVLibras();
+          tentativas += 1;
+
+          if (!window.VLibrasWidget?.initBtn && tentativas < 30) {
+            window.setTimeout(sincronizar, 300);
+          }
+        };
+
+        sincronizar();
+      } catch (erro) {
+        console.error("Erro ao inicializar o VLibras:", erro);
+        window.__PULSAN_VLIBRAS_CARREGADO__ = false;
+      }
+    };
+
+    const scriptExistente = document.querySelector(
+      'script[data-pulsan-vlibras="true"]'
+    );
+
+    if (scriptExistente) {
+      if (window.VLibras?.Widget) {
+        inicializarVLibras();
+      } else {
+        scriptExistente.addEventListener("load", inicializarVLibras, {
+          once: true,
+        });
+      }
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = "https://vlibras.gov.br/app/vlibras-plugin.js";
+    script.async = true;
+    script.dataset.pulsanVlibras = "true";
+    script.onload = inicializarVLibras;
+    script.onerror = () => {
+      console.error("Não foi possível carregar o VLibras.");
+      window.__PULSAN_VLIBRAS_CARREGADO__ = false;
+    };
+
+    document.body.appendChild(script);
+
+    return () => {
+      // O widget oficial permanece disponível para evitar recriações
+      // desnecessárias ao navegar entre as telas do Pulsan.
+    };
+  }, [acessibilidade.libras]);
 
   function alterarAcessibilidade(opcao, valor) {
     setAcessibilidade((anterior) => ({
