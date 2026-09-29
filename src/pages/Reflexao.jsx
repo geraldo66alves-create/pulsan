@@ -883,6 +883,8 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
     } catch (_) {}
   }
 
+  // O Momento apresentado entra no histórico deste ciclo.
+  // O histórico permite priorizar conteúdos inéditos e reiniciar o ciclo quando todos forem vistos.
   function registrarMomentoComoVisto(numeroMomento) {
     if (!sentimentoSelecionado) return;
     const historico = lerHistoricoMomentos(sentimentoSelecionado);
@@ -897,30 +899,82 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
     } catch (_) { return false; }
   }
 
-  async function encontrarProximoMomento(idSentimento, historicoAtual) {
-    const item = sentimentos.find((itemSentimento) => itemSentimento.id === idSentimento);
-    if (!item?.momento?.video || !item?.momento?.audio) return 0;
-    const usados = new Set(historicoAtual);
+  async function encontrarProximoMomento(idSentimento, historicoAtual = []) {
+    const item = sentimentos.find(
+      (itemSentimento) => itemSentimento.id === idSentimento
+    );
 
-    // O primeiro Momento usa diretamente os arquivos-base configurados no sentimento.
-    // Não fazemos HEAD no arquivo inicial, pois isso pode falhar em alguns ambientes Vite/servidores.
-    if (!usados.has(0)) return 0;
+    if (!item?.momento?.video || !item?.momento?.audio) {
+      return 0;
+    }
 
-    // Para os próximos Momentos, procura o par vídeo + áudio correspondente.
-    for (let numero = 1; numero < 100; numero += 1) {
-      if (usados.has(numero)) continue;
-      const video = obterArquivoDaSequencia(item.momento.video, numero);
-      const audio = obterArquivoDaSequencia(item.momento.audio, numero);
+    /*
+      CICLO DOS MOMENTOS PULSAN
+
+      1. Descobre todos os pares existentes de vídeo + áudio.
+      2. Prioriza sempre o primeiro par ainda NÃO visto.
+      3. Só repete quando todos os pares disponíveis já foram vistos.
+      4. Ao esgotar todos, limpa o histórico e reinicia pelo Momento 1.
+
+      O mesmo índice identifica o vídeo e o áudio.
+      Ex.: Momento 2 = video-2.mp4 + audio-2.mp3.
+    */
+    const historico = new Set(
+      (Array.isArray(historicoAtual) ? historicoAtual : [])
+        .map(Number)
+        .filter((numero) => Number.isInteger(numero) && numero >= 0)
+    );
+
+    const paresDisponiveis = [
+      {
+        indice: 0,
+        video: item.momento.video,
+        audio: item.momento.audio,
+      },
+    ];
+
+    // Procura os próximos pares em sequência.
+    // Não paramos no primeiro número ausente: assim, se um conteúdo novo
+    // for adicionado depois, ele será encontrado mesmo que exista algum
+    // número intermediário ainda sem arquivo.
+    for (let indice = 1; indice < 100; indice += 1) {
+      const video = obterArquivoDaSequencia(
+        item.momento.video,
+        indice
+      );
+      const audio = obterArquivoDaSequencia(
+        item.momento.audio,
+        indice
+      );
+
       const [videoExiste, audioExiste] = await Promise.all([
         arquivoExiste(video),
         arquivoExiste(audio),
       ]);
-      if (videoExiste && audioExiste) return numero;
+
+      if (!videoExiste || !audioExiste) {
+        continue;
+      }
+
+      paresDisponiveis.push({ indice, video, audio });
     }
 
-    // Quando todos os pares disponíveis já foram vistos, começa um novo ciclo.
-    salvarHistoricoMomentos(idSentimento, []);
-    return 0;
+    // PRIORIDADE: conteúdo que ainda não foi visto.
+    const proximoNaoVisto = paresDisponiveis.find(
+      (momento) => !historico.has(momento.indice)
+    );
+
+    if (proximoNaoVisto) {
+      return proximoNaoVisto.indice;
+    }
+
+    // Todos os conteúdos disponíveis já foram vistos.
+    // IMPORTANTE: NÃO apagamos o histórico.
+    // Assim, quando um novo vídeo/áudio for adicionado futuramente,
+    // ele continuará sendo identificado como inédito e terá prioridade.
+    // Enquanto não houver conteúdo novo, usamos o primeiro conteúdo
+    // disponível apenas como fallback, sem alterar o histórico.
+    return paresDisponiveis[0].indice;
   }
 
   function obterArquivoDaSequencia(arquivoOriginal, numeroMomento) {
