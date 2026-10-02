@@ -2,177 +2,507 @@ import React, { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 
 function RedefinirSenha({ irPara }) {
-  const [novaSenha, setNovaSenha] = useState("");
+  const [senha, setSenha] = useState("");
   const [confirmarSenha, setConfirmarSenha] = useState("");
-  const [carregando, setCarregando] = useState(false);
-  const [sessaoValida, setSessaoValida] = useState(false);
+  const [mostrarSenha, setMostrarSenha] = useState(false);
+  const [mostrarConfirmacao, setMostrarConfirmacao] = useState(false);
+  const [carregando, setCarregando] = useState(true);
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState("");
+  const [pronto, setPronto] = useState(false);
 
   useEffect(() => {
-    verificarSessao();
+    let ativo = true;
+
+    const prepararRecuperacao = async () => {
+      try {
+        // Em fluxo PKCE, se houver ?code=..., troca o código pela sessão.
+        const params = new URLSearchParams(window.location.search);
+        const code = params.get("code");
+
+        if (code) {
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          if (error) throw error;
+
+          params.delete("code");
+          window.history.replaceState(
+            {},
+            document.title,
+            `${window.location.pathname}?${params.toString()}${window.location.hash}`
+          );
+        }
+
+        const { data, error } = await supabase.auth.getSession();
+
+        if (error) throw error;
+
+        if (data?.session) {
+          if (ativo) {
+            setPronto(true);
+            setErro("");
+          }
+          return;
+        }
+
+        // O Supabase pode terminar de processar o token do e-mail
+        // imediatamente depois da montagem do componente.
+        await new Promise((resolve) => setTimeout(resolve, 700));
+
+        const segundaLeitura = await supabase.auth.getSession();
+
+        if (segundaLeitura.data?.session) {
+          if (ativo) {
+            setPronto(true);
+            setErro("");
+          }
+          return;
+        }
+
+        if (ativo) {
+          setErro(
+            "Este link de recuperação não está mais disponível. Solicite um novo e-mail para redefinir sua senha."
+          );
+        }
+      } catch (e) {
+        console.error("Erro ao abrir recuperação de senha:", e);
+
+        if (ativo) {
+          setErro(
+            "Não foi possível validar este link de recuperação. Solicite um novo link e tente novamente."
+          );
+        }
+      } finally {
+        if (ativo) setCarregando(false);
+      }
+    };
+
+    prepararRecuperacao();
+
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (evento, session) => {
+        if (evento === "PASSWORD_RECOVERY" && session && ativo) {
+          setPronto(true);
+          setErro("");
+          setCarregando(false);
+        }
+      }
+    );
+
+    return () => {
+      ativo = false;
+      listener?.subscription?.unsubscribe();
+    };
   }, []);
 
-  async function verificarSessao() {
-    const { data } = await supabase.auth.getSession();
+  const requisitos = {
+    tamanho: senha.length >= 8,
+    maiuscula: /[A-Z]/.test(senha),
+    minuscula: /[a-z]/.test(senha),
+    numero: /\d/.test(senha),
+    especial: /[^A-Za-z0-9]/.test(senha),
+  };
 
-    if (data?.session) {
-      setSessaoValida(true);
-    } else {
-      alert(
-        "O link de recuperação é inválido ou expirou."
-      );
-
-      irPara("login");
-    }
-  }
+  const senhaForte = Object.values(requisitos).every(Boolean);
 
   async function salvarNovaSenha(e) {
     e.preventDefault();
+    setErro("");
 
-    if (!novaSenha || !confirmarSenha) {
-      alert("Preencha os dois campos.");
+    if (!pronto) {
+      setErro("O link de recuperação ainda não foi validado.");
       return;
     }
 
-    if (novaSenha.length < 6) {
-      alert(
-        "A nova senha deve ter pelo menos 6 caracteres."
+    if (!senhaForte) {
+      setErro(
+        "A senha precisa ter pelo menos 8 caracteres, uma letra maiúscula, uma minúscula, um número e um caractere especial."
       );
       return;
     }
 
-    if (novaSenha !== confirmarSenha) {
-      alert(
-        "A confirmação da senha não confere."
-      );
+    if (senha !== confirmarSenha) {
+      setErro("As senhas não coincidem.");
       return;
     }
 
-    setCarregando(true);
+    setSalvando(true);
 
     try {
-      const { error } =
-        await supabase.auth.updateUser({
-          password: novaSenha,
-        });
+      const { data: sessaoAtual } = await supabase.auth.getSession();
 
-      if (error) {
-        console.error(
-          "Erro ao atualizar senha:",
-          error
-        );
-
-        alert(
-          "Não foi possível atualizar sua senha."
-        );
-
-        return;
+      if (!sessaoAtual?.session) {
+        throw new Error("A sessão de recuperação expirou.");
       }
 
-      alert(
-        "Sua senha foi alterada com sucesso! 💚"
-      );
+      const { error } = await supabase.auth.updateUser({
+        password: senha,
+      });
 
+      if (error) throw error;
+
+      // A senha foi alterada. Encerra a sessão de recuperação para
+      // obrigar um novo login normal com a nova senha.
       await supabase.auth.signOut();
 
+      // Limpa parâmetros do link para que ele não seja reutilizado
+      // visualmente depois que a operação terminar.
+      window.history.replaceState(
+        {},
+        document.title,
+        window.location.pathname
+      );
+
+      alert("Sua senha foi redefinida com sucesso. Agora entre com a nova senha.");
+
       irPara("login");
-    } catch (erro) {
-      console.error(
-        "Erro inesperado ao redefinir senha:",
-        erro
-      );
+    } catch (e) {
+      console.error("Erro ao redefinir senha:", e);
 
-      alert(
-        "Ocorreu um erro ao redefinir sua senha."
-      );
+      const mensagem = String(e?.message || "").toLowerCase();
+
+      if (
+        mensagem.includes("expired") ||
+        mensagem.includes("invalid") ||
+        mensagem.includes("otp")
+      ) {
+        setErro(
+          "Este link de recuperação expirou ou já foi utilizado. Solicite um novo link."
+        );
+      } else {
+        setErro(
+          e?.message ||
+            "Não foi possível redefinir sua senha. Tente solicitar um novo link."
+        );
+      }
     } finally {
-      setCarregando(false);
+      setSalvando(false);
     }
-  }
-
-  if (!sessaoValida) {
-    return (
-      <main className="auth-page">
-        <div className="auth-card">
-          <p className="auth-description">
-            Verificando o link de recuperação...
-          </p>
-        </div>
-      </main>
-    );
   }
 
   return (
-    <main className="auth-page">
-      <div className="auth-card">
-        <img
-          src="/logo.png"
-          alt="Logo Pulsan"
-          className="auth-logo"
-        />
+    <main
+      style={{
+        minHeight: "100vh",
+        minHeight: "100dvh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "24px",
+        boxSizing: "border-box",
+        background:
+          "linear-gradient(145deg, #EAF3FF 0%, #FFFFFF 62%, #EAF3FF 100%)",
+        color: "#0F2D5B",
+      }}
+    >
+      <section
+        style={{
+          width: "100%",
+          maxWidth: "470px",
+          background: "#FFFFFF",
+          border: "1px solid #A8C7FF",
+          borderRadius: "28px",
+          padding: "34px",
+          boxSizing: "border-box",
+          boxShadow: "0 22px 65px rgba(15,45,91,.12)",
+        }}
+      >
+        <div
+          style={{
+            width: "58px",
+            height: "58px",
+            borderRadius: "18px",
+            background: "#EAF3FF",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            marginBottom: "20px",
+          }}
+        >
+          <img
+            src="/logo.png"
+            alt="Pulsan"
+            style={{ width: "42px", height: "42px", objectFit: "contain" }}
+          />
+        </div>
 
-        <div className="auth-brand">
+        <div
+          style={{
+            fontSize: "13px",
+            fontWeight: "800",
+            letterSpacing: ".22em",
+            color: "#3A7DFF",
+            marginBottom: "10px",
+          }}
+        >
           PULSAN
         </div>
 
-        <h1>
-          Criar nova senha
+        <h1
+          style={{
+            margin: 0,
+            fontSize: "clamp(27px, 5vw, 35px)",
+            lineHeight: 1.12,
+            letterSpacing: "-.03em",
+          }}
+        >
+          Redefinir senha
         </h1>
 
-        <p className="auth-description">
-          Digite uma nova senha para sua conta.
+        <p
+          style={{
+            margin: "11px 0 27px",
+            color: "#58708F",
+            fontSize: "14px",
+            lineHeight: 1.6,
+          }}
+        >
+          Crie uma nova senha para voltar a acessar sua conta com segurança.
         </p>
 
-        <form
-          className="auth-form"
-          onSubmit={salvarNovaSenha}
-        >
-          <div className="form-group">
-            <label htmlFor="novaSenha">
-              Nova senha
-            </label>
-
-            <input
-              id="novaSenha"
-              type="password"
-              placeholder="Digite sua nova senha"
-              value={novaSenha}
-              onChange={(e) =>
-                setNovaSenha(e.target.value)
-              }
-              autoComplete="new-password"
-              disabled={carregando}
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="confirmarSenha">
-              Confirmar nova senha
-            </label>
-
-            <input
-              id="confirmarSenha"
-              type="password"
-              placeholder="Digite novamente sua senha"
-              value={confirmarSenha}
-              onChange={(e) =>
-                setConfirmarSenha(e.target.value)
-              }
-              autoComplete="new-password"
-              disabled={carregando}
-            />
-          </div>
-
-          <button
-            type="submit"
-            className="primary-button auth-button"
-            disabled={carregando}
+        {carregando ? (
+          <div
+            style={{
+              padding: "18px",
+              borderRadius: "15px",
+              background: "#EAF3FF",
+              color: "#31527E",
+              lineHeight: 1.5,
+              fontSize: "14px",
+            }}
           >
-            {carregando
-              ? "Salvando..."
-              : "Salvar nova senha"}
-          </button>
-        </form>
-      </div>
+            Validando seu link de recuperação...
+          </div>
+        ) : erro && !pronto ? (
+          <div>
+            <div
+              style={{
+                padding: "15px",
+                borderRadius: "15px",
+                background: "#FFF3F3",
+                border: "1px solid #F0CACA",
+                color: "#9A3030",
+                fontSize: "13px",
+                lineHeight: 1.55,
+                marginBottom: "17px",
+              }}
+            >
+              {erro}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => irPara("login")}
+              style={{
+                width: "100%",
+                height: "52px",
+                border: "none",
+                borderRadius: "14px",
+                background: "#3A7DFF",
+                color: "#FFFFFF",
+                fontWeight: "800",
+                cursor: "pointer",
+              }}
+            >
+              Voltar para o login
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={salvarNovaSenha}>
+            <div style={{ marginBottom: "16px" }}>
+              <label
+                htmlFor="nova-senha"
+                style={{
+                  display: "block",
+                  marginBottom: "8px",
+                  fontSize: "13px",
+                  fontWeight: "800",
+                }}
+              >
+                Nova senha
+              </label>
+
+              <div style={{ position: "relative" }}>
+                <input
+                  id="nova-senha"
+                  type={mostrarSenha ? "text" : "password"}
+                  value={senha}
+                  onChange={(e) => setSenha(e.target.value)}
+                  autoComplete="new-password"
+                  placeholder="Digite sua nova senha"
+                  disabled={salvando}
+                  style={{
+                    width: "100%",
+                    height: "52px",
+                    padding: "0 76px 0 15px",
+                    border: "1.5px solid #A8C7FF",
+                    borderRadius: "14px",
+                    background: "#EAF3FF",
+                    color: "#0F2D5B",
+                    outline: "none",
+                    boxSizing: "border-box",
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setMostrarSenha((v) => !v)}
+                  style={{
+                    position: "absolute",
+                    right: "8px",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    border: "none",
+                    background: "transparent",
+                    color: "#3A7DFF",
+                    fontSize: "12px",
+                    fontWeight: "800",
+                    cursor: "pointer",
+                  }}
+                >
+                  {mostrarSenha ? "Ocultar" : "Mostrar"}
+                </button>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: "15px" }}>
+              <label
+                htmlFor="confirmar-nova-senha"
+                style={{
+                  display: "block",
+                  marginBottom: "8px",
+                  fontSize: "13px",
+                  fontWeight: "800",
+                }}
+              >
+                Confirmar nova senha
+              </label>
+
+              <div style={{ position: "relative" }}>
+                <input
+                  id="confirmar-nova-senha"
+                  type={mostrarConfirmacao ? "text" : "password"}
+                  value={confirmarSenha}
+                  onChange={(e) => setConfirmarSenha(e.target.value)}
+                  autoComplete="new-password"
+                  placeholder="Digite a senha novamente"
+                  disabled={salvando}
+                  style={{
+                    width: "100%",
+                    height: "52px",
+                    padding: "0 76px 0 15px",
+                    border: "1.5px solid #A8C7FF",
+                    borderRadius: "14px",
+                    background: "#EAF3FF",
+                    color: "#0F2D5B",
+                    outline: "none",
+                    boxSizing: "border-box",
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setMostrarConfirmacao((v) => !v)}
+                  style={{
+                    position: "absolute",
+                    right: "8px",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    border: "none",
+                    background: "transparent",
+                    color: "#3A7DFF",
+                    fontSize: "12px",
+                    fontWeight: "800",
+                    cursor: "pointer",
+                  }}
+                >
+                  {mostrarConfirmacao ? "Ocultar" : "Mostrar"}
+                </button>
+              </div>
+            </div>
+
+            <div
+              style={{
+                padding: "14px",
+                borderRadius: "15px",
+                background: "#F7FAFF",
+                border: "1px solid #DCE8F8",
+                marginBottom: "17px",
+              }}
+            >
+              <strong style={{ fontSize: "12px" }}>A senha precisa ter:</strong>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: "6px 10px",
+                  marginTop: "9px",
+                  fontSize: "11px",
+                  color: "#6D7F99",
+                }}
+              >
+                {[
+                  [requisitos.tamanho, "8 caracteres ou mais"],
+                  [requisitos.maiuscula, "1 letra maiúscula"],
+                  [requisitos.minuscula, "1 letra minúscula"],
+                  [requisitos.numero, "1 número"],
+                  [requisitos.especial, "1 caractere especial"],
+                ].map(([ok, texto]) => (
+                  <span key={texto} style={{ color: ok ? "#16845B" : "#6D7F99" }}>
+                    {ok ? "✓" : "•"} {texto}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {erro && (
+              <div
+                style={{
+                  padding: "13px",
+                  borderRadius: "13px",
+                  background: "#FFF3F3",
+                  border: "1px solid #F0CACA",
+                  color: "#9A3030",
+                  fontSize: "12px",
+                  lineHeight: 1.5,
+                  marginBottom: "15px",
+                }}
+              >
+                {erro}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={salvando || !pronto}
+              style={{
+                width: "100%",
+                height: "54px",
+                border: "none",
+                borderRadius: "15px",
+                background: salvando ? "#8DB1F5" : "#3A7DFF",
+                color: "#FFFFFF",
+                fontWeight: "800",
+                cursor: salvando ? "wait" : "pointer",
+                boxShadow: "0 10px 24px rgba(58,125,255,.22)",
+              }}
+            >
+              {salvando ? "Salvando nova senha..." : "Salvar nova senha"}
+            </button>
+          </form>
+        )}
+
+        <div
+          style={{
+            marginTop: "20px",
+            paddingTop: "17px",
+            borderTop: "1px solid #EAF3FF",
+            color: "#6D7F99",
+            fontSize: "11px",
+            textAlign: "center",
+            lineHeight: 1.5,
+          }}
+        >
+          O link de recuperação é temporário e só pode ser utilizado pelo fluxo de autenticação do Supabase.
+        </div>
+      </section>
     </main>
   );
 }

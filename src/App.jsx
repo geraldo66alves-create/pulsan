@@ -954,102 +954,6 @@ function App() {
     );
   }, [acessibilidade]);
 
-  // =====================================================
-  // VLIBRAS — ACESSIBILIDADE DIGITAL EM LIBRAS
-  // =====================================================
-  // O VLibras é carregado apenas quando a opção Libras está
-  // ativada. O script oficial cria o avatar 3D e realiza a
-  // tradução automática do conteúdo em Português para Libras.
-  useEffect(() => {
-    if (typeof window === "undefined" || typeof document === "undefined") {
-      return;
-    }
-
-    const atualizarBotaoVLibras = () => {
-      const botao = window.VLibrasWidget?.initBtn;
-
-      if (!botao) return;
-
-      botao.style.display = acessibilidade.libras ? "block" : "none";
-      botao.setAttribute(
-        "aria-hidden",
-        acessibilidade.libras ? "false" : "true"
-      );
-    };
-
-    // O VLibras deve ser carregado uma única vez durante a sessão.
-    if (window.__PULSAN_VLIBRAS_CARREGADO__) {
-      atualizarBotaoVLibras();
-      return;
-    }
-
-    if (!acessibilidade.libras) {
-      return;
-    }
-
-    window.__PULSAN_VLIBRAS_CARREGADO__ = true;
-
-    const inicializarVLibras = () => {
-      try {
-        if (window.VLibras?.Widget && !window.__PULSAN_VLIBRAS_WIDGET__) {
-          window.__PULSAN_VLIBRAS_WIDGET__ = new window.VLibras.Widget({
-            rootPath: "https://vlibras.gov.br/app",
-            avatar: "random",
-            position: "R",
-          });
-        }
-
-        // O botão pode aparecer alguns instantes depois da criação do widget.
-        let tentativas = 0;
-        const sincronizar = () => {
-          atualizarBotaoVLibras();
-          tentativas += 1;
-
-          if (!window.VLibrasWidget?.initBtn && tentativas < 30) {
-            window.setTimeout(sincronizar, 300);
-          }
-        };
-
-        sincronizar();
-      } catch (erro) {
-        console.error("Erro ao inicializar o VLibras:", erro);
-        window.__PULSAN_VLIBRAS_CARREGADO__ = false;
-      }
-    };
-
-    const scriptExistente = document.querySelector(
-      'script[data-pulsan-vlibras="true"]'
-    );
-
-    if (scriptExistente) {
-      if (window.VLibras?.Widget) {
-        inicializarVLibras();
-      } else {
-        scriptExistente.addEventListener("load", inicializarVLibras, {
-          once: true,
-        });
-      }
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.src = "https://vlibras.gov.br/app/vlibras-plugin.js";
-    script.async = true;
-    script.dataset.pulsanVlibras = "true";
-    script.onload = inicializarVLibras;
-    script.onerror = () => {
-      console.error("Não foi possível carregar o VLibras.");
-      window.__PULSAN_VLIBRAS_CARREGADO__ = false;
-    };
-
-    document.body.appendChild(script);
-
-    return () => {
-      // O widget oficial permanece disponível para evitar recriações
-      // desnecessárias ao navegar entre as telas do Pulsan.
-    };
-  }, [acessibilidade.libras]);
-
   function alterarAcessibilidade(opcao, valor) {
     setAcessibilidade((anterior) => ({
       ...anterior,
@@ -1089,6 +993,28 @@ function App() {
       tema
     );
   }, [tema]);
+
+  // =====================================================
+  // RECUPERAÇÃO DE SENHA — SUPABASE AUTH
+  // =====================================================
+  // O link do e-mail retorna para a raiz com ?redefinir-senha=1.
+  // Assim não dependemos de uma rota física do servidor/Vercel.
+  // O Supabase Auth processa o token da URL e a tela
+  // RedefinirSenha conclui a troca da senha.
+  useEffect(() => {
+    const parametros = new URLSearchParams(window.location.search);
+    const hash = new URLSearchParams(
+      window.location.hash.replace(/^#/, "")
+    );
+
+    const solicitouRedefinicao =
+      parametros.get("redefinir-senha") === "1" ||
+      hash.get("type") === "recovery";
+
+    if (solicitouRedefinicao) {
+      setPagina("redefinir-senha");
+    }
+  }, []);
 
   // =====================================================
   // PROTEÇÃO DA EQUIPE PULSAN
