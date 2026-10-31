@@ -837,23 +837,42 @@ function Reflexao({ irPara, tema, alterarTema }) {
   const [tocandoMomentoAudio, setTocandoMomentoAudio] = useState(false);
   const [erroMomentoAudio, setErroMomentoAudio] = useState(false);
   const [frasePulsan, setFrasePulsan] = useState("");
-const [carregandoFrasePulsan, setCarregandoFrasePulsan] = useState(false);
-const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
+  const [carregandoFrasePulsan, setCarregandoFrasePulsan] = useState(false);
+
+  // As frases já usadas são controladas só por refs (id + texto normalizado).
+  // Não existe necessidade de duplicar esse controle em state: o que decide o
+  // que aparece na tela é sempre `frasePulsan`.
   const frasesUsadasPulsanRef = useRef(new Set());
   const frasesUsadasTextoPulsanRef = useRef(new Set());
   const reflexoesVistasRef = useRef(new Set());
   const audioFundoRetomarMomentoRef = useRef(false);
 
-  // Sequência dos Momentos Pulsan.
-  // 0 = Momento 1, 1 = Momento 2, 2 = Momento 3...
-  // Não existe limite fixo de 7: o nome do próximo arquivo é gerado automaticamente.
-  // Um único índice identifica o Momento Pulsan atual.
-  // O mesmo índice sempre determina o vídeo E o áudio daquele momento.
-  const [momentoPulsanAtual, setMomentoPulsanAtual] = useState(0);
+  // Vídeo e áudio agora têm sequências INDEPENDENTES.
+  // 0 = arquivo original (cansaco.mp4 / cansaco.mp3), 1 = "-2", 2 = "-3"...
+  // Cada um só avança quando a pessoa efetivamente ABRE aquela opção
+  // (clica para expandir o vídeo ou o áudio) neste Momento Pulsan.
+  // Exemplo: abriu o vídeo 1 mas não abriu o áudio -> no próximo Momento
+  // Pulsan o vídeo vai para 2, e o áudio continua no 1 (será oferecido de novo).
+  const [videoMomentoAtual, setVideoMomentoAtual] = useState(0);
+  const [audioMomentoAtual, setAudioMomentoAtual] = useState(0);
 
-  // Histórico persistente por usuário + sentimento.
-  // Um Momento já usado não volta a aparecer enquanto houver outro disponível.
-  function obterChaveHistoricoMomento(idSentimento) {
+  // Marca se a pessoa já abriu o vídeo/áudio DESTE Momento Pulsan.
+  // Reiniciado sempre que um novo Momento aparece.
+  const videoAbertoRef = useRef(false);
+  const audioAbertoRef = useRef(false);
+
+  // Número exibido no rótulo "MOMENTO PULSAN N". É só um contador visual —
+  // não influencia qual vídeo/áudio é mostrado (esses são independentes).
+  const [numeroMomentoExibido, setNumeroMomentoExibido] = useState(1);
+
+  /* =========================================================
+     HISTÓRICO DE VÍDEOS/ÁUDIOS POR SENTIMENTO (independentes)
+  ========================================================= */
+
+  // Histórico persistente por usuário + sentimento + tipo (video ou audio).
+  // Um arquivo já visto não volta a aparecer enquanto houver outro disponível
+  // daquele MESMO tipo.
+  function obterChaveHistoricoArquivo(tipo, idSentimento) {
     let identificadorUsuario = "anonimo";
     try {
       const usuarioAtual = localStorage.getItem("pulsanUsuarioAtual");
@@ -866,29 +885,29 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
         identificadorUsuario = localStorage.getItem("pulsanEmail") || localStorage.getItem("pulsanNome") || "anonimo";
       }
     } catch (_) {}
-    return `pulsanMomentosVistos:${String(identificadorUsuario)}:${idSentimento}`;
+    return `pulsanArquivosVistos:${tipo}:${String(identificadorUsuario)}:${idSentimento}`;
   }
 
-  function lerHistoricoMomentos(idSentimento) {
+  function lerHistoricoArquivos(tipo, idSentimento) {
     try {
-      const salvo = localStorage.getItem(obterChaveHistoricoMomento(idSentimento));
+      const salvo = localStorage.getItem(obterChaveHistoricoArquivo(tipo, idSentimento));
       const dados = salvo ? JSON.parse(salvo) : [];
       return Array.isArray(dados) ? [...new Set(dados.map(Number).filter((n) => Number.isInteger(n) && n >= 0))] : [];
     } catch (_) { return []; }
   }
 
-  function salvarHistoricoMomentos(idSentimento, momentos) {
+  function salvarHistoricoArquivos(tipo, idSentimento, numeros) {
     try {
-      localStorage.setItem(obterChaveHistoricoMomento(idSentimento), JSON.stringify([...new Set(momentos)]));
+      localStorage.setItem(obterChaveHistoricoArquivo(tipo, idSentimento), JSON.stringify([...new Set(numeros)]));
     } catch (_) {}
   }
 
-  // O Momento apresentado entra no histórico deste ciclo.
-  // O histórico permite priorizar conteúdos inéditos e reiniciar o ciclo quando todos forem vistos.
-  function registrarMomentoComoVisto(numeroMomento) {
-    if (!sentimentoSelecionado) return;
-    const historico = lerHistoricoMomentos(sentimentoSelecionado);
-    if (!historico.includes(numeroMomento)) salvarHistoricoMomentos(sentimentoSelecionado, [...historico, numeroMomento]);
+  function registrarArquivoComoVisto(tipo, idSentimento, numero) {
+    if (!idSentimento) return;
+    const historico = lerHistoricoArquivos(tipo, idSentimento);
+    if (!historico.includes(numero)) {
+      salvarHistoricoArquivos(tipo, idSentimento, [...historico, numero]);
+    }
   }
 
   async function arquivoExiste(arquivo) {
@@ -899,82 +918,50 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
     } catch (_) { return false; }
   }
 
-  async function encontrarProximoMomento(idSentimento, historicoAtual = []) {
-    const item = sentimentos.find(
-      (itemSentimento) => itemSentimento.id === idSentimento
-    );
+  // Quantos números seguidos sem arquivo precisam falhar antes de
+  // considerarmos que a sequência "acabou" para este tipo (vídeo ou áudio).
+  // Evita varrer 99 números via rede quando só existem 1 ou 2 arquivos.
+  const LIMITE_TENTATIVAS_SEGUIDAS_SEM_ARQUIVO = 3;
 
-    if (!item?.momento?.video || !item?.momento?.audio) {
-      return 0;
-    }
+  // Procura o próximo número ainda não visto para UM tipo de arquivo
+  // (vídeo OU áudio, nunca os dois juntos — eles são independentes agora).
+  async function encontrarProximoArquivo(tipo, idSentimento, arquivoBase, historicoAtual) {
+    if (!arquivoBase) return 0;
+    const usados = new Set(historicoAtual);
 
-    /*
-      CICLO DOS MOMENTOS PULSAN
+    // O primeiro arquivo é o próprio arquivo-base configurado no sentimento.
+    // Não fazemos HEAD nele, pois isso pode falhar em alguns ambientes Vite/servidores.
+    if (!usados.has(0)) return 0;
 
-      1. Descobre todos os pares existentes de vídeo + áudio.
-      2. Prioriza sempre o primeiro par ainda NÃO visto.
-      3. Só repete quando todos os pares disponíveis já foram vistos.
-      4. Ao esgotar todos, limpa o histórico e reinicia pelo Momento 1.
+    let falhasSeguidas = 0;
 
-      O mesmo índice identifica o vídeo e o áudio.
-      Ex.: Momento 2 = video-2.mp4 + audio-2.mp3.
-    */
-    const historico = new Set(
-      (Array.isArray(historicoAtual) ? historicoAtual : [])
-        .map(Number)
-        .filter((numero) => Number.isInteger(numero) && numero >= 0)
-    );
-
-    const paresDisponiveis = [
-      {
-        indice: 0,
-        video: item.momento.video,
-        audio: item.momento.audio,
-      },
-    ];
-
-    // Procura os próximos pares em sequência.
-    // Não paramos no primeiro número ausente: assim, se um conteúdo novo
-    // for adicionado depois, ele será encontrado mesmo que exista algum
-    // número intermediário ainda sem arquivo.
-    for (let indice = 1; indice < 100; indice += 1) {
-      const video = obterArquivoDaSequencia(
-        item.momento.video,
-        indice
-      );
-      const audio = obterArquivoDaSequencia(
-        item.momento.audio,
-        indice
-      );
-
-      const [videoExiste, audioExiste] = await Promise.all([
-        arquivoExiste(video),
-        arquivoExiste(audio),
-      ]);
-
-      if (!videoExiste || !audioExiste) {
+    for (let numero = 1; numero < 100; numero += 1) {
+      if (usados.has(numero)) {
+        falhasSeguidas = 0;
         continue;
       }
 
-      paresDisponiveis.push({ indice, video, audio });
+      const arquivo = obterArquivoDaSequencia(arquivoBase, numero);
+      const existe = await arquivoExiste(arquivo);
+
+      if (existe) {
+        return numero;
+      }
+
+      falhasSeguidas += 1;
+      if (falhasSeguidas >= LIMITE_TENTATIVAS_SEGUIDAS_SEM_ARQUIVO) {
+        break;
+      }
     }
 
-    // PRIORIDADE: conteúdo que ainda não foi visto.
-    const proximoNaoVisto = paresDisponiveis.find(
-      (momento) => !historico.has(momento.indice)
-    );
-
-    if (proximoNaoVisto) {
-      return proximoNaoVisto.indice;
-    }
-
-    // Todos os conteúdos disponíveis já foram vistos.
-    // IMPORTANTE: NÃO apagamos o histórico.
-    // Assim, quando um novo vídeo/áudio for adicionado futuramente,
-    // ele continuará sendo identificado como inédito e terá prioridade.
-    // Enquanto não houver conteúdo novo, usamos o primeiro conteúdo
-    // disponível apenas como fallback, sem alterar o histórico.
-    return paresDisponiveis[0].indice;
+    // Nenhum arquivo novo foi encontrado agora — a sequência atual "acabou".
+    // Reinicia a partir do primeiro arquivo (numero 0), mas SEM apagar o
+    // histórico do que já foi visto. Isso é o que garante a prioridade:
+    // se um arquivo novo for adicionado depois (numero 5, 8, o que for),
+    // a próxima busca vai enxergá-lo como não visto e entregá-lo antes de
+    // voltar a repetir os que já foram vistos. Só repete de fato quando,
+    // mesmo escaneando de novo, nada além do que já foi visto existir.
+    return 0;
   }
 
   function obterArquivoDaSequencia(arquivoOriginal, numeroMomento) {
@@ -990,14 +977,14 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
   function obterVideoMomento() {
     return obterArquivoDaSequencia(
       sentimento?.momento?.video,
-      momentoPulsanAtual
+      videoMomentoAtual
     );
   }
 
   function obterAudioMomento() {
     return obterArquivoDaSequencia(
       sentimento?.momento?.audio,
-      momentoPulsanAtual
+      audioMomentoAtual
     );
   }
 
@@ -1180,28 +1167,45 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
   }
 
   /* =========================================================
-     ESCOLHER SENTIMENTO
+     FRASE PULSAN — independente de vídeo/áudio
+
+     A frase "para levar com você" troca em TODO Momento Pulsan novo,
+     mesmo que a pessoa nunca tenha aberto o vídeo ou o áudio do
+     momento anterior. O histórico (id + texto normalizado) garante
+     que uma frase só repete se o banco de frases daquele sentimento
+     tiver se esgotado.
   ========================================================= */
 
   function obterChaveHistoricoFrase(idSentimento) {
     return `pulsanFrasesPulsanUsadas:${idSentimento}`;
   }
 
+  // Guarda ids e textos em campos separados (evita misturar os dois tipos
+  // de valor dentro do mesmo array, o que tornava a leitura confusa).
   function carregarHistoricoFrases(idSentimento) {
     try {
       const salvo = localStorage.getItem(obterChaveHistoricoFrase(idSentimento));
-      const dados = salvo ? JSON.parse(salvo) : [];
-      return Array.isArray(dados) ? dados.map(String) : [];
+      const dados = salvo ? JSON.parse(salvo) : null;
+
+      if (!dados) return { ids: [], textos: [] };
+
+      return {
+        ids: Array.isArray(dados.ids) ? dados.ids.map(String) : [],
+        textos: Array.isArray(dados.textos) ? dados.textos.map(String) : [],
+      };
     } catch (_) {
-      return [];
+      return { ids: [], textos: [] };
     }
   }
 
-  function salvarHistoricoFrases(idSentimento, valores) {
+  function salvarHistoricoFrases(idSentimento, ids, textos) {
     try {
       localStorage.setItem(
         obterChaveHistoricoFrase(idSentimento),
-        JSON.stringify([...new Set(valores)])
+        JSON.stringify({
+          ids: [...new Set(ids)],
+          textos: [...new Set(textos)],
+        })
       );
     } catch (_) {}
   }
@@ -1244,10 +1248,8 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
     const frasesValidas = Array.from(mapaFrases.values());
 
     const historicoPersistido = carregarHistoricoFrases(id);
-    historicoPersistido.forEach((valor) => {
-      frasesUsadasPulsanRef.current.add(valor);
-      frasesUsadasTextoPulsanRef.current.add(valor);
-    });
+    historicoPersistido.ids.forEach((valor) => frasesUsadasPulsanRef.current.add(valor));
+    historicoPersistido.textos.forEach((valor) => frasesUsadasTextoPulsanRef.current.add(valor));
 
     if (!frasesValidas.length) {
       setFrasePulsan("Você merece cuidado, acolhimento e compreensão.");
@@ -1270,32 +1272,15 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
     // Prioridade: nunca repetir enquanto ainda houver outra frase disponível.
     // Quando todas já foram usadas, inicia um novo ciclo para não deixar o
     // Momento Pulsan sem conteúdo.
-    if (!disponiveis.length) {
+    const listaParaEscolher = disponiveis.length > 0 ? disponiveis : frasesValidas;
+
+    if (disponiveis.length === 0) {
       frasesUsadasPulsanRef.current.clear();
       frasesUsadasTextoPulsanRef.current.clear();
-      salvarHistoricoFrases(id, []);
-
-      const novaEscolha =
-        frasesValidas[Math.floor(Math.random() * frasesValidas.length)];
-
-      const novoTexto = String(novaEscolha.frase)
-        .replace(/\s+/g, " ")
-        .toLowerCase();
-
-      frasesUsadasPulsanRef.current.add(String(novaEscolha.id));
-      frasesUsadasTextoPulsanRef.current.add(novoTexto);
-      salvarHistoricoFrases(id, [
-        String(novaEscolha.id),
-        novoTexto,
-      ]);
-      setFrasesUsadasPulsan([String(novaEscolha.id)]);
-      setFrasePulsan(novaEscolha.frase);
-      setCarregandoFrasePulsan(false);
-      return;
     }
 
     const escolhida =
-      disponiveis[Math.floor(Math.random() * disponiveis.length)];
+      listaParaEscolher[Math.floor(Math.random() * listaParaEscolher.length)];
 
     const textoEscolhido = String(escolhida.frase)
       .replace(/\s+/g, " ")
@@ -1303,11 +1288,13 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
 
     frasesUsadasPulsanRef.current.add(String(escolhida.id));
     frasesUsadasTextoPulsanRef.current.add(textoEscolhido);
-    salvarHistoricoFrases(id, [
-      ...Array.from(frasesUsadasPulsanRef.current),
-      ...Array.from(frasesUsadasTextoPulsanRef.current),
-    ]);
-    setFrasesUsadasPulsan(Array.from(frasesUsadasPulsanRef.current));
+
+    salvarHistoricoFrases(
+      id,
+      Array.from(frasesUsadasPulsanRef.current),
+      Array.from(frasesUsadasTextoPulsanRef.current)
+    );
+
     setFrasePulsan(escolhida.frase);
     setCarregandoFrasePulsan(false);
   }
@@ -1341,12 +1328,25 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
     pararAudioFundo(true);
     pararAudioMomento();
 
-    // Entra no sentimento e recupera o próximo Momento ainda não visto.
+    // Entra no sentimento e recupera o próximo vídeo e o próximo áudio ainda
+    // não vistos — cada um seguindo seu próprio histórico, de forma independente.
     setSentimentoSelecionado(id);
     audioFundoRetomarMomentoRef.current = false;
-    const historicoMomento = lerHistoricoMomentos(id);
-    const primeiroMomento = await encontrarProximoMomento(id, historicoMomento);
-    setMomentoPulsanAtual(primeiroMomento);
+
+    const sentimentoEscolhido = sentimentos.find((item) => item.id === id);
+    const historicoVideo = lerHistoricoArquivos("video", id);
+    const historicoAudio = lerHistoricoArquivos("audio", id);
+
+    const [primeiroVideo, primeiroAudio] = await Promise.all([
+      encontrarProximoArquivo("video", id, sentimentoEscolhido?.momento?.video, historicoVideo),
+      encontrarProximoArquivo("audio", id, sentimentoEscolhido?.momento?.audio, historicoAudio),
+    ]);
+
+    setVideoMomentoAtual(primeiroVideo);
+    setAudioMomentoAtual(primeiroAudio);
+    videoAbertoRef.current = false;
+    audioAbertoRef.current = false;
+    setNumeroMomentoExibido(1);
     setCardAtual(0);
     cardsVistosRef.current = 1;
     setCardsVistos(1);
@@ -1360,7 +1360,6 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
     frasesUsadasPulsanRef.current.clear();
     frasesUsadasTextoPulsanRef.current.clear();
     setErroReflexoes("");
-    setFrasesUsadasPulsan([]);
     setFrasePulsan("");
     setReflexoesBanco([]);
     setCarregandoReflexoes(true);
@@ -1478,7 +1477,11 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
 
       setTipoMomento(null);
       setMostrarMomento(true);
-      registrarMomentoComoVisto(momentoPulsanAtual);
+
+      // A frase troca aqui, ao abrir o Momento — independente de o vídeo ou
+      // o áudio serem abertos. O vídeo e o áudio deste Momento só avançam
+      // individualmente em "Continuar reflexões", e só se a pessoa tiver
+      // aberto aquela opção específica (ver videoAbertoRef/audioAbertoRef).
       if (sentimentoSelecionado) {
         carregarFrasePulsan(sentimentoSelecionado);
       }
@@ -1631,26 +1634,52 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
   async function continuarReflexoes() {
     if (!sentimento) return;
 
-    // O Momento atual permanece intacto até o usuário escolher continuar.
-    // Só depois dessa ação ele é marcado como visto e um novo Momento é buscado.
-    registrarMomentoComoVisto(momentoPulsanAtual);
+    // Vídeo e áudio avançam de forma INDEPENDENTE. Cada um só é marcado
+    // como visto — e só troca para o próximo — se a pessoa tiver aberto
+    // aquela opção específica neste Momento Pulsan. O que não foi aberto
+    // permanece no mesmo número e será oferecido de novo no próximo Momento.
+    // Exemplo: abriu o vídeo mas não o áudio -> vídeo avança, áudio repete.
+    const sentimentoAtual = sentimentos.find((item) => item.id === sentimentoSelecionado);
+
+    let novoVideo = videoMomentoAtual;
+    if (videoAbertoRef.current) {
+      registrarArquivoComoVisto("video", sentimentoSelecionado, videoMomentoAtual);
+      const historicoVideoAtualizado = [
+        ...new Set([...lerHistoricoArquivos("video", sentimentoSelecionado), videoMomentoAtual]),
+      ];
+      novoVideo = await encontrarProximoArquivo(
+        "video",
+        sentimentoSelecionado,
+        sentimentoAtual?.momento?.video,
+        historicoVideoAtualizado
+      );
+    }
+
+    let novoAudio = audioMomentoAtual;
+    if (audioAbertoRef.current) {
+      registrarArquivoComoVisto("audio", sentimentoSelecionado, audioMomentoAtual);
+      const historicoAudioAtualizado = [
+        ...new Set([...lerHistoricoArquivos("audio", sentimentoSelecionado), audioMomentoAtual]),
+      ];
+      novoAudio = await encontrarProximoArquivo(
+        "audio",
+        sentimentoSelecionado,
+        sentimentoAtual?.momento?.audio,
+        historicoAudioAtualizado
+      );
+    }
+
     pararAudioMomento();
     setMostrarMomento(false);
     setTipoMomento(null);
 
-    const historicoAtualizado = [...new Set([
-      ...lerHistoricoMomentos(sentimentoSelecionado),
-      momentoPulsanAtual,
-    ])];
+    // O próximo Momento Pulsan já começa "fechado": nada foi aberto ainda.
+    videoAbertoRef.current = false;
+    audioAbertoRef.current = false;
 
-    const proximoMomento = await encontrarProximoMomento(
-      sentimentoSelecionado,
-      historicoAtualizado
-    );
-
-    // Só aqui o Momento Pulsan muda.
-    // O novo índice traz um novo par: vídeo + áudio do mesmo momento.
-    setMomentoPulsanAtual(proximoMomento);
+    setVideoMomentoAtual(novoVideo);
+    setAudioMomentoAtual(novoAudio);
+    setNumeroMomentoExibido((atual) => atual + 1);
     cardsVistosRef.current = 1;
     setCardsVistos(1);
 
@@ -1679,7 +1708,11 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
     setCardAtual(0);
     cardsVistosRef.current = 0;
     setCardsVistos(0);
-    setMomentoPulsanAtual(0);
+    setVideoMomentoAtual(0);
+    setAudioMomentoAtual(0);
+    videoAbertoRef.current = false;
+    audioAbertoRef.current = false;
+    setNumeroMomentoExibido(1);
     setMostrarMomento(false);
     setTipoMomento(null);
 
@@ -1802,7 +1835,7 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
 
           <section style={styles.momento}>
             <div style={styles.momentoTag}>
-              <><Icon name="spark" size={16} /> MOMENTO PULSAN {momentoPulsanAtual + 1}</>
+              <><Icon name="spark" size={16} /> MOMENTO PULSAN {numeroMomentoExibido}</>
             </div>
 
             <h1 style={styles.momentoTitulo}>
@@ -1826,10 +1859,11 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
               }}
               role="note"
             >
-              Este é um único Momento Pulsan. O vídeo e o áudio pertencem
-              ao mesmo momento e não serão trocados automaticamente quando
-              terminarem. Escolha <strong>Continuar reflexões</strong> para
-              receber o próximo Momento Pulsan.
+              A frase deste Momento já é nova, mesmo que você não abra nada.
+              O vídeo e o áudio, porém, só avançam para o próximo quando você
+              abre aquela opção — o que você não abrir continua disponível
+              no próximo Momento. Escolha <strong>Continuar reflexões</strong>{" "}
+              quando quiser seguir adiante.
             </div>
 
             {/* =================================================
@@ -1839,13 +1873,16 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
             <div style={styles.conteudoProfundo}>
               <button
                 type="button"
-                onClick={() =>
+                onClick={() => {
+                  // Abrir o vídeo (mesmo sem terminar de assistir) já marca
+                  // este vídeo para avançar no próximo Momento Pulsan.
+                  videoAbertoRef.current = true;
                   setTipoMomento(
                     tipoMomento === "video"
                       ? null
                       : "video"
-                  )
-                }
+                  );
+                }}
                 className="pulsan-conteudo-botao"
                  style={styles.conteudoBotao}
               >
@@ -1919,13 +1956,16 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
             <div style={styles.conteudoProfundo}>
               <button
                 type="button"
-                onClick={() =>
+                onClick={() => {
+                  // Abrir o áudio (mesmo sem terminar de ouvir) já marca
+                  // este áudio para avançar no próximo Momento Pulsan.
+                  audioAbertoRef.current = true;
                   setTipoMomento(
                     tipoMomento === "audio"
                       ? null
                       : "audio"
-                  )
-                }
+                  );
+                }}
                 className="pulsan-conteudo-botao"
                  style={styles.conteudoBotao}
               >
@@ -2134,6 +2174,9 @@ const [frasesUsadasPulsan, setFrasesUsadasPulsan] = useState([]);
 
         {/* =================================================
             FLASH CARD
+
+            Sem indicador de progresso de propósito: a pessoa não sabe
+            quantos cards faltam até o próximo Momento Pulsan.
         ================================================= */}
 
         <section
@@ -2565,6 +2608,9 @@ const styles = {
     fontWeight: "650",
     padding: "7px 0",
     marginBottom: "22px",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "6px",
   },
 
   flashCard: {
@@ -2752,6 +2798,9 @@ const styles = {
     fontSize: "10px",
     fontWeight: "800",
     letterSpacing: "2px",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "6px",
   },
 
   momentoTitulo: {

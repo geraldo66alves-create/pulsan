@@ -13,80 +13,91 @@ function RedefinirSenha({ irPara }) {
 
   useEffect(() => {
     let ativo = true;
+    let recuperacaoConfirmada = false;
 
-    const prepararRecuperacao = async () => {
-      try {
-        // Em fluxo PKCE, se houver ?code=..., troca o código pela sessão.
-        const params = new URLSearchParams(window.location.search);
-        const code = params.get("code");
+    const parametros = new URLSearchParams(window.location.search);
+    const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
 
-        if (code) {
-          const { error } = await supabase.auth.exchangeCodeForSession(code);
-          if (error) throw error;
+    const erroRetorno =
+      parametros.get("error_description") ||
+      hash.get("error_description") ||
+      parametros.get("error") ||
+      hash.get("error");
 
-          params.delete("code");
-          window.history.replaceState(
-            {},
-            document.title,
-            `${window.location.pathname}?${params.toString()}${window.location.hash}`
-          );
-        }
+    if (erroRetorno) {
+      const mensagem = String(erroRetorno).toLowerCase();
+      setErro(
+        mensagem.includes("expired") || mensagem.includes("invalid")
+          ? "Este link de recuperação expirou ou já foi utilizado. Solicite um novo e-mail."
+          : "Não foi possível validar o link de recuperação. Solicite um novo e-mail."
+      );
+      setCarregando(false);
+      return () => {
+        ativo = false;
+      };
+    }
 
-        const { data, error } = await supabase.auth.getSession();
-
-        if (error) throw error;
-
-        if (data?.session) {
-          if (ativo) {
-            setPronto(true);
-            setErro("");
-          }
-          return;
-        }
-
-        // O Supabase pode terminar de processar o token do e-mail
-        // imediatamente depois da montagem do componente.
-        await new Promise((resolve) => setTimeout(resolve, 700));
-
-        const segundaLeitura = await supabase.auth.getSession();
-
-        if (segundaLeitura.data?.session) {
-          if (ativo) {
-            setPronto(true);
-            setErro("");
-          }
-          return;
-        }
-
-        if (ativo) {
-          setErro(
-            "Este link de recuperação não está mais disponível. Solicite um novo e-mail para redefinir sua senha."
-          );
-        }
-      } catch (e) {
-        console.error("Erro ao abrir recuperação de senha:", e);
-
-        if (ativo) {
-          setErro(
-            "Não foi possível validar este link de recuperação. Solicite um novo link e tente novamente."
-          );
-        }
-      } finally {
-        if (ativo) setCarregando(false);
-      }
-    };
-
-    prepararRecuperacao();
+    const tipoRecuperacao =
+      hash.get("type") === "recovery" ||
+      parametros.get("type") === "recovery" ||
+      parametros.get("redefinir-senha") === "1";
 
     const { data: listener } = supabase.auth.onAuthStateChange(
       (evento, session) => {
-        if (evento === "PASSWORD_RECOVERY" && session && ativo) {
+        if (ativo && evento === "PASSWORD_RECOVERY" && session) {
+          recuperacaoConfirmada = true;
           setPronto(true);
           setErro("");
           setCarregando(false);
         }
       }
     );
+
+    const prepararRecuperacao = async () => {
+      try {
+        if (!tipoRecuperacao) {
+          throw new Error("O endereço não contém um pedido de recuperação.");
+        }
+
+        // detectSessionInUrl do Supabase processa automaticamente o retorno
+        // do e-mail (PKCE ou tokens). Aguardamos a sessão ficar disponível.
+        for (let tentativa = 0; tentativa < 6; tentativa += 1) {
+          if (!ativo || recuperacaoConfirmada) return;
+
+          const { data, error } = await supabase.auth.getSession();
+          if (error) throw error;
+
+          if (data?.session) {
+            recuperacaoConfirmada = true;
+            if (ativo) {
+              setPronto(true);
+              setErro("");
+              setCarregando(false);
+            }
+            return;
+          }
+
+          await new Promise((resolve) => setTimeout(resolve, 400));
+        }
+
+        if (ativo && !recuperacaoConfirmada) {
+          setErro(
+            "Este link de recuperação expirou, já foi utilizado ou não pôde ser validado. Solicite um novo e-mail para redefinir sua senha."
+          );
+        }
+      } catch (e) {
+        console.error("Erro ao abrir recuperação de senha:", e);
+        if (ativo) {
+          setErro(
+            "Não foi possível validar este link de recuperação. Solicite um novo link e tente novamente."
+          );
+        }
+      } finally {
+        if (ativo && !recuperacaoConfirmada) setCarregando(false);
+      }
+    };
+
+    prepararRecuperacao();
 
     return () => {
       ativo = false;
@@ -140,19 +151,21 @@ function RedefinirSenha({ irPara }) {
 
       if (error) throw error;
 
-      // A senha foi alterada. Encerra a sessão de recuperação para
-      // obrigar um novo login normal com a nova senha.
-      await supabase.auth.signOut();
+      // A senha foi alterada com sucesso. Encerra a sessão de recuperação
+      // para que o usuário entre novamente usando a nova senha.
+      const { error: erroSaida } = await supabase.auth.signOut();
+      if (erroSaida) {
+        console.warn("A senha foi alterada, mas não foi possível encerrar a sessão:", erroSaida);
+      }
 
-      // Limpa parâmetros do link para que ele não seja reutilizado
-      // visualmente depois que a operação terminar.
+      // Remove os dados temporários do link da barra de endereço.
       window.history.replaceState(
         {},
         document.title,
         window.location.pathname
       );
 
-      alert("Sua senha foi redefinida com sucesso. Agora entre com a nova senha.");
+      alert("Sua senha foi redefinida com sucesso. Agora entre no Pulsan usando sua nova senha.");
 
       irPara("login");
     } catch (e) {

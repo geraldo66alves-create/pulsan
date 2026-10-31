@@ -1,83 +1,131 @@
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.replace(/\/+$/, "");
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-/* =====================================================
-   SESSÃO SUPABASE — PULSAN
-
-   Navegador: sessionStorage
-   PWA instalado: localStorage
-
-   Assim, o navegador não mantém a sessão depois que a
-   aba/janela é encerrada, enquanto o Pulsan instalado
-   mantém a conta conectada até o usuário sair.
-===================================================== */
 function pulsAnEstaInstalado() {
   if (typeof window === "undefined") return false;
 
   return Boolean(
     window.matchMedia?.("(display-mode: standalone)")?.matches ||
-    window.navigator.standalone === true ||
-    document.referrer.startsWith("android-app://")
+      window.navigator.standalone === true ||
+      document.referrer.startsWith("android-app://")
   );
 }
 
-function criarArmazenamentoSessaoPulsan() {
-  const armazenamentoTemporario =
-    typeof window !== "undefined" ? window.sessionStorage : null;
-  const armazenamentoPersistente =
-    typeof window !== "undefined" ? window.localStorage : null;
+function acessarArmazenamento(tipo) {
+  try {
+    if (typeof window === "undefined") return null;
 
+    return tipo === "local"
+      ? window.localStorage
+      : window.sessionStorage;
+  } catch {
+    return null;
+  }
+}
+
+function criarArmazenamentoSessaoPulsan() {
   return {
     getItem(chave) {
-      if (!armazenamentoTemporario || !armazenamentoPersistente) return null;
+      try {
+        const temporario = acessarArmazenamento("session");
+        const persistente = acessarArmazenamento("local");
 
-      if (pulsAnEstaInstalado()) {
-        // Se o usuário acabou de instalar/abrir o PWA depois de
-        // estar logado no navegador, aproveita a sessão temporária
-        // uma única vez e a promove para o armazenamento persistente.
-        const persistente = armazenamentoPersistente.getItem(chave);
-        if (persistente !== null) return persistente;
+        if (pulsAnEstaInstalado()) {
+          const valorPersistente = persistente?.getItem(chave);
 
-        const temporario = armazenamentoTemporario.getItem(chave);
-        if (temporario !== null) {
-          armazenamentoPersistente.setItem(chave, temporario);
-          armazenamentoTemporario.removeItem(chave);
+          if (valorPersistente !== null && valorPersistente !== undefined) {
+            return valorPersistente;
+          }
+
+          const valorTemporario = temporario?.getItem(chave);
+
+          if (valorTemporario !== null && valorTemporario !== undefined) {
+            persistente?.setItem(chave, valorTemporario);
+            temporario?.removeItem(chave);
+          }
+
+          return valorTemporario ?? null;
         }
 
-        return temporario;
+        return temporario?.getItem(chave) ?? null;
+      } catch (erro) {
+        console.error("Erro ao recuperar a sessão do Pulsan:", erro);
+        return null;
       }
-
-      // No navegador, nunca recupera o token salvo no localStorage.
-      return armazenamentoTemporario.getItem(chave);
     },
 
     setItem(chave, valor) {
-      if (!armazenamentoTemporario || !armazenamentoPersistente) return;
+      try {
+        const armazenamento = acessarArmazenamento(
+          pulsAnEstaInstalado() ? "local" : "session"
+        );
 
-      if (pulsAnEstaInstalado()) {
-        armazenamentoPersistente.setItem(chave, valor);
-      } else {
-        armazenamentoTemporario.setItem(chave, valor);
+        armazenamento?.setItem(chave, valor);
+      } catch (erro) {
+        console.error("Erro ao salvar a sessão do Pulsan:", erro);
       }
     },
 
     removeItem(chave) {
-      if (!armazenamentoTemporario || !armazenamentoPersistente) return;
-
-      // Remove dos dois locais para evitar que uma sessão antiga
-      // reapareça ao alternar entre navegador e PWA.
-      armazenamentoTemporario.removeItem(chave);
-      armazenamentoPersistente.removeItem(chave);
+      try {
+        acessarArmazenamento("session")?.removeItem(chave);
+        acessarArmazenamento("local")?.removeItem(chave);
+      } catch (erro) {
+        console.error("Erro ao remover a sessão do Pulsan:", erro);
+      }
     },
   };
 }
 
+function fetchSupabase(input, options = {}) {
+  const urlRecebida =
+    typeof input === "string"
+      ? input
+      : input instanceof URL
+        ? input.href
+        : input?.url;
+
+  if (typeof window === "undefined" || !urlRecebida) {
+    return fetch(input, options);
+  }
+
+  try {
+    const url = new URL(urlRecebida, window.location.origin);
+    const urlSupabase = new URL(supabaseUrl);
+
+    const pertenceAoSupabase =
+      url.origin === urlSupabase.origin &&
+      url.pathname.startsWith("/rest/v1/");
+
+    if (pertenceAoSupabase) {
+      const caminho = url.pathname.slice("/rest/v1".length);
+      const destino = `/api/supabase-rest${caminho}${url.search}`;
+
+      return window.fetch(destino, options);
+    }
+  } catch (erro) {
+    console.error("Erro ao preparar a requisição ao Supabase:", erro);
+  }
+
+  return window.fetch(input, options);
+}
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error(
+    "Pulsan: configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no arquivo de ambiente."
+  );
+}
+
 export const supabase = createClient(
-  supabaseUrl,
-  supabaseAnonKey,
+  supabaseUrl || "https://placeholder.supabase.co",
+  supabaseAnonKey || "chave-nao-configurada",
   {
+    global: {
+      fetch: fetchSupabase,
+    },
+
     auth: {
       persistSession: true,
       autoRefreshToken: true,

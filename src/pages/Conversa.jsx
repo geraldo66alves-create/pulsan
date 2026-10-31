@@ -1316,35 +1316,52 @@ function ConversaPrincipal({ irPara, tema = "claro" }) {
       String(conversaAtual.destinatario_id) === String(usuarioId);
 
     if (!souAutorDoDesabafo) {
-      setErro(
-        "A finalização e a avaliação ficam disponíveis para quem publicou o desabafo."
-      );
+      setErro("Somente quem publicou o desabafo pode finalizar esta conversa.");
       return;
     }
 
-    const solicitanteId =
-      conversaAtual.solicitante_id ||
-      conversaAtual.outraPessoaId ||
-      "";
-
+    const solicitanteId = conversaAtual.solicitante_id || conversaAtual.outraPessoaId || "";
     if (!solicitanteId) {
       setErro("Não foi possível identificar quem solicitou o chat.");
       return;
     }
 
-    if (
-      !window.confirm(
-        "Encerrar esta conversa?\n\n" +
-        "Na próxima etapa você poderá avaliar a pessoa que pediu o chat. " +
-        "Depois da avaliação, ela receberá os pontos da ajuda."
-      )
-    ) {
-      return;
-    }
+    if (!window.confirm(
+      "Deseja realmente finalizar esta conversa? Depois disso, não será possível enviar novas mensagens. Você poderá avaliar a pessoa na próxima etapa."
+    )) return;
 
     try {
       setFinalizando(true);
       setErro("");
+
+      // Confere no banco se a conversa existe e se o usuário é o autor do desabafo.
+      const { data: conversaBanco, error: erroBusca } = await supabase
+        .from("conversas")
+        .select("id, status, destinatario_id, solicitante_id")
+        .eq("id", conversaAtual.id)
+        .maybeSingle();
+
+      if (erroBusca) throw erroBusca;
+      if (!conversaBanco) throw new Error("Conversa não encontrada.");
+      if (String(conversaBanco.destinatario_id) !== String(usuarioId)) {
+        throw new Error("Você não tem autorização para finalizar esta conversa.");
+      }
+
+      // O encerramento acontece antes da avaliação, e não depende dela.
+      if (String(conversaBanco.status || "").toLowerCase() !== "finalizada") {
+        const { data: atualizada, error: erroAtualizacao } = await supabase
+          .from("conversas")
+          .update({ status: "finalizada" })
+          .eq("id", conversaAtual.id)
+          .eq("destinatario_id", usuarioId)
+          .select("id, status")
+          .maybeSingle();
+
+        if (erroAtualizacao) throw erroAtualizacao;
+        if (!atualizada || String(atualizada.status || "").toLowerCase() !== "finalizada") {
+          throw new Error("O banco não confirmou o encerramento da conversa.");
+        }
+      }
 
       const dadosAvaliacao = {
         ...conversaAtual,
@@ -1355,21 +1372,24 @@ function ConversaPrincipal({ irPara, tema = "claro" }) {
         ajudanteFoto: conversaAtual.foto || "",
         avaliadorId: usuarioId,
         finalizacaoSolicitadaEm: new Date().toISOString(),
+        status: "finalizada",
       };
 
-      localStorage.setItem(
-        "pulsanConversaAtual",
-        JSON.stringify(dadosAvaliacao)
+      setConversaAtual((anterior) => anterior
+        ? { ...anterior, status: "finalizada" }
+        : anterior
       );
-      localStorage.setItem(
-        "pulsanSolicitacaoAtual",
-        JSON.stringify({
-          ...dadosAvaliacao,
-          conversaId: conversaAtual.id,
-          solicitante_id: solicitanteId,
-          destinatario_id: usuarioId,
-        })
-      );
+      setRecentes((anteriores) => anteriores.filter(
+        (item) => String(item.id) !== String(conversaAtual.id)
+      ));
+
+      localStorage.setItem("pulsanConversaAtual", JSON.stringify(dadosAvaliacao));
+      localStorage.setItem("pulsanSolicitacaoAtual", JSON.stringify({
+        ...dadosAvaliacao,
+        conversaId: conversaAtual.id,
+        solicitante_id: solicitanteId,
+        destinatario_id: usuarioId,
+      }));
       localStorage.setItem("pulsanAjudanteId", String(solicitanteId));
       localStorage.setItem("pulsanNomeOutraPessoa", conversaAtual.nome || "Apoiador");
       localStorage.setItem("pulsanFotoOutraPessoa", conversaAtual.foto || "");
@@ -1377,16 +1397,14 @@ function ConversaPrincipal({ irPara, tema = "claro" }) {
       localStorage.setItem("pulsanAvaliacaoConversaPendente", "true");
       localStorage.setItem("pulsanConversaId", String(conversaAtual.id));
 
-      // A conversa só passa para finalizada depois que a avaliação for salva.
       if (typeof irPara === "function") {
         irPara("avaliacao");
+      } else {
+        throw new Error("Não foi possível abrir a tela de avaliação.");
       }
     } catch (erroFinalizacao) {
-      console.error("Erro ao preparar finalização da conversa:", erroFinalizacao);
-      setErro(
-        erroFinalizacao?.message ||
-          "Não foi possível abrir a etapa de avaliação."
-      );
+      console.error("Erro ao finalizar conversa:", erroFinalizacao);
+      setErro(erroFinalizacao?.message || "Não foi possível finalizar a conversa.");
     } finally {
       setFinalizando(false);
     }
