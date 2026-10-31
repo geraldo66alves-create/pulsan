@@ -1,7 +1,12 @@
 import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.replace(/\/+$/, "");
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+// Prioriza a chave Publishable atual do Supabase.
+// Mantém compatibilidade com a variável antiga.
+const supabaseAnonKey =
+  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+  import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 function pulsAnEstaInstalado() {
   if (typeof window === "undefined") return false;
@@ -51,7 +56,11 @@ function criarArmazenamentoSessaoPulsan() {
 
         return temporario?.getItem(chave) ?? null;
       } catch (erro) {
-        console.error("Erro ao recuperar a sessão do Pulsan:", erro);
+        console.error(
+          "Erro ao recuperar a sessão do Pulsan:",
+          erro
+        );
+
         return null;
       }
     },
@@ -64,7 +73,10 @@ function criarArmazenamentoSessaoPulsan() {
 
         armazenamento?.setItem(chave, valor);
       } catch (erro) {
-        console.error("Erro ao salvar a sessão do Pulsan:", erro);
+        console.error(
+          "Erro ao salvar a sessão do Pulsan:",
+          erro
+        );
       }
     },
 
@@ -73,7 +85,10 @@ function criarArmazenamentoSessaoPulsan() {
         acessarArmazenamento("session")?.removeItem(chave);
         acessarArmazenamento("local")?.removeItem(chave);
       } catch (erro) {
-        console.error("Erro ao remover a sessão do Pulsan:", erro);
+        console.error(
+          "Erro ao remover a sessão do Pulsan:",
+          erro
+        );
       }
     },
   };
@@ -92,21 +107,32 @@ function fetchSupabase(input, options = {}) {
   }
 
   try {
-    const url = new URL(urlRecebida, window.location.origin);
+    const url = new URL(
+      urlRecebida,
+      window.location.origin
+    );
+
     const urlSupabase = new URL(supabaseUrl);
 
+    // Somente chamadas REST passam pelo proxy existente.
+    // Autenticação continua diretamente no Supabase.
     const pertenceAoSupabase =
       url.origin === urlSupabase.origin &&
       url.pathname.startsWith("/rest/v1/");
 
     if (pertenceAoSupabase) {
       const caminho = url.pathname.slice("/rest/v1".length);
-      const destino = `/api/supabase-rest${caminho}${url.search}`;
+
+      const destino =
+        `/api/supabase-rest${caminho}${url.search}`;
 
       return window.fetch(destino, options);
     }
   } catch (erro) {
-    console.error("Erro ao preparar a requisição ao Supabase:", erro);
+    console.error(
+      "Erro ao preparar a requisição ao Supabase:",
+      erro
+    );
   }
 
   return window.fetch(input, options);
@@ -114,13 +140,15 @@ function fetchSupabase(input, options = {}) {
 
 if (!supabaseUrl || !supabaseAnonKey) {
   console.error(
-    "Pulsan: configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no arquivo de ambiente."
+    "Pulsan: configure VITE_SUPABASE_URL e VITE_SUPABASE_PUBLISHABLE_KEY no ambiente."
   );
 }
 
 export const supabase = createClient(
   supabaseUrl || "https://placeholder.supabase.co",
+
   supabaseAnonKey || "chave-nao-configurada",
+
   {
     global: {
       fetch: fetchSupabase,
