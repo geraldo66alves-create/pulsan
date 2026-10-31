@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-   "server": "node server/server.js",
+    "server": "node server/server.js",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"
@@ -17,7 +17,8 @@
     "express": "^5.2.1",
     "openai": "^7.4.0",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "react-dom": "^19.2.8",
+    "vite-plugin-pwa": "^2.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
