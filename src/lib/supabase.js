@@ -1,12 +1,18 @@
 import { createClient } from "@supabase/supabase-js";
 
+// ============================================
+// CONFIGURAÇÃO DO SUPABASE
+// ============================================
+
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.replace(/\/+$/, "");
 
-// Prioriza a chave Publishable atual do Supabase.
-// Mantém compatibilidade com a variável antiga.
 const supabaseAnonKey =
   import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
   import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+// ============================================
+// VERIFICA SE O PULSAN ESTÁ INSTALADO
+// ============================================
 
 function pulsAnEstaInstalado() {
   if (typeof window === "undefined") return false;
@@ -18,6 +24,10 @@ function pulsAnEstaInstalado() {
   );
 }
 
+// ============================================
+// ACESSO AO ARMAZENAMENTO
+// ============================================
+
 function acessarArmazenamento(tipo) {
   try {
     if (typeof window === "undefined") return null;
@@ -25,10 +35,15 @@ function acessarArmazenamento(tipo) {
     return tipo === "local"
       ? window.localStorage
       : window.sessionStorage;
-  } catch {
+  } catch (erro) {
+    console.error("Erro ao acessar armazenamento:", erro);
     return null;
   }
 }
+
+// ============================================
+// ARMAZENAMENTO DA SESSÃO
+// ============================================
 
 function criarArmazenamentoSessaoPulsan() {
   return {
@@ -40,13 +55,19 @@ function criarArmazenamentoSessaoPulsan() {
         if (pulsAnEstaInstalado()) {
           const valorPersistente = persistente?.getItem(chave);
 
-          if (valorPersistente !== null && valorPersistente !== undefined) {
+          if (
+            valorPersistente !== null &&
+            valorPersistente !== undefined
+          ) {
             return valorPersistente;
           }
 
           const valorTemporario = temporario?.getItem(chave);
 
-          if (valorTemporario !== null && valorTemporario !== undefined) {
+          if (
+            valorTemporario !== null &&
+            valorTemporario !== undefined
+          ) {
             persistente?.setItem(chave, valorTemporario);
             temporario?.removeItem(chave);
           }
@@ -94,6 +115,10 @@ function criarArmazenamentoSessaoPulsan() {
   };
 }
 
+// ============================================
+// COMUNICAÇÃO COM O SUPABASE
+// ============================================
+
 function fetchSupabase(input, options = {}) {
   const urlRecebida =
     typeof input === "string"
@@ -107,15 +132,9 @@ function fetchSupabase(input, options = {}) {
   }
 
   try {
-    const url = new URL(
-      urlRecebida,
-      window.location.origin
-    );
-
+    const url = new URL(urlRecebida, window.location.origin);
     const urlSupabase = new URL(supabaseUrl);
 
-    // Somente chamadas REST passam pelo proxy existente.
-    // Autenticação continua diretamente no Supabase.
     const pertenceAoSupabase =
       url.origin === urlSupabase.origin &&
       url.pathname.startsWith("/rest/v1/");
@@ -138,11 +157,19 @@ function fetchSupabase(input, options = {}) {
   return window.fetch(input, options);
 }
 
+// ============================================
+// VERIFICAÇÃO DAS VARIÁVEIS
+// ============================================
+
 if (!supabaseUrl || !supabaseAnonKey) {
   console.error(
-    "Pulsan: configure VITE_SUPABASE_URL e VITE_SUPABASE_PUBLISHABLE_KEY no ambiente."
+    "Pulsan: configure VITE_SUPABASE_URL e VITE_SUPABASE_PUBLISHABLE_KEY no arquivo de ambiente."
   );
 }
+
+// ============================================
+// CLIENTE SUPABASE
+// ============================================
 
 export const supabase = createClient(
   supabaseUrl || "https://placeholder.supabase.co",
