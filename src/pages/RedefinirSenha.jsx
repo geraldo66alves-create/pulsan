@@ -1,6 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 
+// Evita validar o mesmo token duas vezes durante a montagem duplicada
+// de efeitos pelo React StrictMode em desenvolvimento.
+const validacoesRecuperacao = new Map();
+
 function RedefinirSenha({ irPara }) {
   const [senha, setSenha] = useState("");
   const [confirmarSenha, setConfirmarSenha] = useState("");
@@ -13,87 +17,121 @@ function RedefinirSenha({ irPara }) {
 
   useEffect(() => {
     let ativo = true;
-    let recuperacaoConfirmada = false;
-
-    const parametros = new URLSearchParams(window.location.search);
-    const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
-
-    const erroRetorno =
-      parametros.get("error_description") ||
-      hash.get("error_description") ||
-      parametros.get("error") ||
-      hash.get("error");
-
-    if (erroRetorno) {
-      const mensagem = String(erroRetorno).toLowerCase();
-      setErro(
-        mensagem.includes("expired") || mensagem.includes("invalid")
-          ? "Este link de recuperação expirou ou já foi utilizado. Solicite um novo e-mail."
-          : "Não foi possível validar o link de recuperação. Solicite um novo e-mail."
-      );
-      setCarregando(false);
-      return () => {
-        ativo = false;
-      };
-    }
-
-    const tipoRecuperacao =
-      hash.get("type") === "recovery" ||
-      parametros.get("type") === "recovery" ||
-      parametros.get("redefinir-senha") === "1";
-
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      (evento, session) => {
-        if (ativo && evento === "PASSWORD_RECOVERY" && session) {
-          recuperacaoConfirmada = true;
-          setPronto(true);
-          setErro("");
-          setCarregando(false);
-        }
-      }
-    );
 
     const prepararRecuperacao = async () => {
       try {
-        if (!tipoRecuperacao) {
-          throw new Error("O endereço não contém um pedido de recuperação.");
-        }
+        const parametros = new URLSearchParams(window.location.search);
+        const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
 
-        // detectSessionInUrl do Supabase processa automaticamente o retorno
-        // do e-mail (PKCE ou tokens). Aguardamos a sessão ficar disponível.
-        for (let tentativa = 0; tentativa < 6; tentativa += 1) {
-          if (!ativo || recuperacaoConfirmada) return;
+        const erroRetorno =
+          parametros.get("error_description") ||
+          hash.get("error_description") ||
+          parametros.get("error") ||
+          hash.get("error");
 
-          const { data, error } = await supabase.auth.getSession();
-          if (error) throw error;
-
-          if (data?.session) {
-            recuperacaoConfirmada = true;
-            if (ativo) {
-              setPronto(true);
-              setErro("");
-              setCarregando(false);
-            }
-            return;
-          }
-
-          await new Promise((resolve) => setTimeout(resolve, 400));
-        }
-
-        if (ativo && !recuperacaoConfirmada) {
-          setErro(
-            "Este link de recuperação expirou, já foi utilizado ou não pôde ser validado. Solicite um novo e-mail para redefinir sua senha."
+        if (erroRetorno) {
+          const mensagem = String(erroRetorno).toLowerCase();
+          throw new Error(
+            mensagem.includes("expired") || mensagem.includes("invalid")
+              ? "Este link de recuperação expirou ou já foi utilizado. Solicite um novo e-mail."
+              : "Não foi possível validar o link de recuperação. Solicite um novo e-mail."
           );
         }
-      } catch (e) {
-        console.error("Erro ao abrir recuperação de senha:", e);
+
+        const tokenHash = parametros.get("token_hash");
+        const tipo = parametros.get("type") || hash.get("type");
+        const codigo = parametros.get("code");
+
+        // Fluxo recomendado: valida o token_hash diretamente no Supabase.
+        // A chamada é compartilhada entre execuções duplicadas do efeito
+        // (comportamento do React StrictMode em desenvolvimento).
+        if (tokenHash) {
+          if (tipo !== "recovery") {
+            throw new Error("O link não corresponde a uma recuperação de senha.");
+          }
+
+          const chave = `pulsan-recovery:${tokenHash}`;
+          if (!validacoesRecuperacao.has(chave)) {
+            const promessa = supabase.auth.verifyOtp({
+              token_hash: tokenHash,
+              type: "recovery",
+            });
+            validacoesRecuperacao.set(chave, promessa);
+          }
+
+          const { data, error } = await validacoesRecuperacao.get(chave);
+          if (error) throw error;
+
+          if (!data?.session) {
+            throw new Error("O Supabase não retornou uma sessão de recuperação válida.");
+          }
+
+          // Remove o token da barra de endereço após validá-lo.
+          window.history.replaceState(
+            {},
+            document.title,
+            `${window.location.pathname}?redefinir-senha=1`
+          );
+
+          if (ativo) {
+            setPronto(true);
+            setErro("");
+          }
+          return;
+        }
+
+        // Compatibilidade com links PKCE já configurados anteriormente.
+        if (codigo) {
+          const { error } = await supabase.auth.exchangeCodeForSession(codigo);
+          if (error) throw error;
+        } else {
+          // Compatibilidade com o formato antigo de link que usa tokens no hash.
+          const tipoRecuperacao =
+            tipo === "recovery" ||
+            parametros.get("redefinir-senha") === "1";
+
+          if (!tipoRecuperacao) {
+            throw new Error("O endereço não contém um pedido de recuperação.");
+          }
+        }
+
+        const { data, error } = await supabase.auth.getSession();
+        if (error) throw error;
+
+        if (!data?.session) {
+          throw new Error("Não foi possível validar a sessão de recuperação.");
+        }
+
         if (ativo) {
+          setPronto(true);
+          setErro("");
+        }
+
+        window.history.replaceState(
+          {},
+          document.title,
+          `${window.location.pathname}?redefinir-senha=1`
+        );
+      } catch (e) {
+        console.error("Erro ao validar recuperação de senha:", e);
+        if (ativo) {
+          const mensagem = String(e?.message || "").toLowerCase();
+          const linkInvalido =
+            mensagem.includes("expired") ||
+            mensagem.includes("invalid") ||
+            mensagem.includes("otp") ||
+            mensagem.includes("token") ||
+            mensagem.includes("not found");
+
           setErro(
-            "Não foi possível validar este link de recuperação. Solicite um novo link e tente novamente."
+            linkInvalido
+              ? "Este link de recuperação expirou ou já foi utilizado. Solicite um novo link."
+              : e?.message ||
+                  "Não foi possível validar este link de recuperação. Solicite um novo link e tente novamente."
           );
         }
       } finally {
-        if (ativo && !recuperacaoConfirmada) setCarregando(false);
+        if (ativo) setCarregando(false);
       }
     };
 
@@ -101,7 +139,6 @@ function RedefinirSenha({ irPara }) {
 
     return () => {
       ativo = false;
-      listener?.subscription?.unsubscribe();
     };
   }, []);
 
