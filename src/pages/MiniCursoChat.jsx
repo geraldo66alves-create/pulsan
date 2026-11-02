@@ -254,9 +254,20 @@ export default function MiniCursoChat({
   acessibilidade = {},
   alterarAcessibilidade,
 }) {
+  const usuarioMiniCurso = (() => {
+    for (const chave of ["usuarioLogado", "pulsanUsuarioAtual"]) {
+      try {
+        const usuario = JSON.parse(localStorage.getItem(chave) || "{}");
+        if (usuario?.id || usuario?.email) return String(usuario.id || usuario.email);
+      } catch { /* usa a próxima chave */ }
+    }
+    return "visitante-local";
+  })();
+  const chaveMiniCurso = (nome) => `pulsanMiniCursoChat_${usuarioMiniCurso}_${nome}`;
+
   const [etapaAtual, setEtapaAtual] = useState(() => {
     const salvo = Number(
-      localStorage.getItem("pulsanMiniCursoChatEtapa") || 1
+      localStorage.getItem(chaveMiniCurso("Etapa")) || localStorage.getItem("pulsanMiniCursoChatEtapa") || 1
     );
 
     return Math.min(Math.max(salvo, 1), TOTAL_ETAPAS);
@@ -265,10 +276,10 @@ export default function MiniCursoChat({
   const [respostaSelecionada, setRespostaSelecionada] = useState(null);
   const [respostaConfirmada, setRespostaConfirmada] = useState(false);
   const [acertos, setAcertos] = useState(() =>
-    Number(localStorage.getItem("pulsanMiniCursoChatAcertos") || 0)
+    Number(localStorage.getItem(chaveMiniCurso("Acertos")) || localStorage.getItem("pulsanMiniCursoChatAcertos") || 0)
   );
   const [concluido, setConcluido] = useState(
-    localStorage.getItem("pulsanMiniCursoChatConcluido") === "true"
+    localStorage.getItem(chaveMiniCurso("Concluido")) === "true" || localStorage.getItem("pulsanMiniCursoChatConcluido") === "true"
   );
 
   const etapa = ETAPAS[etapaAtual - 1];
@@ -295,7 +306,7 @@ export default function MiniCursoChat({
       const novoTotal = acertos + 1;
       setAcertos(novoTotal);
       localStorage.setItem(
-        "pulsanMiniCursoChatAcertos",
+        chaveMiniCurso("Acertos"),
         String(novoTotal)
       );
     }
@@ -309,7 +320,7 @@ export default function MiniCursoChat({
 
       setEtapaAtual(proxima);
       localStorage.setItem(
-        "pulsanMiniCursoChatEtapa",
+        chaveMiniCurso("Etapa"),
         String(proxima)
       );
 
@@ -320,9 +331,9 @@ export default function MiniCursoChat({
       return;
     }
 
-    localStorage.setItem("pulsanMiniCursoChatConcluido", "true");
+    localStorage.setItem(chaveMiniCurso("Concluido"), "true");
     localStorage.setItem(
-      "pulsanMiniCursoChatConcluidoEm",
+      chaveMiniCurso("ConcluidoEm"),
       new Date().toISOString()
     );
 
@@ -330,10 +341,9 @@ export default function MiniCursoChat({
   }
 
   function reiniciarCurso() {
-    localStorage.removeItem("pulsanMiniCursoChatConcluido");
-    localStorage.removeItem("pulsanMiniCursoChatConcluidoEm");
-    localStorage.removeItem("pulsanMiniCursoChatEtapa");
-    localStorage.removeItem("pulsanMiniCursoChatAcertos");
+    ["Concluido", "ConcluidoEm", "Etapa", "Acertos"].forEach((nome) =>
+      localStorage.removeItem(chaveMiniCurso(nome))
+    );
 
     setEtapaAtual(1);
     setRespostaSelecionada(null);

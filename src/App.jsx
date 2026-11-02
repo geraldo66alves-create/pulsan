@@ -1,50 +1,27 @@
 import React, { useEffect, useState } from "react";
-
+import { supabase } from "./lib/supabase";
 import "./tema.css";
 
-
-
 import Inicio from "./pages/Inicio";
-
 import Login from "./pages/Login";
-
 import PainelAdmin from "./pages/PainelAdmin";
-
 import GestaoPsicologos from "./pages/GestaoPsicologos";
-
 import Alertas from "./pages/Alertas";
-
 import Cadastro from "./pages/Cadastro";
-
 import Ambiente from "./pages/Ambiente";
-
 import Desabafar from "./pages/Desabafar";
-
 import Reflexao from "./pages/Reflexao";
-
 import Conversas from "./pages/Conversa";
-
 import Solicitacoes from "./pages/Solicitacoes";
-
 import SolicitarAjuda from "./pages/SolicitarAjuda";
-
 import Avaliacao from "./pages/Avaliacao";
-
 import Perfil from "./pages/Perfil";
-
 import Acessibilidade from "./pages/Acessibilidade";
-
 import AcessibilidadeInicial from "./pages/AcessibilidadeInicial";
-
 import Premios from "./pages/Premios";
-
 import RecuperarSenha from "./pages/RecuperarSenha";
-
 import RedefinirSenha from "./pages/RedefinirSenha";
 import MiniCursoChat from "./pages/MiniCursoChat";
-
-
-
 
 
 /* =====================================================
@@ -56,51 +33,31 @@ import MiniCursoChat from "./pages/MiniCursoChat";
 \===================================================== */
 
 const estiloTemaGlobal = `
-
   :root {
-
     --pulsan-bg: #EAF3FF;
-
     --pulsan-card: #FFFFFF;
-
     --pulsan-card-secundario: #F7FAFF;
-
     --pulsan-texto: #0F2D5B;
-
     --pulsan-texto-secundario: #5F7695;
-
     --pulsan-borda: #A8C7FF;
-
     --pulsan-primaria: #3A7DFF;
 
   }
 
-
-
   html[data-theme="escuro"] {
-
     --pulsan-bg: #081B35;
-
     --pulsan-card: #0F2D5B;
-
     --pulsan-card-secundario: #15365F;
-
     --pulsan-texto: #FFFFFF;
-
     --pulsan-texto-secundario: #C2D2E8;
-
     --pulsan-borda: #416DA4;
-
     --pulsan-primaria: #6EA0FF;
 
   }
 
 
-
   html[data-theme="escuro"] body {
-
     background: #081B35 !important;
-
     color: #FFFFFF;
 
   }
@@ -110,15 +67,10 @@ const estiloTemaGlobal = `
   /* Cards e superfícies que usam as variáveis do Pulsan */
 
   html[data-theme="escuro"] .pulsan-app [style*="background: white"],
-
   html[data-theme="escuro"] .pulsan-app [style*="background: #fff"],
-
   html[data-theme="escuro"] .pulsan-app [style*="background:#fff"],
-
   html[data-theme="escuro"] .pulsan-app [style*="background: rgb(255, 255, 255)"] {
-
     background: #0F2D5B !important;
-
     color: #FFFFFF !important;
 
   }
@@ -128,15 +80,10 @@ const estiloTemaGlobal = `
   /* Aumenta a separação visual dos cards no escuro */
 
   html[data-theme="escuro"] .pulsan-app .ambiente-card,
-
   html[data-theme="escuro"] .pulsan-app .ambiente-post,
-
   html[data-theme="escuro"] .pulsan-app .ambiente-hero-card {
-
     background: #0F2D5B !important;
-
     border-color: #416DA4 !important;
-
     box-shadow: 0 8px 24px rgba(0,0,0,.28) !important;
 
   }
@@ -152,25 +99,16 @@ const estiloTemaGlobal = `
 
 
   html[data-theme="escuro"] .pulsan-app input,
-
   html[data-theme="escuro"] .pulsan-app textarea,
-
   html[data-theme="escuro"] .pulsan-app select {
-
     background: #15365F !important;
-
     color: #FFFFFF !important;
-
     border-color: #416DA4 !important;
 
   }
 
-
-
   html[data-theme="escuro"] .pulsan-app input::placeholder,
-
   html[data-theme="escuro"] .pulsan-app textarea::placeholder {
-
     color: #B8C9DF !important;
 
   }
@@ -178,7 +116,6 @@ const estiloTemaGlobal = `
 
 
   html[data-theme="escuro"] .pulsan-app button {
-
     color: inherit;
 
   }
@@ -186,11 +123,8 @@ const estiloTemaGlobal = `
 
 
   html[data-theme="escuro"] .pulsan-app .pulsan-menu-inferior {
-
     background: #0F2D5B !important;
-
     border-top-color: #416DA4 !important;
-
     box-shadow: 0 -8px 25px rgba(0,0,0,.32) !important;
 
   }
@@ -212,19 +146,12 @@ const estiloTemaGlobal = `
   /* ALTO CONTRASTE */
 
   html[data-contraste="alto"] .pulsan-app {
-
     --pulsan-bg: #000000 !important;
-
     --pulsan-card: #111111 !important;
-
     --pulsan-card-secundario: #1A1A1A !important;
-
     --pulsan-texto: #FFFFFF !important;
-
     --pulsan-texto-secundario: #FFFFFF !important;
-
     --pulsan-borda: #FFFFFF !important;
-
     --pulsan-primaria: #FFFF00 !important;
 
   }
@@ -232,67 +159,41 @@ const estiloTemaGlobal = `
 
 
   html[data-contraste="alto"] .pulsan-app,
-
   html[data-contraste="alto"] .pulsan-app * {
-
     border-color: #FFFFFF !important;
 
   }
 
-
-
   html[data-contraste="alto"] .pulsan-app {
-
     background: #000000 !important;
-
     color: #FFFFFF !important;
 
   }
 
-
-
   html[data-contraste="alto"] .pulsan-app button,
-
   html[data-contraste="alto"] .pulsan-app a {
-
     color: #FFFF00 !important;
 
   }
 
-
-
   html[data-contraste="alto"] .pulsan-app input,
-
   html[data-contraste="alto"] .pulsan-app textarea,
-
   html[data-contraste="alto"] .pulsan-app select {
-
     background: #000000 !important;
-
     color: #FFFFFF !important;
-
     border: 2px solid #FFFFFF !important;
 
   }
 
-
-
   html[data-contraste="alto"] .pulsan-app input::placeholder,
-
   html[data-contraste="alto"] .pulsan-app textarea::placeholder {
-
     color: #FFFFFF !important;
-
     opacity: 1 !important;
 
   }
 
-
-
   html[data-contraste="alto"] .pulsan-app [style*="background"],
-
   html[data-contraste="alto"] .pulsan-app [style*="backgroundColor"] {
-
     color: #FFFFFF !important;
 
   }
@@ -302,29 +203,18 @@ const estiloTemaGlobal = `
   /* TEXTO MAIOR */
 
   html[data-texto-grande="true"] .pulsan-app {
-
     font-size: 18px;
 
   }
 
-
-
   html[data-texto-grande="true"] .pulsan-app p,
-
   html[data-texto-grande="true"] .pulsan-app span,
-
   html[data-texto-grande="true"] .pulsan-app label,
-
   html[data-texto-grande="true"] .pulsan-app li,
-
   html[data-texto-grande="true"] .pulsan-app input,
-
   html[data-texto-grande="true"] .pulsan-app textarea,
-
   html[data-texto-grande="true"] .pulsan-app select,
-
   html[data-texto-grande="true"] .pulsan-app button {
-
     font-size: 1.08em !important;
 
   }
@@ -358,17 +248,11 @@ const estiloTemaGlobal = `
   /* BOTÕES E ÁREAS DE TOQUE MAIORES */
 
   html[data-botoes-grandes="true"] .pulsan-app button,
-
   html[data-botoes-grandes="true"] .pulsan-app a[role="button"],
-
   html[data-botoes-grandes="true"] .pulsan-app input[type="button"],
-
   html[data-botoes-grandes="true"] .pulsan-app input[type="submit"] {
-
     min-height: 52px !important;
-
     min-width: 48px;
-
     padding: 12px 18px !important;
 
   }
@@ -390,17 +274,11 @@ const estiloTemaGlobal = `
   /* REDUZIR ANIMAÇÕES */
 
   html[data-reduzir-animacoes="true"] .pulsan-app *,
-
   html[data-reduzir-animacoes="true"] .pulsan-app *::before,
-
   html[data-reduzir-animacoes="true"] .pulsan-app *::after {
-
     animation-duration: 0.01ms !important;
-
     animation-iteration-count: 1 !important;
-
     transition-duration: 0.01ms !important;
-
     scroll-behavior: auto !important;
 
   }
@@ -410,33 +288,20 @@ const estiloTemaGlobal = `
   /* FOCO VISÍVEL PARA TECLADO */
 
   .pulsan-app button:focus-visible,
-
   .pulsan-app a:focus-visible,
-
   .pulsan-app input:focus-visible,
-
   .pulsan-app textarea:focus-visible,
-
   .pulsan-app select:focus-visible {
-
     outline: 3px solid #3A7DFF !important;
-
     outline-offset: 3px !important;
 
   }
 
-
-
   html[data-contraste="alto"] .pulsan-app button:focus-visible,
-
   html[data-contraste="alto"] .pulsan-app a:focus-visible,
-
   html[data-contraste="alto"] .pulsan-app input:focus-visible,
-
   html[data-contraste="alto"] .pulsan-app textarea:focus-visible,
-
   html[data-contraste="alto"] .pulsan-app select:focus-visible {
-
     outline-color: #FFFF00 !important;
 
   }
@@ -446,11 +311,9 @@ const estiloTemaGlobal = `
   /* DALTONISMO
 
      A opção é aplicada como filtro global sem alterar
-
      permanentemente as cores originais do Pulsan. */
 
   html[data-daltonismo="protanopia"] .pulsan-app {
-
     filter: url("#pulsan-protanopia");
 
   }
@@ -458,31 +321,21 @@ const estiloTemaGlobal = `
 
 
   html[data-daltonismo="deuteranopia"] .pulsan-app {
-
     filter: url("#pulsan-deuteranopia");
 
   }
 
-
-
   html[data-daltonismo="tritanopia"] .pulsan-app {
-
     filter: url("#pulsan-tritanopia");
 
   }
 
-
-
   /* Evita que o filtro seja aplicado ao próprio SVG de acessibilidade. */
 
   #pulsan-filtros-acessibilidade {
-
     position: absolute;
-
     width: 0;
-
     height: 0;
-
     overflow: hidden;
 
   }
@@ -492,13 +345,9 @@ const estiloTemaGlobal = `
 
 
 if (typeof document !== "undefined" && !document.getElementById("pulsan-tema-global")) {
-
   const styleTema = document.createElement("style");
-
   styleTema.id = "pulsan-tema-global";
-
   styleTema.textContent = estiloTemaGlobal;
-
   document.head.appendChild(styleTema);
 
 }
@@ -508,27 +357,16 @@ if (typeof document !== "undefined" && !document.getElementById("pulsan-tema-glo
 /* Filtros de daltonismo usados pela acessibilidade global. */
 
 if (typeof document !== "undefined" && !document.getElementById("pulsan-filtros-acessibilidade")) {
-
   const svgFiltros = document.createElementNS("http://www\.w3.org/2000/svg", "svg");
-
   svgFiltros.id = "pulsan-filtros-acessibilidade";
-
   svgFiltros.setAttribute("aria-hidden", "true");
-
   svgFiltros.innerHTML = `
-
     <filter id="pulsan-protanopia">
-
       <feColorMatrix type="matrix"
-
         values="
-
           0.567 0.433 0     0 0
-
           0.558 0.442 0     0 0
-
           0     0.242 0.758 0 0
-
           0     0     0     1 0" />
 
     </filter>
@@ -536,17 +374,11 @@ if (typeof document !== "undefined" && !document.getElementById("pulsan-filtros-
 
 
     <filter id="pulsan-deuteranopia">
-
       <feColorMatrix type="matrix"
-
         values="
-
           0.625 0.375 0     0 0
-
           0.700 0.300 0     0 0
-
           0     0.300 0.700 0 0
-
           0     0     0     1 0" />
 
     </filter>
@@ -554,17 +386,11 @@ if (typeof document !== "undefined" && !document.getElementById("pulsan-filtros-
 
 
     <filter id="pulsan-tritanopia">
-
       <feColorMatrix type="matrix"
-
         values="
-
           0.950 0.050 0     0 0
-
           0     0.433 0.567 0 0
-
           0     0.475 0.525 0 0
-
           0     0     0     1 0" />
 
     </filter>
@@ -583,28 +409,16 @@ if (typeof document !== "undefined" && !document.getElementById("pulsan-filtros-
 
 // =====================================================
 
-
-
 function MenuInferior({ pagina, irPara }) {
-
   const paginasComMenu = [
-
     "ambiente",
-
     "desabafar",
-
     "reflexao",
-
     "solicitacoes",
-
     "conversa",
-
     "solicitar-ajuda",
-
     "avaliacao",
-
     "perfil",
-
     "premios",
 
   ];
@@ -1437,26 +1251,38 @@ function pulsAnEstaInstalado() {
 
 
 
+
 function normalizarSessaoPulsan() {
   if (typeof window === "undefined") return;
 
   try {
-    // Não apaga os dados auxiliares do perfil durante a inicialização.
-    // O Login grava esses dados em localStorage; apagá-los fazia o perfil
-    // desaparecer após F5. A autenticação real continua sendo do Supabase Auth.
+    const instalado = pulsAnEstaInstalado();
+
     CHAVES_SESSAO_PULSAN.forEach((chave) => {
       const valorLocal = window.localStorage.getItem(chave);
       const valorSessao = window.sessionStorage.getItem(chave);
 
-      // Compatibilidade com dados gravados por versões anteriores.
-      if (valorLocal === null && valorSessao !== null) {
-        window.localStorage.setItem(chave, valorSessao);
+      if (instalado) {
+        // Aplicativo instalado: mantém os dados no localStorage.
+        if (valorLocal === null && valorSessao !== null) {
+          window.localStorage.setItem(chave, valorSessao);
+        }
+      } else {
+        // Navegador: transfere os dados para a sessão temporária.
+        if (valorLocal !== null) {
+          window.sessionStorage.setItem(chave, valorLocal);
+          window.localStorage.removeItem(chave);
+        }
       }
     });
   } catch (erro) {
-    console.error("Erro ao restaurar os dados auxiliares da sessão Pulsan:", erro);
+    console.error(
+      "Erro ao restaurar os dados da sessão Pulsan:",
+      erro
+    );
   }
 }
+
 
 
 
@@ -1638,35 +1464,28 @@ function App() {
 
 
 
-  function sairDaConta() {
+async function sairDaConta() {
+  try {
+    const { error } = await supabase.auth.signOut();
 
-    // O logout é explícito: limpa a sessão tanto do navegador
-
-    // quanto do aplicativo instalado.
-
+    if (error) {
+      console.error("Erro ao encerrar sessão:", error);
+    }
+  } catch (erro) {
+    console.error("Erro ao encerrar sessão:", erro);
+  } finally {
     CHAVES_SESSAO_PULSAN.forEach((chave) => {
-
       try {
-
         window.localStorage.removeItem(chave);
-
         window.sessionStorage.removeItem(chave);
-
-      } catch {
-
-        // Ignora falhas de armazenamento para concluir o logout.
-
+      } catch (erro) {
+        console.error(`Erro ao limpar ${chave}:`, erro);
       }
-
     });
 
-
-
     setPagina("inicio");
-
   }
-
-
+}
 
   // =====================================================
 
@@ -1806,6 +1625,88 @@ function App() {
 
   }, [acessibilidade]);
 
+  // Aplica os recursos de acessibilidade no documento inteiro, mesmo ao trocar de página.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const html = document.documentElement;
+    const modos = {
+      altoContraste: Boolean(acessibilidade.altoContraste),
+      textoMaior: Boolean(acessibilidade.textoMaior),
+      botoesMaiores: Boolean(acessibilidade.botoesMaiores),
+      reduzirAnimacoes: Boolean(acessibilidade.reduzirAnimacoes),
+    };
+    Object.entries(modos).forEach(([nome, ativo]) => {
+      html.classList.toggle(`pulsan-${nome}`, ativo);
+    });
+    html.dataset.pulsanDaltonismo = acessibilidade.daltonismo || "normal";
+    html.dataset.reduzirAnimacoes = modos.reduzirAnimacoes ? "true" : "false";
+
+    const estiloId = "pulsan-acessibilidade-global-estilos";
+    if (!document.getElementById(estiloId)) {
+      const estilo = document.createElement("style");
+      estilo.id = estiloId;
+      estilo.textContent = `
+        html.pulsan-altoContraste, html.pulsan-altoContraste body { --pulsan-bg:#05070a!important; --pulsan-card:#11161c!important; --pulsan-card-secundario:#171e26!important; --pulsan-texto:#fff!important; --pulsan-texto-secundario:#e7edf3!important; --pulsan-primaria:#5ecbff!important; --pulsan-borda:#d7e3ec!important; background:#05070a!important; color:#fff!important; color-scheme:dark; }
+        html.pulsan-altoContraste body :is(main,section,article,aside,[role=dialog],[role=region]) { background:#11161c!important; border-color:#d7e3ec!important; }
+        html.pulsan-altoContraste body :is(p,span,label,strong,h1,h2,h3,h4,small,li,a,button,input,select,textarea) { color:#fff!important; }
+        html.pulsan-altoContraste body :is(button,[role=button]) { background:#171e26!important; border:2px solid #fff!important; }
+        html.pulsan-altoContraste body :is(input,select,textarea) { background:#05070a!important; border:2px solid #fff!important; }
+        html.pulsan-altoContraste body :focus-visible { outline:3px solid #ffd84d!important; outline-offset:3px!important; }
+        html.pulsan-textoMaior body { font-size:1.12em!important; }
+        html.pulsan-textoMaior body :is(p,li,label,small) { line-height:1.7!important; }
+        html.pulsan-botoesMaiores body :is(button,[role=button],input[type=button],input[type=submit]) { min-height:52px!important; padding:14px 20px!important; }
+        html.pulsan-reduzirAnimacoes *, html.pulsan-reduzirAnimacoes *::before, html.pulsan-reduzirAnimacoes *::after { animation-duration:.01ms!important; animation-iteration-count:1!important; transition-duration:.01ms!important; scroll-behavior:auto!important; }
+        html[data-pulsan-daltonismo=protanopia] { --pulsan-primaria:#0072b2; --pulsan-sucesso:#009e73; --pulsan-alerta:#e69f00; --pulsan-erro:#cc79a7; --pulsan-cor-sucesso:#009e73; --pulsan-cor-alerta:#e69f00; --pulsan-cor-erro:#cc79a7; }
+        html[data-pulsan-daltonismo=deuteranopia] { --pulsan-primaria:#0072b2; --pulsan-sucesso:#009e73; --pulsan-alerta:#e69f00; --pulsan-erro:#d55e00; --pulsan-cor-sucesso:#009e73; --pulsan-cor-alerta:#e69f00; --pulsan-cor-erro:#d55e00; }
+        html[data-pulsan-daltonismo=tritanopia] { --pulsan-primaria:#0072b2; --pulsan-sucesso:#009e73; --pulsan-alerta:#d55e00; --pulsan-erro:#cc79a7; --pulsan-cor-sucesso:#009e73; --pulsan-cor-alerta:#d55e00; --pulsan-cor-erro:#cc79a7; }
+        html[data-pulsan-daltonismo=acromatopsia] body { filter:grayscale(1); }
+        @media (prefers-reduced-motion:reduce) { html *, html *::before, html *::after { animation-duration:.01ms!important; animation-iteration-count:1!important; transition-duration:.01ms!important; scroll-behavior:auto!important; } }
+      `;
+      document.head.appendChild(estilo);
+    }
+  }, [acessibilidade.altoContraste, acessibilidade.textoMaior, acessibilidade.botoesMaiores, acessibilidade.reduzirAnimacoes, acessibilidade.daltonismo]);
+
+  // O widget é carregado uma única vez e permanece disponível em todas as telas do Pulsan.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const idContainer = "pulsan-vlibras-widget";
+    let container = document.getElementById(idContainer);
+    if (!container) {
+      container = document.createElement("div");
+      container.id = idContainer;
+      container.innerHTML = '<div vw class="enabled"><div vw-access-button class="active"></div><div vw-plugin-wrapper><div class="vw-plugin-top-wrapper"></div></div></div>';
+      document.body.appendChild(container);
+    }
+    container.style.display = acessibilidade.libras ? "block" : "none";
+    if (!acessibilidade.libras) return;
+
+    const inicializar = () => {
+      if (!window.VLibras?.Widget || window.__pulsanVLibrasInitialized) return;
+      try {
+        new window.VLibras.Widget("https://vlibras.gov.br/app");
+        window.__pulsanVLibrasInitialized = true;
+      } catch (erro) {
+        console.error("Não foi possível iniciar o VLibras:", erro);
+      }
+    };
+
+    let script = document.getElementById("pulsan-vlibras-script");
+    if (window.VLibras?.Widget) {
+      inicializar();
+    } else if (!script) {
+      script = document.createElement("script");
+      script.id = "pulsan-vlibras-script";
+      script.src = "https://vlibras.gov.br/app/vlibras-plugin.js";
+      script.async = true;
+      script.onload = inicializar;
+      script.onerror = () => console.error("Não foi possível carregar o script do VLibras.");
+      document.body.appendChild(script);
+    } else if (script.dataset.carregado === "true") {
+      inicializar();
+    } else {
+      script.addEventListener("load", inicializar, { once: true });
+    }
+  }, [acessibilidade.libras]);
 
 
   function alterarAcessibilidade(opcao, valor) {
@@ -1903,31 +1804,31 @@ function App() {
   // RedefinirSenha conclui a troca da senha.
 
   useEffect(() => {
-
+    // O link de recuperação pode chegar em PKCE (?code=...),
+    // token_hash (?token_hash=...&type=recovery) ou no formato legado
+    // (#access_token=...&type=recovery). O parâmetro redefinir-senha
+    // também é enviado pelo RecuperarSenha.jsx.
     const parametros = new URLSearchParams(window.location.search);
-
     const hash = new URLSearchParams(
-
       window.location.hash.replace(/^#/, "")
-
     );
 
-
-
     const solicitouRedefinicao =
-
       parametros.get("redefinir-senha") === "1" ||
-
-      hash.get("type") === "recovery";
-
-
+      (parametros.has("token_hash") &&
+        (parametros.get("type") || hash.get("type")) === "recovery") ||
+      Boolean(parametros.get("code")) ||
+      hash.get("type") === "recovery" ||
+      (Boolean(hash.get("access_token")) &&
+        Boolean(hash.get("refresh_token"))) ||
+      parametros.has("error") ||
+      parametros.has("error_description") ||
+      hash.has("error") ||
+      hash.has("error_description");
 
     if (solicitouRedefinicao) {
-
       setPagina("redefinir-senha");
-
     }
-
   }, []);
 
 
@@ -1940,35 +1841,30 @@ function App() {
 
 
 
-  useEffect(() => {
+useEffect(() => {
+  const administrador = usuarioEhEquipePulsan();
 
-    const administrador = usuarioEhEquipePulsan();
+  // Áreas administrativas que a equipe pode acessar.
+  const paginasPermitidasAdmin = [
+    "painel-admin",
+    "alertas",
+    "gestao-psicologos",
+    "redefinir-senha",
+  ];
 
+  if (
+    administrador &&
+    !paginasPermitidasAdmin.includes(pagina)
+  ) {
+    setPagina("painel-admin");
+    return;
+  }
 
-
-    // A conta administrativa NÃO possui acesso ao ambiente normal.
-
-    // Qualquer tentativa de abrir outra página volta para o painel.
-
-    if (administrador && pagina !== "painel-admin" && pagina !== "redefinir-senha") {
-
-      setPagina("painel-admin");
-
-      return;
-
-    }
-
-
-
-    // Uma conta comum nunca pode abrir o painel administrativo.
-
-    if (!administrador && pagina === "painel-admin") {
-
-      setPagina("inicio");
-
-    }
-
-  }, [pagina]);
+  // Uma conta comum não pode acessar o painel administrativo.
+  if (!administrador && pagina === "painel-admin") {
+    setPagina("inicio");
+  }
+}, [pagina]);
 
 
 
@@ -2012,7 +1908,7 @@ function App() {
 
   function irPara(novaPagina) {
 
-    const paginasPublicas = ["inicio", "login", "cadastro", "redefinir-senha"];
+    const paginasPublicas = ["inicio", "login", "cadastro", "recuperar-senha", "redefinir-senha"];
 
 
 
@@ -2032,11 +1928,18 @@ function App() {
 
 
 
-    // A conta administrativa só pode navegar dentro do Painel Administrativo.
+    // A equipe Pulsan pode navegar apenas pelas áreas administrativas autorizadas.
 
     if (usuarioEhEquipePulsan()) {
 
-      if (novaPagina !== "painel-admin") {
+      const paginasPermitidasAdmin = [
+        "painel-admin",
+        "alertas",
+        "gestao-psicologos",
+        "redefinir-senha",
+      ];
+
+      if (!paginasPermitidasAdmin.includes(novaPagina)) {
 
         setPagina("painel-admin");
 
@@ -2108,11 +2011,11 @@ function App() {
 
   // =====================================================
 
-  // Mesmo que alguma navegação altere o estado momentaneamente,
+  // O painel principal é a entrada da equipe. As páginas administrativas
+  // autorizadas (Alertas e Gestão de Psicólogos) seguem para a renderização
+  // normal mais abaixo, sem serem bloqueadas por este retorno.
 
-  // a conta administrativa só renderiza o PainelAdmin.
-
-  if (usuarioEhEquipePulsan() && pagina !== "redefinir-senha") {
+  if (usuarioEhEquipePulsan() && pagina === "painel-admin") {
 
     return (
 

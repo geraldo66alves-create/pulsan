@@ -12,7 +12,77 @@ dotenv.config({
 
 const app = express();
 
-app.use(cors());
+// CORS explícito para o Vite local e para chamadas entre origens autorizadas.
+// Em produção, a aplicação hospedada na mesma origem não depende de CORS.
+const origensPermitidas = new Set([
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+  "http://localhost:4173",
+  "http://127.0.0.1:4173",
+  ...(process.env.PULSAN_ALLOWED_ORIGINS || "")
+    .split(",")
+    .map((origem) => origem.trim())
+    .filter(Boolean),
+]);
+
+const configuracaoCors = {
+  origin(origem, callback) {
+    // Permite chamadas sem Origin (curl, health checks e comunicação servidor-servidor).
+    if (!origem) return callback(null, true);
+
+    let origemValida = origensPermitidas.has(origem);
+
+    // O Vite pode usar outra porta quando a 5173 já está ocupada.
+    if (!origemValida) {
+      try {
+        const urlOrigem = new URL(origem);
+        origemValida =
+          (urlOrigem.protocol === "http:" &&
+            ["localhost", "127.0.0.1"].includes(urlOrigem.hostname)) ||
+          (urlOrigem.protocol === "https:" &&
+            urlOrigem.hostname.endsWith(".vercel.app"));
+      } catch {
+        origemValida = false;
+      }
+    }
+
+    return callback(
+      origemValida ? null : new Error("Origem não autorizada pelo CORS."),
+      origemValida
+    );
+  },
+  methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: [
+    "Accept",
+    "Authorization",
+    "Content-Type",
+    "apikey",
+    "Prefer",
+    "Range",
+    "Accept-Profile",
+    "Content-Profile",
+    "X-Client-Info",
+    "X-Supabase-Api-Version",
+    "X-Retry-Count",
+  ],
+  exposedHeaders: [
+    "Content-Range",
+    "Accept-Ranges",
+    "Preference-Applied",
+    "Location",
+    "ETag",
+  ],
+  optionsSuccessStatus: 204,
+  maxAge: 86400,
+};
+
+app.use(cors(configuracaoCors));
+app.use((req, res, next) => {
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(204);
+  }
+  return next();
+});
 app.use(express.json({ limit: "1mb" }));
 
 const PORT = process.env.PORT || 3001;
@@ -271,7 +341,14 @@ app.use("/api/supabase-rest", async (req, res) => {
       method: req.method,
       headers,
       body: corpo,
+      signal: AbortSignal.timeout(30000),
     });
+
+    console.log(
+      "⬅️ Supabase REST:",
+      resposta.status,
+      destino.pathname
+    );
 
     for (const nome of [
       "content-type",
@@ -303,13 +380,54 @@ app.use("/api/supabase-rest", async (req, res) => {
 
     return res.send(dados);
   } catch (erro) {
-    console.error(
-      "❌ Erro no proxy REST do Supabase:",
-      erro
-    );
+    console.error("❌ Erro no proxy REST do Supabase:", {
+      mensagem: erro?.message,
+      causa: erro?.cause?.message,
+      codigo: erro?.cause?.code,
+      nome: erro?.name,
+    });
 
     return res.status(502).json({
       erro: "Não foi possível comunicar com o Supabase.",
+      detalhe: erro?.cause?.message || erro?.message || "Falha desconhecida.",
+      codigo: erro?.cause?.code || null,
+    });
+  }
+});
+
+// Verifica a comunicação do servidor com o endpoint REST do Supabase.
+app.get("/api/teste-supabase", async (req, res) => {
+  try {
+    if (!SUPABASE_URL_NORMALIZADA || !SUPABASE_PUBLIC_KEY) {
+      return res.status(503).json({
+        funcionando: false,
+        erro: "Supabase não configurado no servidor.",
+      });
+    }
+
+    const resposta = await fetch(
+      new URL("/auth/v1/health", SUPABASE_URL_NORMALIZADA),
+      {
+        headers: { apikey: SUPABASE_PUBLIC_KEY },
+        signal: AbortSignal.timeout(15000),
+      }
+    );
+
+    return res.status(resposta.ok ? 200 : resposta.status).json({
+      funcionando: resposta.ok,
+      supabaseStatus: resposta.status,
+    });
+  } catch (erro) {
+    console.error("❌ Falha no teste de comunicação Supabase:", {
+      mensagem: erro?.message,
+      causa: erro?.cause?.message,
+      codigo: erro?.cause?.code,
+    });
+
+    return res.status(502).json({
+      funcionando: false,
+      erro: "O servidor não conseguiu alcançar o Supabase.",
+      detalhe: erro?.cause?.message || erro?.message,
     });
   }
 });

@@ -1,9 +1,21 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 
-// Evita validar o mesmo token duas vezes durante a montagem duplicada
-// de efeitos pelo React StrictMode em desenvolvimento.
+// Compartilha a validação entre montagens duplicadas do React StrictMode.
 const validacoesRecuperacao = new Map();
+
+function validarUmaVez(chave, executar) {
+  if (!validacoesRecuperacao.has(chave)) {
+    const promessa = Promise.resolve()
+      .then(executar)
+      .catch((erro) => {
+        validacoesRecuperacao.delete(chave);
+        throw erro;
+      });
+    validacoesRecuperacao.set(chave, promessa);
+  }
+  return validacoesRecuperacao.get(chave);
+}
 
 function RedefinirSenha({ irPara }) {
   const [senha, setSenha] = useState("");
@@ -18,7 +30,7 @@ function RedefinirSenha({ irPara }) {
   useEffect(() => {
     let ativo = true;
 
-    const prepararRecuperacao = async () => {
+    async function prepararRecuperacao() {
       try {
         const parametros = new URLSearchParams(window.location.search);
         const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
@@ -41,54 +53,50 @@ function RedefinirSenha({ irPara }) {
         const tokenHash = parametros.get("token_hash");
         const tipo = parametros.get("type") || hash.get("type");
         const codigo = parametros.get("code");
+        const accessToken = hash.get("access_token");
+        const refreshToken = hash.get("refresh_token");
 
-        // Fluxo recomendado: valida o token_hash diretamente no Supabase.
-        // A chamada é compartilhada entre execuções duplicadas do efeito
-        // (comportamento do React StrictMode em desenvolvimento).
         if (tokenHash) {
           if (tipo !== "recovery") {
             throw new Error("O link não corresponde a uma recuperação de senha.");
           }
 
-          const chave = `pulsan-recovery:${tokenHash}`;
-          if (!validacoesRecuperacao.has(chave)) {
-            const promessa = supabase.auth.verifyOtp({
-              token_hash: tokenHash,
-              type: "recovery",
-            });
-            validacoesRecuperacao.set(chave, promessa);
-          }
+          const { data, error } = await validarUmaVez(
+            `pulsan-recovery:${tokenHash}`,
+            () =>
+              supabase.auth.verifyOtp({
+                token_hash: tokenHash,
+                type: "recovery",
+              })
+          );
 
-          const { data, error } = await validacoesRecuperacao.get(chave);
           if (error) throw error;
-
           if (!data?.session) {
             throw new Error("O Supabase não retornou uma sessão de recuperação válida.");
           }
-
-          // Remove o token da barra de endereço após validá-lo.
-          window.history.replaceState(
-            {},
-            document.title,
-            `${window.location.pathname}?redefinir-senha=1`
+        } else if (codigo) {
+          const { error } = await validarUmaVez(
+            `pulsan-recovery-code:${codigo}`,
+            () => supabase.auth.exchangeCodeForSession(codigo)
           );
-
-          if (ativo) {
-            setPronto(true);
-            setErro("");
+          if (error) throw error;
+        } else if (accessToken && refreshToken) {
+          if (tipo !== "recovery") {
+            throw new Error("O link não corresponde a uma recuperação de senha.");
           }
-          return;
-        }
 
-        // Compatibilidade com links PKCE já configurados anteriormente.
-        if (codigo) {
-          const { error } = await supabase.auth.exchangeCodeForSession(codigo);
+          const { error } = await validarUmaVez(
+            `pulsan-recovery-hash:${accessToken}`,
+            () =>
+              supabase.auth.setSession({
+                access_token: accessToken,
+                refresh_token: refreshToken,
+              })
+          );
           if (error) throw error;
         } else {
-          // Compatibilidade com o formato antigo de link que usa tokens no hash.
           const tipoRecuperacao =
-            tipo === "recovery" ||
-            parametros.get("redefinir-senha") === "1";
+            tipo === "recovery" || parametros.get("redefinir-senha") === "1";
 
           if (!tipoRecuperacao) {
             throw new Error("O endereço não contém um pedido de recuperação.");
@@ -99,19 +107,20 @@ function RedefinirSenha({ irPara }) {
         if (error) throw error;
 
         if (!data?.session) {
-          throw new Error("Não foi possível validar a sessão de recuperação.");
+          throw new Error("Não foi possível validar a sessão de recuperação. Solicite um novo link.");
         }
 
-        if (ativo) {
-          setPronto(true);
-          setErro("");
-        }
-
+        // Retira tokens e códigos da barra de endereço após a validação.
         window.history.replaceState(
           {},
           document.title,
           `${window.location.pathname}?redefinir-senha=1`
         );
+
+        if (ativo) {
+          setPronto(true);
+          setErro("");
+        }
       } catch (e) {
         console.error("Erro ao validar recuperação de senha:", e);
         if (ativo) {
@@ -133,7 +142,7 @@ function RedefinirSenha({ irPara }) {
       } finally {
         if (ativo) setCarregando(false);
       }
-    };
+    }
 
     prepararRecuperacao();
 
@@ -176,58 +185,78 @@ function RedefinirSenha({ irPara }) {
     setSalvando(true);
 
     try {
-      const { data: sessaoAtual } = await supabase.auth.getSession();
+      const { data: sessaoAtual, error: erroSessao } =
+        await supabase.auth.getSession();
 
+      if (erroSessao) throw erroSessao;
       if (!sessaoAtual?.session) {
-        throw new Error("A sessão de recuperação expirou.");
+        throw new Error("A sessão de recuperação expirou. Solicite um novo link.");
       }
 
-      const { error } = await supabase.auth.updateUser({
-        password: senha,
-      });
-
+      const { error } = await supabase.auth.updateUser({ password: senha });
       if (error) throw error;
 
-      // A senha foi alterada com sucesso. Encerra a sessão de recuperação
-      // para que o usuário entre novamente usando a nova senha.
+      // A senha já foi alterada. O encerramento da sessão é apenas uma etapa
+      // de segurança; uma falha nele não desfaz a alteração concluída.
       const { error: erroSaida } = await supabase.auth.signOut();
       if (erroSaida) {
-        console.warn("A senha foi alterada, mas não foi possível encerrar a sessão:", erroSaida);
+        console.warn(
+          "A senha foi alterada, mas não foi possível encerrar a sessão:",
+          erroSaida
+        );
       }
 
-      // Remove os dados temporários do link da barra de endereço.
-      window.history.replaceState(
-        {},
-        document.title,
-        window.location.pathname
+      window.history.replaceState({}, document.title, window.location.pathname);
+      alert(
+        "Sua senha foi redefinida com sucesso. Agora entre no Pulsan usando sua nova senha."
       );
 
-      alert("Sua senha foi redefinida com sucesso. Agora entre no Pulsan usando sua nova senha.");
-
-      irPara("login");
+      if (typeof irPara === "function") {
+        irPara("login");
+      }
     } catch (e) {
       console.error("Erro ao redefinir senha:", e);
-
       const mensagem = String(e?.message || "").toLowerCase();
 
-      if (
+      setErro(
         mensagem.includes("expired") ||
-        mensagem.includes("invalid") ||
-        mensagem.includes("otp")
-      ) {
-        setErro(
-          "Este link de recuperação expirou ou já foi utilizado. Solicite um novo link."
-        );
-      } else {
-        setErro(
-          e?.message ||
-            "Não foi possível redefinir sua senha. Tente solicitar um novo link."
-        );
-      }
+          mensagem.includes("invalid") ||
+          mensagem.includes("otp") ||
+          mensagem.includes("session")
+          ? "Este link de recuperação expirou ou já foi utilizado. Solicite um novo link."
+          : e?.message ||
+              "Não foi possível redefinir sua senha. Tente solicitar um novo link."
+      );
     } finally {
       setSalvando(false);
     }
   }
+
+  const estilos = {
+    campo: {
+      width: "100%",
+      height: "52px",
+      padding: "0 76px 0 15px",
+      border: "1.5px solid #A8C7FF",
+      borderRadius: "14px",
+      background: "#EAF3FF",
+      color: "#0F2D5B",
+      outline: "none",
+      boxSizing: "border-box",
+    },
+    botaoVisibilidade: {
+      position: "absolute",
+      right: "8px",
+      top: "50%",
+      transform: "translateY(-50%)",
+      border: "none",
+      background: "transparent",
+      color: "#3A7DFF",
+      fontSize: "12px",
+      fontWeight: "800",
+      cursor: "pointer",
+    },
+  };
 
   return (
     <main
@@ -239,8 +268,7 @@ function RedefinirSenha({ irPara }) {
         justifyContent: "center",
         padding: "24px",
         boxSizing: "border-box",
-        background:
-          "linear-gradient(145deg, #EAF3FF 0%, #FFFFFF 62%, #EAF3FF 100%)",
+        background: "linear-gradient(145deg, #EAF3FF 0%, #FFFFFF 62%, #EAF3FF 100%)",
         color: "#0F2D5B",
       }}
     >
@@ -338,7 +366,6 @@ function RedefinirSenha({ irPara }) {
             >
               {erro}
             </div>
-
             <button
               type="button"
               onClick={() => irPara("login")}
@@ -370,7 +397,6 @@ function RedefinirSenha({ irPara }) {
               >
                 Nova senha
               </label>
-
               <div style={{ position: "relative" }}>
                 <input
                   id="nova-senha"
@@ -380,33 +406,12 @@ function RedefinirSenha({ irPara }) {
                   autoComplete="new-password"
                   placeholder="Digite sua nova senha"
                   disabled={salvando}
-                  style={{
-                    width: "100%",
-                    height: "52px",
-                    padding: "0 76px 0 15px",
-                    border: "1.5px solid #A8C7FF",
-                    borderRadius: "14px",
-                    background: "#EAF3FF",
-                    color: "#0F2D5B",
-                    outline: "none",
-                    boxSizing: "border-box",
-                  }}
+                  style={estilos.campo}
                 />
                 <button
                   type="button"
                   onClick={() => setMostrarSenha((v) => !v)}
-                  style={{
-                    position: "absolute",
-                    right: "8px",
-                    top: "50%",
-                    transform: "translateY(-50%)",
-                    border: "none",
-                    background: "transparent",
-                    color: "#3A7DFF",
-                    fontSize: "12px",
-                    fontWeight: "800",
-                    cursor: "pointer",
-                  }}
+                  style={estilos.botaoVisibilidade}
                 >
                   {mostrarSenha ? "Ocultar" : "Mostrar"}
                 </button>
@@ -425,7 +430,6 @@ function RedefinirSenha({ irPara }) {
               >
                 Confirmar nova senha
               </label>
-
               <div style={{ position: "relative" }}>
                 <input
                   id="confirmar-nova-senha"
@@ -435,33 +439,12 @@ function RedefinirSenha({ irPara }) {
                   autoComplete="new-password"
                   placeholder="Digite a senha novamente"
                   disabled={salvando}
-                  style={{
-                    width: "100%",
-                    height: "52px",
-                    padding: "0 76px 0 15px",
-                    border: "1.5px solid #A8C7FF",
-                    borderRadius: "14px",
-                    background: "#EAF3FF",
-                    color: "#0F2D5B",
-                    outline: "none",
-                    boxSizing: "border-box",
-                  }}
+                  style={estilos.campo}
                 />
                 <button
                   type="button"
                   onClick={() => setMostrarConfirmacao((v) => !v)}
-                  style={{
-                    position: "absolute",
-                    right: "8px",
-                    top: "50%",
-                    transform: "translateY(-50%)",
-                    border: "none",
-                    background: "transparent",
-                    color: "#3A7DFF",
-                    fontSize: "12px",
-                    fontWeight: "800",
-                    cursor: "pointer",
-                  }}
+                  style={estilos.botaoVisibilidade}
                 >
                   {mostrarConfirmacao ? "Ocultar" : "Mostrar"}
                 </button>
@@ -550,7 +533,8 @@ function RedefinirSenha({ irPara }) {
             lineHeight: 1.5,
           }}
         >
-          O link de recuperação é temporário e só pode ser utilizado pelo fluxo de autenticação do Supabase.
+          O link de recuperação é temporário e só pode ser utilizado pelo fluxo de
+          autenticação do Supabase.
         </div>
       </section>
     </main>

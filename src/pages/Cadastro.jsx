@@ -2,25 +2,11 @@ import React, { useState } from "react";
 
 import { supabase } from "../lib/supabase";
 
+const API_URL = String(import.meta.env.VITE_API_URL || "").trim().replace(/\/+$/, "");
 
-
-const API_URL = "http://localhost:3001";
-
-// URL pública usada nos links enviados pelo Supabase.
-// Assim, mesmo que o cadastro seja iniciado em localhost, a confirmação
-// será aberta no Pulsan publicado e funcionará em qualquer dispositivo.
-const URL_PRODUCAO_PULSAN = "https://pulsan.vercel.app";
-
-function obterUrlAplicacao() {
-  const configurada = String(import.meta.env.VITE_APP_URL || "").trim();
-  return (configurada || URL_PRODUCAO_PULSAN).replace(/\/+$/, "");
+function obterUrlApi() {
+   return API_URL || window.location.origin;
 }
-
-function obterRedirectAuth() {
-  return `${obterUrlAplicacao()}/`;
-}
-
-
 
 function Icon({ name, size = 18, strokeWidth = 1.9, className = "" }) {
 
@@ -47,8 +33,6 @@ function Icon({ name, size = 18, strokeWidth = 1.9, className = "" }) {
       "aria-hidden": "true",
 
    };
-
-
 
    const paths = {
 
@@ -238,13 +222,9 @@ function Icon({ name, size = 18, strokeWidth = 1.9, className = "" }) {
 
    };
 
-
-
    return <svg {...common}>{paths[name] || paths.user}</svg>;
 
 }
-
-
 
 // A confirmação de e-mail usa o Site URL configurado no Supabase.
 
@@ -266,8 +246,6 @@ function Cadastro({ irPara }) {
 
    const [foto, setFoto] = useState("");
 
-
-
    // Dados do psicólogo
 
    const [crp, setCrp] = useState("");
@@ -282,41 +260,22 @@ function Cadastro({ irPara }) {
 
    const [telefone, setTelefone] = useState("");
 
-
-
    const [carregando, setCarregando] = useState(false);
 
    const [aceitouTermos, setAceitouTermos] = useState(false);
 
    const [mostrarTermos, setMostrarTermos] = useState(false);
-
-
-
-   // Confirmação de e-mail
-
-   const [emailEnviado, setEmailEnviado] = useState(false);
-
-   const [emailConfirmacao, setEmailConfirmacao] = useState("");
-
-
-
-   // =========================
+// =========================
 
    // SELECIONAR FOTO
 
    // =========================
 
-
-
    async function selecionarFoto(e) {
 
       const arquivo = e.target.files?.[0];
 
-
-
       if (!arquivo) return;
-
-
 
       if (!arquivo.type.startsWith("image/")) {
 
@@ -326,8 +285,6 @@ function Cadastro({ irPara }) {
 
       }
 
-
-
       if (arquivo.size > 8 * 1024 * 1024) {
 
          alert("A foto deve ter no máximo 8 MB.");
@@ -335,8 +292,6 @@ function Cadastro({ irPara }) {
          return;
 
       }
-
-
 
       try {
 
@@ -346,13 +301,9 @@ function Cadastro({ irPara }) {
 
          const leitor = new FileReader();
 
-
-
          leitor.onload = () => {
 
             const imagem = new Image();
-
-
 
             imagem.onload = () => {
 
@@ -366,21 +317,15 @@ function Cadastro({ irPara }) {
 
                );
 
-
-
                const largura = Math.max(1, Math.round(imagem.width * escala));
 
                const altura = Math.max(1, Math.round(imagem.height * escala));
-
-
 
                const canvas = document.createElement("canvas");
 
                canvas.width = largura;
 
                canvas.height = altura;
-
-
 
                const contexto = canvas.getContext("2d");
 
@@ -392,15 +337,9 @@ function Cadastro({ irPara }) {
 
                }
 
-
-
                contexto.drawImage(imagem, 0, 0, largura, altura);
 
-
-
                const fotoComprimida = canvas.toDataURL("image/jpeg", 0.82);
-
-
 
                if (fotoComprimida.length > 900000) {
 
@@ -416,29 +355,21 @@ function Cadastro({ irPara }) {
 
             };
 
-
-
             imagem.onerror = () => {
 
                alert("Não foi possível carregar a foto selecionada.");
 
             };
 
-
-
             imagem.src = String(leitor.result || "");
 
          };
-
-
 
          leitor.onerror = () => {
 
             alert("Não foi possível ler a foto selecionada.");
 
          };
-
-
 
          leitor.readAsDataURL(arquivo);
 
@@ -452,25 +383,17 @@ function Cadastro({ irPara }) {
 
    }
 
-
-
    // =========================
 
    // SELECIONAR DOCUMENTO
 
    // =========================
 
-
-
    function selecionarDocumento(e) {
 
       const arquivo = e.target.files?.[0];
 
-
-
       if (!arquivo) return;
-
-
 
       const tiposPermitidos = [
 
@@ -484,8 +407,6 @@ function Cadastro({ irPara }) {
 
       ];
 
-
-
       if (!tiposPermitidos.includes(arquivo.type)) {
 
          alert("Envie um documento em PDF, JPG, PNG ou WEBP.");
@@ -493,8 +414,6 @@ function Cadastro({ irPara }) {
          return;
 
       }
-
-
 
       if (arquivo.size > 5 * 1024 * 1024) {
 
@@ -504,15 +423,9 @@ function Cadastro({ irPara }) {
 
       }
 
-
-
       setNomeDocumento(arquivo.name);
 
-
-
       const leitor = new FileReader();
-
-
 
       leitor.onload = () => {
 
@@ -520,13 +433,9 @@ function Cadastro({ irPara }) {
 
       };
 
-
-
       leitor.readAsDataURL(arquivo);
 
    }
-
-
 
    // =========================
 
@@ -534,17 +443,11 @@ function Cadastro({ irPara }) {
 
    // =========================
 
-
-
    async function cadastrar(e) {
 
       e.preventDefault();
 
-
-
       if (carregando) return;
-
-
 
       if (!aceitouTermos) {
 
@@ -553,8 +456,6 @@ function Cadastro({ irPara }) {
          return;
 
       }
-
-
 
       if (
 
@@ -578,31 +479,15 @@ function Cadastro({ irPara }) {
 
       }
 
-
-
       const emailNormalizado = email.trim().toLowerCase();
 
+      if (tipo === "colaborador" && !emailNormalizado.endsWith("@grupobrisanet.com.br")) {
 
-
-      if (
-
-         tipo === "colaborador" &&
-
-         !emailNormalizado.endsWith("@grupobrisanet.com.br")
-
-      ) {
-
-         alert(
-
-            "Para se cadastrar como Funcionário Brisanet, use seu e-mail corporativo terminando com @grupobrisanet.com.br."
-
-         );
+         alert("Para criar uma conta como Funcionário, utilize seu e-mail corporativo terminado em @grupobrisanet.com.br.");
 
          return;
 
       }
-
-
 
       if (tipo === "psicologo") {
 
@@ -614,8 +499,6 @@ function Cadastro({ irPara }) {
 
          }
 
-
-
          if (!crp.trim()) {
 
             alert("Informe seu CRP.");
@@ -623,8 +506,6 @@ function Cadastro({ irPara }) {
             return;
 
          }
-
-
 
          if (!estadoCrp) {
 
@@ -634,8 +515,6 @@ function Cadastro({ irPara }) {
 
          }
 
-
-
          if (!areaAtuacao) {
 
             alert("Selecione sua área de atuação.");
@@ -643,8 +522,6 @@ function Cadastro({ irPara }) {
             return;
 
          }
-
-
 
          if (!documento) {
 
@@ -660,8 +537,6 @@ function Cadastro({ irPara }) {
 
       }
 
-
-
       const requisitosSenha = {
 
          tamanho: senha.length >= 8,
@@ -675,8 +550,6 @@ function Cadastro({ irPara }) {
          especial: /[^A-Za-z0-9]/.test(senha),
 
       };
-
-
 
       const senhaMuitoComum = [
 
@@ -702,8 +575,6 @@ function Cadastro({ irPara }) {
 
       ].includes(senha.trim().toLowerCase());
 
-
-
       const senhaForte =
 
          requisitosSenha.tamanho &&
@@ -717,8 +588,6 @@ function Cadastro({ irPara }) {
          requisitosSenha.especial &&
 
          !senhaMuitoComum;
-
-
 
       if (!senhaForte) {
 
@@ -744,8 +613,6 @@ function Cadastro({ irPara }) {
 
       }
 
-
-
       if (senha !== confirmarSenha) {
 
          alert("As senhas não são iguais.");
@@ -754,13 +621,9 @@ function Cadastro({ irPara }) {
 
       }
 
-
-
       try {
 
          setCarregando(true);
-
-
 
          // ==========================================
 
@@ -772,8 +635,6 @@ function Cadastro({ irPara }) {
 
          // ==========================================
 
-
-
          const { data: cadastroAuth, error: erroAuth } =
 
             await supabase.auth.signUp({
@@ -783,8 +644,6 @@ function Cadastro({ irPara }) {
                password: senha,
 
                options: {
-            // O link precisa voltar para uma URL permitida no Supabase.
-            emailRedirectTo: obterRedirectAuth(),
             data: {
 
                      nome: nome.trim(),
@@ -803,8 +662,6 @@ function Cadastro({ irPara }) {
 
             });
 
-
-
          if (erroAuth) {
 
             throw new Error(
@@ -815,11 +672,7 @@ function Cadastro({ irPara }) {
 
          }
 
-
-
          const usuarioAuth = cadastroAuth?.user;
-
-
 
          if (!usuarioAuth) {
 
@@ -827,15 +680,11 @@ function Cadastro({ irPara }) {
 
          }
 
-
-
          // A foto é enviada junto aos metadados do usuário no cadastro.
 
          // O trigger public.criar_perfil_usuario() deve copiar foto_url
 
          // para public.perfis.foto_url quando o usuário é criado.
-
-
 
          // ==========================================
 
@@ -849,11 +698,9 @@ function Cadastro({ irPara }) {
 
          // ==========================================
 
-
-
          if (tipo === "psicologo") {
 
-            const resposta = await fetch(`${API_URL}/api/psicologos`, {
+            const resposta = await fetch(`${obterUrlApi()}/api/psicologos`, {
 
                method: "POST",
 
@@ -874,16 +721,14 @@ function Cadastro({ irPara }) {
                   estado_crp: estadoCrp,
 
                   area_atuacao: areaAtuacao,
+                  documento,
+                  nome_documento: nomeDocumento,
 
                }),
 
             });
 
-
-
             const resultado = await resposta.json().catch(() => ({}));
-
-
 
             if (!resposta.ok) {
 
@@ -901,29 +746,17 @@ function Cadastro({ irPara }) {
 
          }
 
-
-
-         // Não gravamos a sessão local aqui.
-
-         // O usuário ainda precisa confirmar o e-mail.
-
-         setEmailConfirmacao(emailNormalizado);
-
-         setEmailEnviado(true);
-
-
-
          alert(
 
-            `Cadastro iniciado!\n\nEnviamos um e-mail de confirmação para:\n${emailNormalizado}\n\nAbra o e-mail e clique no botão/link de confirmação. Depois, volte ao Pulsan e faça login.`
+            `Conta criada com sucesso!\n\nAgora entre no Pulsan usando seu e-mail e sua senha.`
 
          );
+
+         irPara("login");
 
       } catch (erro) {
 
          console.error("Erro no cadastro:", erro);
-
-
 
          alert(
 
@@ -941,89 +774,7 @@ function Cadastro({ irPara }) {
 
    }
 
-
-
-   // ==========================================
-
-   // REENVIAR E-MAIL DE CONFIRMAÇÃO
-
-   // ==========================================
-
-
-
-   async function reenviarEmailConfirmacao() {
-
-      if (carregando || !emailConfirmacao) return;
-
-
-
-      try {
-
-         setCarregando(true);
-
-
-
-         const { error } = await supabase.auth.resend({
-
-            type: "signup",
-
-            email: emailConfirmacao,
-
-            // O redirecionamento será controlado pelo Site URL do Supabase.
-
-            // Assim o link continua funcionando quando aberto em outro dispositivo.
-
-            options: {
-          emailRedirectTo: obterRedirectAuth(),
-        },
-
-         });
-
-
-
-         if (error) {
-
-            throw new Error(
-
-               error.message || "Não foi possível reenviar o e-mail de confirmação."
-
-            );
-
-         }
-
-
-
-         alert(
-
-            `Um novo e-mail de confirmação foi enviado para ${emailConfirmacao}.\n\nVerifique também a pasta de spam, promoções ou lixo eletrônico.`
-
-         );
-
-      } catch (erro) {
-
-         console.error("Erro ao reenviar confirmação:", erro);
-
-
-
-         alert(
-
-            "Não foi possível reenviar o e-mail.\n\n" +
-
-               (erro?.message || "Tente novamente em alguns instantes.")
-
-         );
-
-      } finally {
-
-         setCarregando(false);
-
-      }
-
-   }
-
-
-
-   const requisitosSenhaVisual = {
+      const requisitosSenhaVisual = {
 
       tamanho: senha.length >= 8,
 
@@ -1036,8 +787,6 @@ function Cadastro({ irPara }) {
       especial: /[^A-Za-z0-9]/.test(senha),
 
    };
-
-
 
    const senhaMuitoComumVisual = [
 
@@ -1063,8 +812,6 @@ function Cadastro({ irPara }) {
 
    ].includes(senha.trim().toLowerCase());
 
-
-
    const senhaForteVisual =
 
       requisitosSenhaVisual.tamanho &&
@@ -1078,8 +825,6 @@ function Cadastro({ irPara }) {
       requisitosSenhaVisual.especial &&
 
       !senhaMuitoComumVisual;
-
-
 
    return (
 
@@ -1107,11 +852,7 @@ function Cadastro({ irPara }) {
 
             }
 
-
-
             * { box-sizing: border-box; }
-
-
 
             .pulsan-cadastro-page {
 
@@ -1145,8 +886,6 @@ function Cadastro({ irPara }) {
 
             }
 
-
-
             .pulsan-glow {
 
                position: absolute;
@@ -1165,13 +904,9 @@ function Cadastro({ irPara }) {
 
             }
 
-
-
             .pulsan-glow.one { top: -210px; left: -120px; }
 
             .pulsan-glow.two { bottom: -240px; right: -130px; background: rgba(58,125,255,.10); }
-
-
 
             .cadastro-shell {
 
@@ -1201,8 +936,6 @@ function Cadastro({ irPara }) {
 
             }
 
-
-
             .cadastro-story {
 
                position: relative;
@@ -1227,8 +960,6 @@ function Cadastro({ irPara }) {
 
             }
 
-
-
             .cadastro-story::after {
 
                content: "";
@@ -1249,8 +980,6 @@ function Cadastro({ irPara }) {
 
             }
 
-
-
             .story-brand {
 
                display: flex;
@@ -1264,8 +993,6 @@ function Cadastro({ irPara }) {
                z-index: 1;
 
             }
-
-
 
             .story-logo {
 
@@ -1283,8 +1010,6 @@ function Cadastro({ irPara }) {
 
             }
 
-
-
             .story-brand strong {
 
                letter-spacing: .18em;
@@ -1292,8 +1017,6 @@ function Cadastro({ irPara }) {
                font-size: 15px;
 
             }
-
-
 
             .story-content {
 
@@ -1304,8 +1027,6 @@ function Cadastro({ irPara }) {
                max-width: 410px;
 
             }
-
-
 
             .story-kicker {
 
@@ -1329,8 +1050,6 @@ function Cadastro({ irPara }) {
 
             }
 
-
-
             .story-content h2 {
 
                margin: 0 0 17px;
@@ -1343,8 +1062,6 @@ function Cadastro({ irPara }) {
 
             }
 
-
-
             .story-content p {
 
                margin: 0;
@@ -1356,8 +1073,6 @@ function Cadastro({ irPara }) {
                font-size: 15px;
 
             }
-
-
 
             .story-message {
 
@@ -1379,8 +1094,6 @@ function Cadastro({ irPara }) {
 
             }
 
-
-
             .story-footer {
 
                position: relative;
@@ -1395,13 +1108,10 @@ function Cadastro({ irPara }) {
 
             }
 
-
-
                         .pulsan-svg-icon { display: inline-block; vertical-align: middle; flex: 0 0 auto; }
 
-
-
-            .story-pill {\n               border: 1px solid rgba(255,255,255,.14);
+            .story-pill {
+               border: 1px solid rgba(255,255,255,.14);
 
                background: rgba(255,255,255,.08);
 
@@ -1414,8 +1124,6 @@ function Cadastro({ irPara }) {
                color: rgba(255,255,255,.82);
 
             }
-
-
 
             .cadastro-form-side {
 
@@ -1431,15 +1139,11 @@ function Cadastro({ irPara }) {
 
             }
 
-
-
             .form-heading {
 
                margin-bottom: 28px;
 
             }
-
-
 
             .form-heading .eyebrow {
 
@@ -1457,8 +1161,6 @@ function Cadastro({ irPara }) {
 
             }
 
-
-
             .form-heading h1 {
 
                margin: 0 0 9px;
@@ -1470,8 +1172,6 @@ function Cadastro({ irPara }) {
                letter-spacing: -.035em;
 
             }
-
-
 
             .form-heading p {
 
@@ -1485,11 +1185,7 @@ function Cadastro({ irPara }) {
 
             }
 
-
-
             .auth-form { display: flex; flex-direction: column; gap: 17px; }
-
-
 
             .form-grid {
 
@@ -1501,11 +1197,7 @@ function Cadastro({ irPara }) {
 
             }
 
-
-
             .form-group { display: flex; flex-direction: column; gap: 7px; }
-
-
 
             .form-group label,
 
@@ -1520,8 +1212,6 @@ function Cadastro({ irPara }) {
                font-weight: 800;
 
             }
-
-
 
             .form-group input,
 
@@ -1549,8 +1239,6 @@ function Cadastro({ irPara }) {
 
             }
 
-
-
             .form-group input:focus,
 
             .form-group select:focus {
@@ -1563,11 +1251,7 @@ function Cadastro({ irPara }) {
 
             }
 
-
-
             .form-group input::placeholder { color: #A0AEC0; }
-
-
 
             .type-section {
 
@@ -1580,8 +1264,6 @@ function Cadastro({ irPara }) {
                border-radius: 19px;
 
             }
-
-
 
             .type-section > label {
 
@@ -1597,8 +1279,6 @@ function Cadastro({ irPara }) {
 
             }
 
-
-
             .type-options {
 
                display: grid;
@@ -1609,47 +1289,27 @@ function Cadastro({ irPara }) {
 
             }
 
-
-
             .type-option {
-
                min-height: 72px;
-
                text-align: left;
-
                border: 1px solid var(--pulsan-border);
-
                background: #fff;
-
                border-radius: 15px;
-
                padding: 11px 12px;
-
                cursor: pointer;
-
                color: var(--pulsan-text);
-
                transition: .2s ease;
 
             }
 
-
-
             .type-option:hover { border-color: #A8C7FF; transform: translateY(-1px); }
 
-
-
             .type-option.active {
-
                border-color: var(--pulsan-blue);
-
                background: var(--pulsan-soft);
-
                box-shadow: 0 7px 18px rgba(58,125,255,.10);
 
             }
-
-
 
             .type-icon { width: 28px; height: 28px; display: grid; place-items: center; margin-bottom: 5px; color: var(--pulsan-blue); }
 
@@ -1657,67 +1317,39 @@ function Cadastro({ irPara }) {
 
             .type-desc { font-size: 10px; color: var(--pulsan-muted); display: block; margin-top: 3px; }
 
-
-
             .profile-photo-group {
-
                display: flex;
-
                align-items: center;
-
                gap: 15px;
-
                padding: 15px;
-
                border: 1px solid var(--pulsan-border);
-
                border-radius: 18px;
-
                background: #FBFDFF;
-
                flex-wrap: wrap;
 
             }
 
-
-
             .profile-photo-preview {
-
                width: 64px;
-
                height: 64px;
-
                border-radius: 20px;
-
                overflow: hidden;
-
                display: grid;
-
                place-items: center;
-
                flex: 0 0 auto;
-
                background: var(--pulsan-soft);
-
                border: 1px solid #D5E4F8;
-
                font-size: 25px;
 
             }
 
-
-
             .profile-photo-preview img { width: 100%; height: 100%; object-fit: cover; }
-
-
 
             .photo-info { flex: 1; min-width: 180px; }
 
             .photo-info strong { display: block; font-size: 12px; color: var(--pulsan-text); margin-bottom: 4px; }
 
             .photo-info small { color: var(--pulsan-muted); line-height: 1.45; font-size: 10px; display: block; }
-
-
 
             .photo-upload-button,
 
@@ -1749,8 +1381,6 @@ function Cadastro({ irPara }) {
 
             }
 
-
-
             .psychology-box {
 
                padding: 20px;
@@ -1767,8 +1397,6 @@ function Cadastro({ irPara }) {
 
             }
 
-
-
             .psychology-header {
 
                display: flex;
@@ -1780,8 +1408,6 @@ function Cadastro({ irPara }) {
                margin-bottom: 17px;
 
             }
-
-
 
             .psychology-icon {
 
@@ -1805,13 +1431,9 @@ function Cadastro({ irPara }) {
 
             }
 
-
-
             .psychology-header h2 { margin: 0 0 4px; font-size: 16px; color: var(--pulsan-deep); }
 
             .psychology-header p { margin: 0; font-size: 11px; line-height: 1.5; color: var(--pulsan-muted); }
-
-
 
             .document-area {
 
@@ -1825,13 +1447,9 @@ function Cadastro({ irPara }) {
 
             }
 
-
-
             .document-area small { display: block; margin-top: 8px; color: var(--pulsan-muted); line-height: 1.45; font-size: 10px; }
 
             .document-name { margin-top: 9px; padding: 9px 11px; background: #fff; border-radius: 10px; font-size: 11px; color: var(--pulsan-text); overflow-wrap: anywhere; }
-
-
 
             .verification-note {
 
@@ -1851,8 +1469,6 @@ function Cadastro({ irPara }) {
 
             }
 
-
-
             .password-strength-box {
 
                margin-top: -5px;
@@ -1866,8 +1482,6 @@ function Cadastro({ irPara }) {
                background: #F8FBFF;
 
             }
-
-
 
             .password-strength-title {
 
@@ -1889,8 +1503,6 @@ function Cadastro({ irPara }) {
 
             }
 
-
-
             .password-strength-status {
 
                font-size: 10px;
@@ -1899,23 +1511,17 @@ function Cadastro({ irPara }) {
 
             }
 
-
-
             .password-strength-status.ok {
 
                color: #16845B;
 
             }
 
-
-
             .password-strength-status.pending {
 
                color: #7B8BA0;
 
             }
-
-
 
             .password-requirements {
 
@@ -1926,8 +1532,6 @@ function Cadastro({ irPara }) {
                gap: 6px 10px;
 
             }
-
-
 
             .password-requirement {
 
@@ -1945,8 +1549,6 @@ function Cadastro({ irPara }) {
 
             }
 
-
-
             .password-requirement.ok {
 
                color: #16845B;
@@ -1954,8 +1556,6 @@ function Cadastro({ irPara }) {
                font-weight: 700;
 
             }
-
-
 
             .password-common-warning {
 
@@ -1969,8 +1569,6 @@ function Cadastro({ irPara }) {
 
             }
 
-
-
             .terms-box {
 
                padding: 13px 14px;
@@ -1982,8 +1580,6 @@ function Cadastro({ irPara }) {
                border: 1px solid var(--pulsan-border);
 
             }
-
-
 
             .terms-label {
 
@@ -2003,8 +1599,6 @@ function Cadastro({ irPara }) {
 
             }
 
-
-
             .terms-label input {
 
                width: 17px;
@@ -2018,8 +1612,6 @@ function Cadastro({ irPara }) {
                flex: 0 0 auto;
 
             }
-
-
 
             .terms-label button {
 
@@ -2039,8 +1631,6 @@ function Cadastro({ irPara }) {
 
             }
 
-
-
             .security-line {
 
                display: flex;
@@ -2056,8 +1646,6 @@ function Cadastro({ irPara }) {
                line-height: 1.45;
 
             }
-
-
 
             .auth-button {
 
@@ -2085,13 +1673,9 @@ function Cadastro({ irPara }) {
 
             }
 
-
-
             .auth-button:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 13px 26px rgba(58,125,255,.28); }
 
             .auth-button:disabled { opacity: .65; cursor: not-allowed; }
-
-
 
             .auth-register,
 
@@ -2113,13 +1697,9 @@ function Cadastro({ irPara }) {
 
             }
 
-
-
             .auth-register { color: var(--pulsan-blue); margin-top: 11px; }
 
             .auth-back { color: #7B8BA0; }
-
-
 
             .terms-modal {
 
@@ -2142,8 +1722,6 @@ function Cadastro({ irPara }) {
                backdrop-filter: blur(6px);
 
             }
-
-
 
             .terms-modal-card {
 
@@ -2169,185 +1747,11 @@ function Cadastro({ irPara }) {
 
             }
 
-
-
             .terms-modal-card h2 { margin-top: 0; color: var(--pulsan-deep); }
 
             .terms-modal-card h3 { margin-bottom: 6px; color: var(--pulsan-deep); font-size: 14px; }
 
             .terms-modal-card p { color: #63758D; font-size: 13px; line-height: 1.6; }
-
-
-
-
-
-            .email-verification-card {
-
-               padding: 28px;
-
-               border: 1px solid var(--pulsan-border);
-
-               border-radius: 24px;
-
-               background:
-
-                  radial-gradient(circle at 100% 0%, rgba(168,199,255,.22), transparent 32%),
-
-                  linear-gradient(180deg, #FBFDFF 0%, #F5F9FF 100%);
-
-               box-shadow: 0 12px 30px rgba(15,45,91,.07);
-
-               text-align: center;
-
-            }
-
-
-
-            .email-verification-icon {
-
-               width: 66px;
-
-               height: 66px;
-
-               margin: 0 auto 15px;
-
-               display: grid;
-
-               place-items: center;
-
-               border-radius: 21px;
-
-               background: var(--pulsan-soft);
-
-               border: 1px solid #D4E5FA;
-
-               font-size: 29px;
-
-            }
-
-
-
-            .email-verification-eyebrow {
-
-               color: var(--pulsan-blue);
-
-               font-size: 11px;
-
-               font-weight: 800;
-
-               text-transform: uppercase;
-
-               letter-spacing: .11em;
-
-               margin-bottom: 8px;
-
-            }
-
-
-
-            .email-verification-card h2 {
-
-               margin: 0 0 10px;
-
-               color: var(--pulsan-deep);
-
-               font-size: 27px;
-
-               letter-spacing: -.03em;
-
-            }
-
-
-
-            .email-verification-card > p {
-
-               margin: 0;
-
-               color: var(--pulsan-muted);
-
-               font-size: 13px;
-
-               line-height: 1.55;
-
-            }
-
-
-
-            .email-verification-email {
-
-               display: block;
-
-               margin: 7px 0 23px;
-
-               color: var(--pulsan-text);
-
-               font-size: 14px;
-
-               overflow-wrap: anywhere;
-
-            }
-
-
-
-            .email-verification-help {
-
-               display: flex;
-
-               align-items: flex-start;
-
-               gap: 8px;
-
-               margin: 15px 0;
-
-               padding: 12px;
-
-               border-radius: 13px;
-
-               background: rgba(234,243,255,.65);
-
-               color: #63758D;
-
-               font-size: 11px;
-
-               line-height: 1.5;
-
-               text-align: left;
-
-            }
-
-
-
-            .resend-code-button {
-
-               width: 100%;
-
-               border: 0;
-
-               background: transparent;
-
-               color: var(--pulsan-blue);
-
-               cursor: pointer;
-
-               font-size: 12px;
-
-               font-weight: 800;
-
-               padding: 13px 8px 8px;
-
-            }
-
-
-
-            .resend-code-button:disabled {
-
-               opacity: .6;
-
-               cursor: not-allowed;
-
-            }
-
-
 
             @media (max-width: 900px) {
 
@@ -2366,8 +1770,6 @@ function Cadastro({ irPara }) {
                .cadastro-form-side { max-height: none; padding: 34px 28px; }
 
             }
-
-
 
             @media (max-width: 600px) {
 
@@ -2435,13 +1837,7 @@ function Cadastro({ irPara }) {
 
                .psychology-box { padding: 15px; }
 
-               .email-verification-card { padding: 20px; }
-
-               .terms-modal-card { padding: 20px; border-radius: 18px; }
-
             }
-
-
 
             @media (max-width: 380px) {
 
@@ -2453,8 +1849,6 @@ function Cadastro({ irPara }) {
 
             }
 
-
-
             @media (prefers-reduced-motion: reduce) {
 
                .type-option, .auth-button, .form-group input, .form-group select { transition: none; }
@@ -2463,15 +1857,11 @@ function Cadastro({ irPara }) {
 
          `}</style>
 
-
-
          <main className="pulsan-cadastro-page">
 
             <div className="pulsan-glow one" />
 
             <div className="pulsan-glow two" />
-
-
 
             <div className="cadastro-shell">
 
@@ -2484,8 +1874,6 @@ function Cadastro({ irPara }) {
                      <strong>PULSAN</strong>
 
                   </div>
-
-
 
                   <div className="story-content">
 
@@ -2513,8 +1901,6 @@ function Cadastro({ irPara }) {
 
                   </div>
 
-
-
                   <div className="story-footer">
 
                      <span className="story-pill"><Icon name="shield" size={14} /> Segurança</span>
@@ -2526,8 +1912,6 @@ function Cadastro({ irPara }) {
                   </div>
 
                </section>
-
-
 
                <section className="cadastro-form-side">
 
@@ -2546,126 +1930,6 @@ function Cadastro({ irPara }) {
                      </p>
 
                   </div>
-
-
-
-
-
-                  {emailEnviado ? (
-
-                     <section className="email-verification-card" aria-labelledby="email-verification-title">
-
-                        <div className="email-verification-icon">✉️</div>
-
-                        <div className="email-verification-eyebrow">Confirmação de segurança</div>
-
-
-
-                        <h2 id="email-verification-title">Confirme seu e-mail</h2>
-
-
-
-                        <p>
-
-                           Enviamos um e-mail de confirmação para:
-
-                        </p>
-
-
-
-                        <strong className="email-verification-email">
-
-                           {emailConfirmacao}
-
-                        </strong>
-
-
-
-                        <div className="email-verification-help">
-
-                           <span><Icon name="mailLock" size={18} /></span>
-
-                           <span>
-
-                              Abra a mensagem recebida e clique em
-
-                              <strong> “Confirm your email address”</strong>.
-
-                              Depois da confirmação, você poderá entrar no Pulsan com
-
-                              seu e-mail e senha.
-
-                           </span>
-
-                        </div>
-
-
-
-                        <button
-
-                           type="button"
-
-                           className="auth-button"
-
-                           onClick={() => irPara("login")}
-
-                        >
-
-                           Já confirmei meu e-mail
-
-                        </button>
-
-
-
-                        <button
-
-                           type="button"
-
-                           className="resend-code-button"
-
-                           onClick={reenviarEmailConfirmacao}
-
-                           disabled={carregando}
-
-                        >
-
-                           {carregando
-
-                              ? "Enviando..."
-
-                              : <><Icon name="refresh" size={14} /> Não recebi o e-mail — enviar novamente</>}
-
-                        </button>
-
-
-
-                        <button
-
-                           type="button"
-
-                           className="auth-back"
-
-                           onClick={() => {
-
-                              if (carregando) return;
-
-                              setEmailEnviado(false);
-
-                              setEmailConfirmacao("");
-
-                           }}
-
-                           disabled={carregando}
-
-                        >
-
-                           <><Icon name="arrowLeft" size={14} /> Voltar para o cadastro</>
-
-                        </button>
-
-                     </section>
-
-                  ) : (
 
                      <form className="auth-form" onSubmit={cadastrar}>
 
@@ -2693,8 +1957,6 @@ function Cadastro({ irPara }) {
 
                         </div>
 
-
-
                         <div className="form-group">
 
                            <label htmlFor="cadastro-email">E-mail</label>
@@ -2705,7 +1967,7 @@ function Cadastro({ irPara }) {
 
                               type="email"
 
-                              placeholder="seuemail\@exemplo.com"
+                              placeholder="seuemail@exemplo.com"
 
                               value={email}
 
@@ -2718,8 +1980,6 @@ function Cadastro({ irPara }) {
                         </div>
 
                      </div>
-
-
 
                      <div className="type-section">
 
@@ -2765,13 +2025,11 @@ function Cadastro({ irPara }) {
 
                         </div>
 
-
-
                         {tipo === "colaborador" && (
 
                            <div style={{ marginTop: 12, color: "#6D7F99", fontSize: 11, lineHeight: 1.5 }}>
 
-                              <Icon name="building" size={14} /> Funcionários Brisanet devem usar e-mail corporativo
+                              <Icon name="building" size={14} /> Para criar uma conta como Funcionário, é obrigatório utilizar e-mail corporativo terminado em
 
                               <strong> @grupobrisanet.com.br</strong>.
 
@@ -2780,8 +2038,6 @@ function Cadastro({ irPara }) {
                         )}
 
                      </div>
-
-
 
                      <div className="profile-photo-group">
 
@@ -2823,8 +2079,6 @@ function Cadastro({ irPara }) {
 
                      </div>
 
-
-
                      {tipo === "psicologo" && (
 
                         <div className="psychology-box">
@@ -2848,8 +2102,6 @@ function Cadastro({ irPara }) {
                               </div>
 
                            </div>
-
-
 
                            <div className="form-grid">
 
@@ -2875,8 +2127,6 @@ function Cadastro({ irPara }) {
 
                               </div>
 
-
-
                               <div className="form-group">
 
                                  <label htmlFor="crp">Número do CRP</label>
@@ -2898,8 +2148,6 @@ function Cadastro({ irPara }) {
                               </div>
 
                            </div>
-
-
 
                            <div className="form-grid" style={{ marginTop: 15 }}>
 
@@ -2932,8 +2180,6 @@ function Cadastro({ irPara }) {
                                  </select>
 
                               </div>
-
-
 
                               <div className="form-group">
 
@@ -2975,8 +2221,6 @@ function Cadastro({ irPara }) {
 
                            </div>
 
-
-
                            <div className="document-area" style={{ marginTop: 15 }}>
 
                               <div className="form-group">
@@ -3015,8 +2259,6 @@ function Cadastro({ irPara }) {
 
                            </div>
 
-
-
                            <div className="verification-note">
 
                               <Icon name="lock" size={14} /> O documento será utilizado somente para a verificação
@@ -3030,8 +2272,6 @@ function Cadastro({ irPara }) {
                         </div>
 
                      )}
-
-
 
                      <div className="form-grid">
 
@@ -3057,8 +2297,6 @@ function Cadastro({ irPara }) {
 
                         </div>
 
-
-
                         <div className="form-group">
 
                            <label htmlFor="confirmar-senha">Confirmar senha</label>
@@ -3083,8 +2321,6 @@ function Cadastro({ irPara }) {
 
                      </div>
 
-
-
                      <div className="password-strength-box" aria-live="polite">
 
                         <div className="password-strength-title">
@@ -3106,8 +2342,6 @@ function Cadastro({ irPara }) {
                            </span>
 
                         </div>
-
-
 
                         <div className="password-requirements">
 
@@ -3147,8 +2381,6 @@ function Cadastro({ irPara }) {
 
                         </div>
 
-
-
                         {senhaMuitoComumVisual && (
 
                            <div className="password-common-warning">
@@ -3162,8 +2394,6 @@ function Cadastro({ irPara }) {
                         )}
 
                      </div>
-
-
 
                      <div className="terms-box">
 
@@ -3207,8 +2437,6 @@ function Cadastro({ irPara }) {
 
                      </div>
 
-
-
                      <div className="security-line">
 
                         <span><Icon name="lock" size={15} /></span>
@@ -3217,8 +2445,6 @@ function Cadastro({ irPara }) {
 
                      </div>
 
-
-
                      <button type="submit" className="auth-button" disabled={carregando}>
 
                         {carregando ? "Criando seu espaço..." : "Criar meu espaço"}
@@ -3226,14 +2452,6 @@ function Cadastro({ irPara }) {
                      </button>
 
                   </form>
-
-                  )}
-
-
-
-
-
-
 
                   {mostrarTermos && (
 
@@ -3353,15 +2571,11 @@ function Cadastro({ irPara }) {
 
                   )}
 
-
-
                   <button type="button" className="auth-register" onClick={() => irPara("login")}>
 
                      Já tenho uma conta
 
                   </button>
-
-
 
                   <button type="button" className="auth-back" onClick={() => irPara("inicio")}>
 
@@ -3380,7 +2594,5 @@ function Cadastro({ irPara }) {
    );
 
 }
-
-
 
 export default Cadastro;

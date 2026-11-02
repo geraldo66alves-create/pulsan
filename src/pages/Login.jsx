@@ -2,6 +2,8 @@ import React, { useState } from "react";
 
 import { supabase } from "../lib/supabase";
 
+
+
 function Login({ irPara }) {
 
   const [email, setEmail] = useState("");
@@ -12,9 +14,13 @@ function Login({ irPara }) {
 
   const [carregando, setCarregando] = useState(false);
 
+
+
   async function entrar(e) {
 
     e.preventDefault();
+
+
 
     if (!email.trim() || !senha) {
 
@@ -24,11 +30,17 @@ function Login({ irPara }) {
 
     }
 
+
+
     setCarregando(true);
+
+
 
     try {
 
       const emailNormalizado = email.trim().toLowerCase();
+
+
 
       // A autenticação real é feita pelo Supabase Auth.
 
@@ -44,9 +56,13 @@ function Login({ irPara }) {
 
       });
 
+
+
       if (error) {
 
         console.error("Erro no login:", error);
+
+
 
         if (error.message?.toLowerCase().includes("email not confirmed")) {
 
@@ -58,11 +74,17 @@ function Login({ irPara }) {
 
         }
 
+
+
         return;
 
       }
 
+
+
       const usuarioAuth = data?.user;
+
+
 
       if (!usuarioAuth) {
 
@@ -72,81 +94,54 @@ function Login({ irPara }) {
 
       }
 
-      // Valida o perfil pelo usuário autenticado.
 
-      // O RPC evita a chamada REST direta que estava causando "Failed to fetch".
 
-      const { data: perfisRecebidos, error: erroPerfil } =
+      // Busca o perfil pelo cliente Supabase. A chamada passa pelo proxy REST
+      // configurado em src/lib/supabase.js, sem acessar a URL diretamente.
+      const {
+        data: perfil,
+        error: erroPerfil,
+      } = await supabase
+        .from("perfis")
+        .select("id,nome,foto_url,verificacao_psicologo,psicologo_parceiro")
+        .eq("id", usuarioAuth.id)
+        .maybeSingle();
 
-        await supabase.rpc("obter_meu_perfil");
-
-      console.log("RESULTADO DA VALIDAÇÃO DO PERFIL:", {
-
+      console.log("RESULTADO DA BUSCA DO PERFIL:", {
         usuarioId: usuarioAuth.id,
-
-        perfil: Array.isArray(perfisRecebidos)
-
-          ? perfisRecebidos[0] || null
-
-          : null,
-
+        perfil,
         erro: erroPerfil,
-
       });
 
       if (erroPerfil) {
-
-        console.error("ERRO COMPLETO AO BUSCAR PERFIL:", erroPerfil);
-
-        await supabase.auth.signOut();
-
+        console.error("ERRO AO BUSCAR PERFIL - DETALHES:", {
+          message: erroPerfil.message,
+          code: erroPerfil.code,
+          details: erroPerfil.details,
+          hint: erroPerfil.hint,
+          status: erroPerfil.status,
+          erroCompleto: erroPerfil,
+        });
+        // Preserva a sessão para evitar um logout adicional e facilitar o diagnóstico.
         alert(
-
-          `Erro ao carregar perfil:\n\n` +
-
-            `Código: ${erroPerfil.code || "não informado"}\n` +
-
-            `Mensagem: ${erroPerfil.message || "não informada"}\n` +
-
-            `Detalhes: ${erroPerfil.details || "não informado"}`
-
+          `A autenticação foi realizada, mas não foi possível carregar seu perfil.\n\n` +
+          `Mensagem: ${erroPerfil.message || "Erro sem mensagem"}\n` +
+          `Código: ${erroPerfil.code || "não informado"}\n` +
+          `Status: ${erroPerfil.status || "não informado"}\n\n` +
+          `Sua sessão foi preservada. Consulte o Console (F12) para ver os detalhes.`
         );
-
         return;
-
       }
-
-      const perfil = Array.isArray(perfisRecebidos)
-
-        ? perfisRecebidos[0] || null
-
-        : null;
 
       if (!perfil) {
-
-        console.error(
-
-          "PERFIL NÃO ENCONTRADO PARA O USUÁRIO:",
-
-          usuarioAuth.id
-
-        );
-
+        console.error("PERFIL NÃO ENCONTRADO:", usuarioAuth.id);
         await supabase.auth.signOut();
-
         alert(
-
           "Sua conta foi autenticada, mas o perfil não foi encontrado. " +
-
             "O cadastro precisa ser concluído antes de entrar na plataforma."
-
         );
-
         return;
-
       }
-
-      console.log("PERFIL VALIDADO COM SUCESSO:", perfil);
 
       /*
 
@@ -186,6 +181,8 @@ function Login({ irPara }) {
 
       const metadataUsuario = usuarioAuth.user_metadata || {};
 
+
+
       const tipoUsuarioBruto =
 
         metadataUsuario.tipo_usuario ||
@@ -197,6 +194,8 @@ function Login({ irPara }) {
         perfil?.tipo ||
 
         "";
+
+
 
       const areaAcessoBruta =
 
@@ -212,6 +211,8 @@ function Login({ irPara }) {
 
         "";
 
+
+
       const valorNormalizado = (valor) =>
 
         String(valor || "")
@@ -226,9 +227,13 @@ function Login({ irPara }) {
 
           .replace(/[-\s]+/g, "_");
 
+
+
       const tipoNormalizado = valorNormalizado(tipoUsuarioBruto);
 
       const areaNormalizada = valorNormalizado(areaAcessoBruta);
+
+
 
       const ehAdministrador =
 
@@ -252,6 +257,8 @@ function Login({ irPara }) {
 
         metadataUsuario.admin === true;
 
+
+
       /*
 
        * Para o restante da aplicação, o administrador recebe um
@@ -268,7 +275,11 @@ function Login({ irPara }) {
 
         : tipoUsuarioBruto || "aluno";
 
+
+
       let dadosPsicologo = null;
+
+
 
       // Para psicólogos, a situação de aprovação vem da tabela psicologos,
 
@@ -292,6 +303,8 @@ function Login({ irPara }) {
 
           .maybeSingle();
 
+
+
         if (erroPsicologo) {
 
           console.error("Erro ao buscar cadastro do psicólogo:", erroPsicologo);
@@ -303,6 +316,8 @@ function Login({ irPara }) {
         }
 
       }
+
+
 
       const verificacaoPsicologo =
 
@@ -320,6 +335,8 @@ function Login({ irPara }) {
 
             "nao_enviado";
 
+
+
       const psicologoParceiro =
 
         tipoUsuario === "psicologo"
@@ -336,11 +353,15 @@ function Login({ irPara }) {
 
             );
 
+
+
       const usuarioEncontrado = {
 
         id: usuarioAuth.id,
 
         email: usuarioAuth.email || emailNormalizado,
+
+
 
         nome:
 
@@ -354,6 +375,8 @@ function Login({ irPara }) {
 
           "Usuário",
 
+
+
         foto_url:
 
           perfil?.foto_url ||
@@ -364,7 +387,11 @@ function Login({ irPara }) {
 
           "",
 
+
+
         tipo_usuario: tipoUsuario,
+
+
 
         crp:
 
@@ -376,6 +403,8 @@ function Login({ irPara }) {
 
           "",
 
+
+
         estado_crp:
 
           dadosPsicologo?.estado_crp ||
@@ -383,6 +412,8 @@ function Login({ irPara }) {
           usuarioAuth.user_metadata?.estado_crp ||
 
           "",
+
+
 
         area_atuacao:
 
@@ -392,9 +423,15 @@ function Login({ irPara }) {
 
           "",
 
+
+
         verificacao_psicologo: verificacaoPsicologo,
 
+
+
         psicologo_parceiro: psicologoParceiro,
+
+
 
         // O documento profissional não é mais carregado nem salvo no
 
@@ -408,6 +445,8 @@ function Login({ irPara }) {
 
       };
 
+
+
       // Mantém os dados necessários para as telas existentes.
 
       // A sessão/autenticação continua sob responsabilidade do Supabase Auth.
@@ -420,6 +459,8 @@ function Login({ irPara }) {
 
       );
 
+
+
       localStorage.setItem(
 
         "pulsanUsuarioAtual",
@@ -428,6 +469,8 @@ function Login({ irPara }) {
 
       );
 
+
+
       localStorage.setItem("pulsanNome", usuarioEncontrado.nome);
 
       localStorage.setItem("pulsanEmail", usuarioEncontrado.email);
@@ -435,6 +478,8 @@ function Login({ irPara }) {
       localStorage.setItem("pulsanFoto", usuarioEncontrado.foto_url);
 
       localStorage.setItem("pulsanTipo", usuarioEncontrado.tipo_usuario);
+
+
 
       if (usuarioEncontrado.tipo_usuario === "psicologo") {
 
@@ -456,6 +501,8 @@ function Login({ irPara }) {
 
         );
 
+
+
         // Remove dados antigos eventualmente gravados por versões
 
         // anteriores do cadastro/login.
@@ -465,6 +512,8 @@ function Login({ irPara }) {
         localStorage.removeItem("pulsanNomeDocumento");
 
       }
+
+
 
       // Grava explicitamente a área da conta para o App.jsx.
 
@@ -478,6 +527,8 @@ function Login({ irPara }) {
 
       );
 
+
+
       localStorage.setItem(
 
         "pulsanAreaAcesso",
@@ -485,6 +536,8 @@ function Login({ irPara }) {
         ehAdministrador ? "administrativo" : "usuario"
 
       );
+
+
 
       localStorage.setItem(
 
@@ -494,11 +547,15 @@ function Login({ irPara }) {
 
       );
 
+
+
       // A conta administrativa não utiliza o fluxo comum da plataforma.
 
       if (ehAdministrador) {
 
         localStorage.setItem("pulsanAcessoAdmin", "true");
+
+
 
         alert(
 
@@ -506,9 +563,13 @@ function Login({ irPara }) {
 
         );
 
+
+
         setEmail("");
 
         setSenha("");
+
+
 
         irPara("painel-admin");
 
@@ -516,7 +577,11 @@ function Login({ irPara }) {
 
       }
 
+
+
       localStorage.removeItem("pulsanAcessoAdmin");
+
+
 
       alert(
 
@@ -524,9 +589,13 @@ function Login({ irPara }) {
 
       );
 
+
+
       setEmail("");
 
       setSenha("");
+
+
 
       // A configuração de acessibilidade é individual por conta.
 
@@ -534,9 +603,13 @@ function Login({ irPara }) {
 
         `pulsanAcessibilidadeConfigurada_${usuarioEncontrado.id}`;
 
+
+
       const acessibilidadeJaConfigurada =
 
         localStorage.getItem(chaveAcessibilidadeConta) === "true";
+
+
 
       if (!acessibilidadeJaConfigurada) {
 
@@ -545,6 +618,8 @@ function Login({ irPara }) {
         return;
 
       }
+
+
 
       if (
 
@@ -560,6 +635,8 @@ function Login({ irPara }) {
 
       }
 
+
+
       if (usuarioEncontrado.tipo_usuario === "colaborador") {
 
         irPara("empresa");
@@ -568,11 +645,15 @@ function Login({ irPara }) {
 
       }
 
+
+
       irPara("ambiente");
 
     } catch (erro) {
 
       console.error("Erro inesperado no login:", erro);
+
+
 
       alert("Ocorreu um erro inesperado ao entrar na conta.");
 
@@ -584,9 +665,13 @@ function Login({ irPara }) {
 
   }
 
+
+
   async function recuperarSenha() {
 
     const emailNormalizado = email.trim().toLowerCase();
+
+
 
     if (!emailNormalizado) {
 
@@ -600,7 +685,11 @@ function Login({ irPara }) {
 
     }
 
+
+
     setCarregando(true);
+
+
 
     try {
 
@@ -612,11 +701,13 @@ function Login({ irPara }) {
 
           {
 
-            redirectTo: "https://pulsan.vercel.app/?redefinir-senha=1",
+            redirectTo: `${window.location.origin}/?redefinir-senha=1`,
 
           }
 
         );
+
+
 
       if (error) {
 
@@ -628,23 +719,25 @@ function Login({ irPara }) {
 
         );
 
+
+
         alert(
 
-          error.message?.toLowerCase().includes("rate limit")
-
-            ? "Muitas solicitações em pouco tempo. Aguarde alguns minutos e tente novamente."
-
-            : "Não foi possível enviar o link. Confira o e-mail informado e tente novamente."
+          "Não foi possível enviar o e-mail de recuperação."
 
         );
+
+
 
         return;
 
       }
 
+
+
       alert(
 
-        "Se esse endereço estiver cadastrado no Pulsan, enviaremos um link de recuperação. Verifique sua caixa de entrada e também o spam."
+        "Enviamos um link de recuperação para seu e-mail. Verifique também a caixa de spam."
 
       );
 
@@ -657,6 +750,8 @@ function Login({ irPara }) {
         erro
 
       );
+
+
 
       alert(
 
@@ -671,6 +766,8 @@ function Login({ irPara }) {
     }
 
   }
+
+
 
   return (
 
@@ -698,6 +795,8 @@ function Login({ irPara }) {
 
         }
 
+
+
         .pulsan-login-page *,
 
         .pulsan-login-page *::before,
@@ -707,6 +806,8 @@ function Login({ irPara }) {
           box-sizing: border-box;
 
         }
+
+
 
         .pulsan-login-essence {
 
@@ -732,6 +833,8 @@ function Login({ irPara }) {
 
         }
 
+
+
         .pulsan-login-orb {
 
           position: absolute;
@@ -743,6 +846,8 @@ function Login({ irPara }) {
           opacity: .7;
 
         }
+
+
 
         .pulsan-login-orb.one {
 
@@ -760,6 +865,8 @@ function Login({ irPara }) {
 
         }
 
+
+
         .pulsan-login-orb.two {
 
           width: 240px;
@@ -775,6 +882,8 @@ function Login({ irPara }) {
           opacity: .35;
 
         }
+
+
 
         .pulsan-login-wings {
 
@@ -793,6 +902,8 @@ function Login({ irPara }) {
           transform: rotate(-12deg);
 
         }
+
+
 
         .pulsan-login-wings::before,
 
@@ -814,6 +925,8 @@ function Login({ irPara }) {
 
         }
 
+
+
         .pulsan-login-wings::before {
 
           left: 4px;
@@ -822,6 +935,8 @@ function Login({ irPara }) {
 
         }
 
+
+
         .pulsan-login-wings::after {
 
           right: 4px;
@@ -829,6 +944,8 @@ function Login({ irPara }) {
           transform: scaleX(-1) rotate(18deg);
 
         }
+
+
 
         .pulsan-login-essence-content {
 
@@ -839,6 +956,8 @@ function Login({ irPara }) {
           width: min(100%, 650px);
 
         }
+
+
 
         .pulsan-login-logo {
 
@@ -856,6 +975,8 @@ function Login({ irPara }) {
 
         }
 
+
+
         .pulsan-login-brand {
 
           margin-bottom: 25px;
@@ -869,6 +990,8 @@ function Login({ irPara }) {
           color: #0F2D5B;
 
         }
+
+
 
         .pulsan-login-essence h1 {
 
@@ -886,6 +1009,8 @@ function Login({ irPara }) {
 
         }
 
+
+
         .pulsan-login-essence-text {
 
           max-width: 550px;
@@ -900,6 +1025,8 @@ function Login({ irPara }) {
 
         }
 
+
+
         .pulsan-login-values {
 
           display: flex;
@@ -911,6 +1038,8 @@ function Login({ irPara }) {
           margin-bottom: 38px;
 
         }
+
+
 
         .pulsan-login-value {
 
@@ -938,6 +1067,8 @@ function Login({ irPara }) {
 
         }
 
+
+
         .pulsan-login-commitment {
 
           max-width: 520px;
@@ -954,6 +1085,8 @@ function Login({ irPara }) {
 
         }
 
+
+
         .pulsan-login-commitment strong {
 
           display: block;
@@ -966,6 +1099,8 @@ function Login({ irPara }) {
 
         }
 
+
+
         .pulsan-login-commitment span {
 
           display: block;
@@ -977,6 +1112,8 @@ function Login({ irPara }) {
           color: #48658c;
 
         }
+
+
 
         .pulsan-login-panel {
 
@@ -996,6 +1133,8 @@ function Login({ irPara }) {
 
         }
 
+
+
         .pulsan-login-card {
 
           width: min(100%, 450px);
@@ -1012,6 +1151,8 @@ function Login({ irPara }) {
 
         }
 
+
+
         .pulsan-login-card-logo {
 
           width: 48px;
@@ -1023,6 +1164,8 @@ function Login({ irPara }) {
           margin-bottom: 18px;
 
         }
+
+
 
         .pulsan-login-card h2 {
 
@@ -1038,6 +1181,8 @@ function Login({ irPara }) {
 
         }
 
+
+
         .pulsan-login-card-description {
 
           margin: 10px 0 30px;
@@ -1050,6 +1195,8 @@ function Login({ irPara }) {
 
         }
 
+
+
         .pulsan-login-form {
 
           display: flex;
@@ -1059,6 +1206,8 @@ function Login({ irPara }) {
           gap: 18px;
 
         }
+
+
 
         .pulsan-login-field {
 
@@ -1070,6 +1219,8 @@ function Login({ irPara }) {
 
         }
 
+
+
         .pulsan-login-field label {
 
           color: #0F2D5B;
@@ -1080,11 +1231,15 @@ function Login({ irPara }) {
 
         }
 
+
+
         .pulsan-login-input-wrap {
 
           position: relative;
 
         }
+
+
 
         .pulsan-login-input {
 
@@ -1110,11 +1265,15 @@ function Login({ irPara }) {
 
         }
 
+
+
         .pulsan-login-input::placeholder {
 
           color: #7a93b4;
 
         }
+
+
 
         .pulsan-login-input:focus {
 
@@ -1126,11 +1285,15 @@ function Login({ irPara }) {
 
         }
 
+
+
         .pulsan-login-password {
 
           padding-right: 78px;
 
         }
+
+
 
         .pulsan-login-show {
 
@@ -1158,6 +1321,8 @@ function Login({ irPara }) {
 
         }
 
+
+
         .pulsan-login-link {
 
           align-self: flex-end;
@@ -1179,6 +1344,8 @@ function Login({ irPara }) {
           padding: 4px 0;
 
         }
+
+
 
         .pulsan-login-submit {
 
@@ -1206,6 +1373,8 @@ function Login({ irPara }) {
 
         }
 
+
+
         .pulsan-login-submit:hover:not(:disabled) {
 
           transform: translateY(-2px);
@@ -1213,6 +1382,8 @@ function Login({ irPara }) {
           box-shadow: 0 14px 30px rgba(58,125,255,.32);
 
         }
+
+
 
         .pulsan-login-submit:disabled,
 
@@ -1225,6 +1396,8 @@ function Login({ irPara }) {
           cursor: not-allowed;
 
         }
+
+
 
         .pulsan-login-register {
 
@@ -1246,11 +1419,15 @@ function Login({ irPara }) {
 
         }
 
+
+
         .pulsan-login-register strong {
 
           color: #3A7DFF;
 
         }
+
+
 
         .pulsan-login-back {
 
@@ -1271,6 +1448,8 @@ function Login({ irPara }) {
           cursor: pointer;
 
         }
+
+
 
         .pulsan-login-security {
 
@@ -1298,348 +1477,345 @@ function Login({ irPara }) {
 
         }
 
+
+
         @media (max-width: 900px) {
-  .pulsan-login-page {
-    grid-template-columns: 1fr;
-    min-height: 100dvh;
-    overflow-x: hidden;
-    overflow-y: auto;
-    background: #EAF3FF;
-  }
 
-  .pulsan-login-essence {
-    min-height: auto;
-    padding: 46px 28px 42px;
-    text-align: center;
-  }
+          .pulsan-login-page {
 
-  .pulsan-login-essence-content {
-    width: 100%;
-    max-width: 620px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    margin: 0 auto;
-  }
+            grid-template-columns: 1fr;
 
-  .pulsan-login-logo {
-    width: 76px;
-    height: 76px;
-    margin: 0 auto 14px;
-  }
+            overflow: auto;
 
-  .pulsan-login-brand {
-    margin-bottom: 22px;
-    font-size: 17px;
-    letter-spacing: .28em;
-  }
+          }
 
-  .pulsan-login-essence h1 {
-    max-width: 560px;
-    font-size: clamp(34px, 7vw, 48px);
-    line-height: 1.08;
-  }
 
-  .pulsan-login-essence-text {
-    max-width: 560px;
-    margin: 22px auto 26px;
-    font-size: 17px;
-    line-height: 1.55;
-  }
 
-  .pulsan-login-values {
-    justify-content: center;
-    gap: 10px;
-    margin-bottom: 0;
-  }
+          .pulsan-login-essence {
 
-  .pulsan-login-value {
-    padding: 10px 14px;
-    font-size: 14px;
-  }
+            min-height: auto;
 
-  .pulsan-login-value:nth-child(n+3) {
-    display: none;
-  }
+            padding: 38px 28px 30px;
 
-  .pulsan-login-commitment,
-  .pulsan-login-wings {
-    display: none;
-  }
+            text-align: center;
 
-  .pulsan-login-panel {
-    min-height: auto;
-    padding: 0 22px 34px;
-    background: #EAF3FF;
-    align-items: flex-start;
-  }
+          }
 
-  .pulsan-login-card {
-    width: 100%;
-    max-width: 620px;
-    margin: 0 auto;
-    padding: 38px 34px 28px;
-    border-radius: 28px;
-    box-shadow: 0 15px 45px rgba(15,45,91,.10);
-  }
 
-  .pulsan-login-card-logo {
-    width: 54px;
-    height: 54px;
-    margin-bottom: 24px;
-  }
 
-  .pulsan-login-card h2 {
-    font-size: 34px;
-    line-height: 1.12;
-  }
+          .pulsan-login-essence-content {
 
-  .pulsan-login-card-description {
-    margin: 16px 0 34px;
-    font-size: 18px;
-    line-height: 1.55;
-  }
+            display: flex;
 
-  .pulsan-login-form {
-    gap: 20px;
-  }
+            flex-direction: column;
 
-  .pulsan-login-field {
-    gap: 9px;
-  }
+            align-items: center;
 
-  .pulsan-login-field label {
-    font-size: 16px;
-  }
+          }
 
-  .pulsan-login-input {
-    height: 60px;
-    border-radius: 17px;
-    font-size: 17px;
-  }
 
-  .pulsan-login-password {
-    padding-right: 96px;
-  }
 
-  .pulsan-login-show {
-    right: 12px;
-    font-size: 15px;
-  }
+          .pulsan-login-logo {
 
-  .pulsan-login-link {
-    font-size: 16px;
-  }
+            width: 70px;
 
-  .pulsan-login-submit {
-    height: 60px;
-    border-radius: 17px;
-    font-size: 19px;
-  }
+            height: 70px;
 
-  .pulsan-login-register {
-    margin-top: 24px;
-    font-size: 16px;
-  }
+            margin-bottom: 13px;
 
-  .pulsan-login-back {
-    margin-top: 8px;
-    font-size: 15px;
-  }
+          }
 
-  .pulsan-login-security {
-    margin-top: 24px;
-    padding-top: 20px;
-    font-size: 14px;
-  }
-}
 
-@media (max-width: 560px) {
-  .pulsan-login-page {
-    display: block;
-    width: 100%;
-    min-height: 100dvh;
-    background: #EAF3FF;
-    overflow-x: hidden;
-    overflow-y: auto;
-  }
 
-  .pulsan-login-essence {
-    min-height: 360px;
-    padding: 32px 20px 30px;
-    text-align: center;
-  }
+          .pulsan-login-brand {
 
-  .pulsan-login-essence-content {
-    width: 100%;
-    max-width: 360px;
-    margin: 0 auto;
-  }
+            margin-bottom: 16px;
 
-  .pulsan-login-logo {
-    width: 60px;
-    height: 60px;
-    margin: 0 auto 12px;
-  }
+          }
 
-  .pulsan-login-brand {
-    margin-bottom: 20px;
-    font-size: 15px;
-    letter-spacing: .27em;
-  }
 
-  .pulsan-login-essence h1 {
-    max-width: 350px;
-    margin: 0 auto;
-    font-size: 31px;
-    line-height: 1.08;
-    letter-spacing: -.035em;
-  }
 
-  .pulsan-login-essence-text {
-    max-width: 350px;
-    margin: 20px auto 24px;
-    font-size: 14px;
-    line-height: 1.55;
-  }
+          .pulsan-login-essence h1 {
 
-  .pulsan-login-values {
-    justify-content: center;
-    gap: 8px;
-    margin: 0;
-  }
+            font-size: clamp(32px, 8vw, 48px);
 
-  .pulsan-login-value {
-    padding: 8px 11px;
-    font-size: 12px;
-  }
+          }
 
-  .pulsan-login-value:nth-child(n+3) {
-    display: none;
-  }
 
-  .pulsan-login-commitment,
-  .pulsan-login-wings {
-    display: none;
-  }
 
-  .pulsan-login-orb.one {
-    width: 180px;
-    height: 180px;
-    top: -92px;
-    left: -78px;
-  }
+          .pulsan-login-essence-text {
 
-  .pulsan-login-orb.two {
-    width: 150px;
-    height: 150px;
-    right: -75px;
-    bottom: -75px;
-  }
+            margin: 16px auto 20px;
 
-  .pulsan-login-panel {
-    width: 100%;
-    min-height: auto;
-    padding: 0 13px 28px;
-    background: #EAF3FF;
-  }
+            font-size: 15px;
 
-  .pulsan-login-card {
-    width: 100%;
-    max-width: none;
-    margin: 0;
-    padding: 28px 20px 22px;
-    border: 1px solid #A8C7FF;
-    border-radius: 28px;
-    background: #FFFFFF;
-    box-shadow: 0 14px 40px rgba(15,45,91,.09);
-  }
+            max-width: 540px;
 
-  .pulsan-login-card-logo {
-    width: 42px;
-    height: 42px;
-    margin-bottom: 20px;
-  }
+          }
 
-  .pulsan-login-card h2 {
-    margin: 0;
-    font-size: 27px;
-    line-height: 1.12;
-  }
 
-  .pulsan-login-card-description {
-    margin: 14px 0 28px;
-    font-size: 14px;
-    line-height: 1.55;
-  }
 
-  .pulsan-login-form {
-    gap: 17px;
-  }
+          .pulsan-login-values {
 
-  .pulsan-login-field {
-    gap: 8px;
-  }
+            justify-content: center;
 
-  .pulsan-login-field label {
-    font-size: 14px;
-  }
+            margin-bottom: 22px;
 
-  .pulsan-login-input {
-    height: 52px;
-    padding: 0 15px;
-    border-radius: 15px;
-    font-size: 15px;
-  }
+          }
 
-  .pulsan-login-password {
-    padding-right: 78px;
-  }
 
-  .pulsan-login-show {
-    right: 9px;
-    font-size: 12px;
-    padding: 8px 7px;
-  }
 
-  .pulsan-login-link {
-    margin-top: -3px;
-    font-size: 13px;
-  }
+          .pulsan-login-commitment {
 
-  .pulsan-login-submit {
-    height: 52px;
-    border-radius: 15px;
-    font-size: 16px;
-  }
+            display: none;
 
-  .pulsan-login-register {
-    margin-top: 22px;
-    padding: 10px 4px;
-    font-size: 14px;
-  }
+          }
 
-  .pulsan-login-back {
-    margin-top: 4px;
-    padding: 8px 4px;
-    font-size: 13px;
-  }
 
-  .pulsan-login-security {
-    margin-top: 22px;
-    padding-top: 18px;
-    font-size: 12px;
-    line-height: 1.45;
-  }
-}
 
-@media (prefers-reduced-motion: no-preference) {
+          .pulsan-login-wings {
+
+            right: 4%;
+
+            top: 8%;
+
+            transform: scale(.72) rotate(-12deg);
+
+          }
+
+
+
+          .pulsan-login-panel {
+
+            padding: 0 22px 40px;
+
+            background: #EAF3FF;
+
+          }
+
+
+
+          .pulsan-login-card {
+
+            max-width: 520px;
+
+            border-radius: 25px;
+
+            box-shadow: 0 15px 45px rgba(15,45,91,.10);
+
+          }
+
+        }
+
+
+
+        @media (max-width: 560px) {
+
+          .pulsan-login-page {
+
+            background: #EAF3FF;
+
+          }
+
+
+
+          .pulsan-login-essence {
+
+            padding: 30px 20px 20px;
+
+          }
+
+
+
+          .pulsan-login-logo {
+
+            width: 58px;
+
+            height: 58px;
+
+          }
+
+
+
+          .pulsan-login-brand {
+
+            font-size: 15px;
+
+            letter-spacing: .25em;
+
+          }
+
+
+
+          .pulsan-login-essence h1 {
+
+            max-width: 340px;
+
+            font-size: 31px;
+
+            line-height: 1.1;
+
+          }
+
+
+
+          .pulsan-login-essence-text {
+
+            max-width: 340px;
+
+            font-size: 14px;
+
+            line-height: 1.5;
+
+          }
+
+
+
+          .pulsan-login-values {
+
+            gap: 7px;
+
+            margin-bottom: 14px;
+
+          }
+
+
+
+          .pulsan-login-value {
+
+            padding: 8px 10px;
+
+            font-size: 11px;
+
+          }
+
+
+
+          .pulsan-login-value:nth-child(n+3) {
+
+            display: none;
+
+          }
+
+
+
+          .pulsan-login-panel {
+
+            padding: 0 14px 28px;
+
+          }
+
+
+
+          .pulsan-login-card {
+
+            padding: 25px 20px 22px;
+
+            border-radius: 23px;
+
+          }
+
+
+
+          .pulsan-login-card-logo {
+
+            width: 40px;
+
+            height: 40px;
+
+            margin-bottom: 14px;
+
+          }
+
+
+
+          .pulsan-login-card h2 {
+
+            font-size: 27px;
+
+          }
+
+
+
+          .pulsan-login-card-description {
+
+            margin-bottom: 24px;
+
+            font-size: 14px;
+
+          }
+
+
+
+          .pulsan-login-form {
+
+            gap: 15px;
+
+          }
+
+
+
+          .pulsan-login-input,
+
+          .pulsan-login-submit {
+
+            height: 52px;
+
+          }
+
+
+
+          .pulsan-login-security {
+
+            margin-top: 18px;
+
+          }
+
+
+
+          .pulsan-login-orb.one {
+
+            width: 180px;
+
+            height: 180px;
+
+            top: -95px;
+
+            left: -75px;
+
+          }
+
+
+
+          .pulsan-login-orb.two {
+
+            width: 150px;
+
+            height: 150px;
+
+          }
+
+
+
+          .pulsan-login-wings {
+
+            display: none;
+
+          }
+
+        }
+
+
+
+        @media (prefers-reduced-motion: no-preference) {
 
           .pulsan-login-orb.two {
 
             animation: pulsanFloat 7s ease-in-out infinite;
 
           }
+
+
 
           @keyframes pulsanFloat {
 
@@ -1653,6 +1829,8 @@ function Login({ irPara }) {
 
       `}</style>
 
+
+
       <section className="pulsan-login-essence">
 
         <span className="pulsan-login-orb one" />
@@ -1660,6 +1838,8 @@ function Login({ irPara }) {
         <span className="pulsan-login-orb two" />
 
         <span className="pulsan-login-wings" />
+
+
 
         <div className="pulsan-login-essence-content">
 
@@ -1673,13 +1853,19 @@ function Login({ irPara }) {
 
           />
 
+
+
           <div className="pulsan-login-brand">PULSAN</div>
+
+
 
           <h1>
 
             Aqui, você não precisa enfrentar tudo sozinho.
 
           </h1>
+
+
 
           <p className="pulsan-login-essence-text">
 
@@ -1690,6 +1876,8 @@ function Login({ irPara }) {
             está ao nosso lado.
 
           </p>
+
+
 
           <div className="pulsan-login-values">
 
@@ -1702,6 +1890,8 @@ function Login({ irPara }) {
             <span className="pulsan-login-value">💙 Acolhimento</span>
 
           </div>
+
+
 
           <div className="pulsan-login-commitment">
 
@@ -1723,6 +1913,8 @@ function Login({ irPara }) {
 
       </section>
 
+
+
       <section className="pulsan-login-panel">
 
         <div className="pulsan-login-card">
@@ -1737,13 +1929,19 @@ function Login({ irPara }) {
 
           />
 
+
+
           <h2>Que bom ter você aqui.</h2>
+
+
 
           <p className="pulsan-login-card-description">
 
             Entre na sua conta para continuar sua jornada no Pulsan.
 
           </p>
+
+
 
           <form className="pulsan-login-form" onSubmit={entrar}>
 
@@ -1773,9 +1971,13 @@ function Login({ irPara }) {
 
             </div>
 
+
+
             <div className="pulsan-login-field">
 
               <label htmlFor="senha">Senha</label>
+
+
 
               <div className="pulsan-login-input-wrap">
 
@@ -1799,6 +2001,8 @@ function Login({ irPara }) {
 
                 />
 
+
+
                 <button
 
                   type="button"
@@ -1819,6 +2023,8 @@ function Login({ irPara }) {
 
             </div>
 
+
+
             <button
 
               type="button"
@@ -1835,6 +2041,8 @@ function Login({ irPara }) {
 
             </button>
 
+
+
             <button
 
               type="submit"
@@ -1850,6 +2058,8 @@ function Login({ irPara }) {
             </button>
 
           </form>
+
+
 
           <button
 
@@ -1869,6 +2079,8 @@ function Login({ irPara }) {
 
           </button>
 
+
+
           <button
 
             type="button"
@@ -1885,6 +2097,8 @@ function Login({ irPara }) {
 
           </button>
 
+
+
           <div className="pulsan-login-security">
 
             🔒 Sua privacidade e segurança são importantes para nós.
@@ -1900,5 +2114,7 @@ function Login({ irPara }) {
   );
 
 }
+
+
 
 export default Login;

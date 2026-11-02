@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
 
-
 function Icon({ name, size = 22, strokeWidth = 1.9, className = "" }) {
   const common = {
     width: size,

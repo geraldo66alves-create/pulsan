@@ -10,8 +10,32 @@ const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";function
   // AMBIENTE
   // =====================================
 
-  const ambiente =
-    localStorage.getItem("pulsanAmbiente") || "escola";
+  function obterPerfilAtual() {
+    let usuario = {};
+    for (const chave of ["usuarioLogado", "pulsanUsuarioAtual"]) {
+      try {
+        const valor = JSON.parse(localStorage.getItem(chave) || "{}");
+        if (valor && Object.keys(valor).length) { usuario = valor; break; }
+      } catch { /* tenta a próxima chave */ }
+    }
+    const tipo = String(
+      localStorage.getItem("pulsanTipo") || usuario.tipo_usuario || usuario.tipo ||
+      usuario.user_metadata?.tipo_usuario || usuario.user_metadata?.tipo || "aluno"
+    ).toLowerCase().trim();
+    if (["colaborador", "funcionario", "funcionário", "employee", "empresa"].includes(tipo)) return "colaborador";
+    if (["visitante", "visitor"].includes(tipo)) return "visitante";
+    if (["psicologo", "psicóloga", "psicologo_parceiro", "psychologist"].includes(tipo)) return "psicologo";
+    if (["admin", "administrador", "equipe_pulsan"].includes(tipo)) return "admin";
+    return "aluno";
+  }
+
+  const tipoPerfil = obterPerfilAtual();
+  const ambienteSalvo = localStorage.getItem("pulsanAmbiente");
+  const ambiente = tipoPerfil === "colaborador"
+    ? "empresa"
+    : tipoPerfil === "aluno"
+      ? "escola"
+      : (ambienteSalvo === "empresa" ? "empresa" : "escola");
 
 
   // =====================================
@@ -415,6 +439,11 @@ const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";function
 
     const conteudo = texto.trim();
 
+    if (tipoPerfil === "admin") {
+      alert("A equipe Pulsan não publica desabafos nesta área.");
+      return;
+    }
+
     if (!conteudo) {
       alert("Escreva algo antes de publicar.");
       return;
@@ -638,6 +667,7 @@ if (resultadoInsercao.error) {
       usuario_id: usuarioId,
       texto: conteudo,
       nome_usuario: "Anônimo",
+      ambiente: ambiente,
     })
     .select("id, usuario_id, texto, criado_em")
     .single();

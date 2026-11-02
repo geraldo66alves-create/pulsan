@@ -350,17 +350,17 @@ function PainelAdmin({ irPara, tema, alterarTema }) {
       "pulsanNomeDocumento",
     ];
 
-    chavesSessao.forEach((chave) => {
-      localStorage.removeItem(chave);
-    });
+   chavesSessao.forEach((chave) => {
+  localStorage.removeItem(chave);
+  sessionStorage.removeItem(chave);
+});
 
-    // Sai da área administrativa e volta para o início do Pulsan.
-    if (typeof irPara === "function") {
-      irPara("inicio");
-    } else {
-      // Fallback caso a função de navegação não tenha sido recebida pelo App.
-      window.location.href = "/";
-    }
+// Retorna diretamente para a tela de login.
+if (typeof irPara === "function") {
+  irPara("login");
+} else {
+  window.location.href = "/";
+}
   }
 
   function voltarInicio() {
@@ -809,7 +809,11 @@ function PainelAdmin({ irPara, tema, alterarTema }) {
       .toUpperCase() || "P";
 
   return (
-    <main className={`pulsan-admin-dashboard tema-${tema === "dark" ? "dark" : "light"}`}>
+   <main
+  className={`pulsan-admin-dashboard tema-${
+    tema === "escuro" ? "dark" : "light"
+  }`}
+>
       <style>{`
         .pulsan-admin-dashboard {
           min-height: 100vh;
@@ -1369,9 +1373,13 @@ function PainelAdmin({ irPara, tema, alterarTema }) {
                 <button
                   type="button"
                   className="pulsan-admin-action"
-                  onClick={() => alterarTema(tema === "dark" ? "light" : "dark")}
+                onClick={() =>
+  alterarTema(tema === "escuro" ? "claro" : "escuro")
+}
                 >
-                  {tema === "dark" ? <><Icon name="sun" size={16} /> Claro</> : <><Icon name="moon" size={16} /> Escuro</>}
+                  {tema === "escuro"
+  ? <><Icon name="sun" size={16} /> Claro</>
+  : <><Icon name="moon" size={16} /> Escuro</>}
                 </button>
               )}
             </div>
@@ -2531,6 +2539,7 @@ function PaginaBase({
 }) {
   return (
     <main
+      className="pulsan-admin-pagina"
       style={{
         minHeight: "100vh",
         padding: "24px 18px 100px",
@@ -2539,6 +2548,28 @@ function PaginaBase({
         color: "var(--pulsan-texto, #172c35)",
       }}
     >
+      <style>{`
+        .pulsan-admin-pagina .pulsan-admin-stat {
+          background: var(--pulsan-card, #ffffff);
+          color: var(--pulsan-texto, #172c35);
+          border: 1px solid var(--pulsan-borda, #e5e5e5);
+        }
+
+        .pulsan-admin-pagina .pulsan-admin-stat-icon {
+          background: var(--pulsan-bg, #EAF3FF);
+          color: var(--pulsan-primaria, #3A7DFF);
+        }
+
+        .pulsan-admin-pagina .pulsan-admin-stat-value,
+        .pulsan-admin-pagina .pulsan-admin-stat-name {
+          color: var(--pulsan-texto, #172c35);
+        }
+
+        .pulsan-admin-pagina .pulsan-admin-stat-desc {
+          color: var(--pulsan-texto-secundario, #8295ac);
+        }
+          
+      `}</style>
       <section
         style={{
           maxWidth: "1100px",
@@ -2764,21 +2795,10 @@ function PaginaUsuarios({
               Todos os usuários
             </option>
 
-            <option value="aluno">
-              <span style={{display:"inline-flex",alignItems:"center",gap:6}}><Icon name="student" size={15} /> Alunos</span>
-            </option>
-
-            <option value="colaborador">
-              <span style={{display:"inline-flex",alignItems:"center",gap:6}}><Icon name="briefcase" size={15} /> Colaboradores</span>
-            </option>
-
-            <option value="psicologo">
-              <span style={{display:"inline-flex",alignItems:"center",gap:6}}><Icon name="brain" size={15} /> Psicólogos</span>
-            </option>
-
-            <option value="equipe_pulsan">
-              <span style={{display:"inline-flex",alignItems:"center",gap:6}}><Icon name="shield" size={14} /> Equipe Pulsan</span>
-            </option>
+        <option value="aluno">Alunos</option>
+<option value="colaborador">Colaboradores</option>
+<option value="psicologo">Psicólogos</option>
+<option value="equipe_pulsan">Equipe Pulsan</option>
           </select>
         </div>
 

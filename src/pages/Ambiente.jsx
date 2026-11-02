@@ -37,9 +37,38 @@ function Icon({ name, size = 18, stroke = "currentColor", strokeWidth = 1.9 }) {
 }
 
 
+function obterDadosPerfilPulsan() {
+  const chaves = ["usuarioLogado", "pulsanUsuarioAtual"];
+  let usuario = {};
+  for (const chave of chaves) {
+    try {
+      const valor = JSON.parse(localStorage.getItem(chave) || "{}");
+      if (valor && typeof valor === "object" && Object.keys(valor).length) {
+        usuario = valor;
+        break;
+      }
+    } catch { /* tenta a próxima chave */ }
+  }
+  const tipo = String(
+    localStorage.getItem("pulsanTipo") ||
+    usuario.tipo_usuario || usuario.tipo ||
+    usuario.user_metadata?.tipo_usuario || usuario.user_metadata?.tipo || "aluno"
+  ).toLowerCase().trim();
+  if (["colaborador", "funcionario", "funcionário", "employee", "empresa"].includes(tipo)) return "colaborador";
+  if (["visitante", "visitor"].includes(tipo)) return "visitante";
+  if (["psicologo", "psicóloga", "psicologo_parceiro", "psychologist"].includes(tipo)) return "psicologo";
+  if (["admin", "administrador", "equipe_pulsan"].includes(tipo)) return "admin";
+  return "aluno";
+}
+
 function Ambiente({ irPara, tema = "claro" }) {
   // O tema é controlado centralmente pelo App.jsx e alterado pelo Perfil.
   const modoEscuro = tema === "escuro";
+  const tipoPerfil = obterDadosPerfilPulsan();
+  const ambientesPermitidos =
+    tipoPerfil === "aluno" ? ["escola"] :
+    tipoPerfil === "colaborador" ? ["empresa"] :
+    ["escola", "empresa"];
 
   const [desabafos, setDesabafos] = useState([]);
   const [carregandoDesabafos, setCarregandoDesabafos] =
@@ -245,8 +274,14 @@ function Ambiente({ irPara, tema = "claro" }) {
         return;
       }
 
+      // Publicações antigas (ambiente NULL) permanecem visíveis para todos.
+      // Visitantes, psicólogos e equipe visualizam os dois ambientes.
+      const postsVisiveis = (data || []).filter((post) =>
+        !post.ambiente || ambientesPermitidos.includes(post.ambiente)
+      );
+
       const postsComComentarios = await Promise.all(
-        (data || []).map(async (post) => {
+        postsVisiveis.map(async (post) => {
           const {
             data: comentariosBanco,
             error: erroComentarios,
@@ -309,7 +344,7 @@ function Ambiente({ irPara, tema = "claro" }) {
         setCarregandoDesabafos(false);
       }
     }
-  }, []);
+  }, [tipoPerfil]);
   // Setup do Realtime para os desabafos
   useEffect(() => {
     if (!usuarioId) return;

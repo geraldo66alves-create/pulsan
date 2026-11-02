@@ -22,6 +22,7 @@ function Acessibilidade({
   const ultimoToqueRef = useRef(0);
   const timerToquesRef = useRef(null);
 
+
   function lerTexto(texto) {
     if (!("speechSynthesis" in window)) {
       alert("Seu navegador não oferece leitura por voz.");
@@ -333,6 +334,12 @@ function Acessibilidade({
     .pulsan-pagina-acessibilidade {
       transition: background-color .2s ease, color .2s ease;
     }
+    .pulsan-pagina-acessibilidade button:focus-visible,
+    .pulsan-pagina-acessibilidade select:focus-visible {
+      outline: 3px solid #3A7DFF;
+      outline-offset: 3px;
+    }
+    .pulsan-pagina-acessibilidade select { min-height: 56px; font-size: 15px; }
 
     .pulsan-pagina-acessibilidade.pulsan-acessibilidade-alto-contraste {
       --pulsan-bg: #05070a !important;
@@ -516,98 +523,24 @@ function Acessibilidade({
             enquanto estiverem ativadas.
           </p>
 
-          <div
-            style={{
-              display: "grid",
-              gap: "12px",
-            }}
-          >
-            <button
-              type="button"
-              onClick={() =>
-                alterarAcessibilidade(
-                  "altoContraste",
-                  !configuracao.altoContraste
-                )
-              }
-              aria-pressed={configuracao.altoContraste}
-              style={estiloBotao}
-            >
-              <span
-                aria-hidden="true"
-                style={{
-                  display: "inline-flex",
-                  width: "24px",
-                  height: "24px",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  marginRight: "10px",
-                  borderRadius: "6px",
-                  background: configuracao.altoContraste ? "#5ecbff" : "transparent",
-                  color: configuracao.altoContraste ? "#031018" : "currentColor",
-                  border: "2px solid currentColor",
-                  fontWeight: "900",
-                }}
-              >
-                {configuracao.altoContraste ? "✓" : ""}
-              </span>
-              Alto contraste
-              <span
-                style={{
-                  marginLeft: "auto",
-                  fontSize: "12px",
-                  fontWeight: "800",
-                  opacity: .9,
-                }}
-              >
-                {configuracao.altoContraste ? "ATIVADO" : "DESATIVADO"}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() =>
-                alterarAcessibilidade(
-                  "textoMaior",
-                  !configuracao.textoMaior
-                )
-              }
-              aria-pressed={configuracao.textoMaior}
-              style={estiloBotao}
-            >
-              {configuracao.textoMaior ? "✓ " : ""}
-              Texto maior
-            </button>
-
-            <button
-              type="button"
-              onClick={() =>
-                alterarAcessibilidade(
-                  "botoesMaiores",
-                  !configuracao.botoesMaiores
-                )
-              }
-              aria-pressed={configuracao.botoesMaiores}
-              style={estiloBotao}
-            >
-              {configuracao.botoesMaiores ? "✓ " : ""}
-              Botões maiores
-            </button>
-
-            <button
-              type="button"
-              onClick={() =>
-                alterarAcessibilidade(
-                  "reduzirAnimacoes",
-                  !configuracao.reduzirAnimacoes
-                )
-              }
-              aria-pressed={configuracao.reduzirAnimacoes}
-              style={estiloBotao}
-            >
-              {configuracao.reduzirAnimacoes ? "✓ " : ""}
-              Reduzir animações
-            </button>
+          <div style={{ display: "grid", gap: "14px" }}>
+            {[
+              { chave: "altoContraste", titulo: "Alto contraste", descricao: "Realça textos, contornos e elementos da interface.", ativo: configuracao.altoContraste },
+              { chave: "textoMaior", titulo: "Texto maior", descricao: "Aumenta o tamanho dos textos para facilitar a leitura.", ativo: configuracao.textoMaior },
+              { chave: "botoesMaiores", titulo: "Botões maiores", descricao: "Amplia os alvos de toque e os controles interativos.", ativo: configuracao.botoesMaiores },
+              { chave: "reduzirAnimacoes", titulo: "Reduzir animações", descricao: "Diminui movimentos e transições da interface.", ativo: configuracao.reduzirAnimacoes },
+            ].map((item) => (
+              <button key={item.chave} type="button" role="switch" aria-checked={Boolean(item.ativo)} onClick={() => alterarAcessibilidade(item.chave, !item.ativo)} style={{ ...estiloControle, borderColor: item.ativo ? "#3A7DFF" : "var(--pulsan-borda, #d8d8d8)" }}>
+                <span style={{ display: "grid", gap: "5px", flex: 1 }}>
+                  <strong style={{ fontSize: "16px" }}>{item.titulo}</strong>
+                  <span style={{ fontSize: "13px", lineHeight: 1.45, color: "var(--pulsan-texto-secundario, #687780)" }}>{item.descricao}</span>
+                </span>
+                <span aria-hidden="true" style={{ ...estiloInterruptor, background: item.ativo ? "#3A7DFF" : "#9aa5b1" }}>
+                  <span style={{ ...estiloPino, transform: item.ativo ? "translateX(22px)" : "translateX(2px)" }} />
+                </span>
+                <span style={{ minWidth: "94px", textAlign: "right", fontSize: "12px", fontWeight: 800, color: item.ativo ? "#1763d1" : "var(--pulsan-texto-secundario, #687780)" }}>{item.ativo ? "ATIVADO" : "DESATIVADO"}</span>
+              </button>
+            ))}
           </div>
         </section>
 
@@ -760,8 +693,11 @@ function Acessibilidade({
             <option value="protanopia">Protanopia</option>
             <option value="deuteranopia">Deuteranopia</option>
             <option value="tritanopia">Tritanopia</option>
-            <option value="acromatopsia">Escala de cinza</option>
+            <option value="acromatopsia">Acromatopsia — escala de cinza</option>
           </select>
+          <p style={{ ...textoDescricao, fontSize: "13px", marginTop: "10px" }}>
+            Os modos organizam uma paleta alternativa para diferenciar informações. A plataforma também deve usar textos, ícones e rótulos — nunca apenas cores — para indicar estados.
+          </p>
         </section>
 
         <section
@@ -778,8 +714,7 @@ function Acessibilidade({
           </h2>
 
           <p style={textoDescricao}>
-            Ative esta opção para exibir vídeos de apoio em Libras
-            dentro da plataforma.
+            Ative o VLibras para traduzir textos das páginas do Pulsan para Libras por meio de um avatar 3D.
           </p>
 
           <button
@@ -802,25 +737,11 @@ function Acessibilidade({
               }}
             >
               <p style={textoDescricao}>
-                O modo Libras está ativo globalmente. Quando
-                existirem vídeos de apoio correspondentes ao
-                conteúdo, eles poderão ser exibidos.
+                O widget VLibras foi solicitado. Quando carregar, o botão flutuante aparecerá na tela para traduzir textos da página para Libras por meio de um avatar 3D. A tradução automática pode ter limitações e não substitui um intérprete humano.
               </p>
-
-              <video
-                src="/libras/apresentacao.mp4"
-                controls
-                playsInline
-                aria-label="Vídeo de apresentação em Libras"
-                style={{
-                  width: "100%",
-                  maxWidth: "360px",
-                  borderRadius: "14px",
-                }}
-                onError={(evento) => {
-                  evento.currentTarget.style.display = "none";
-                }}
-              />
+              <p role="status" aria-live="polite" style={{ ...textoDescricao, fontSize: "13px" }}>
+                Se o botão do VLibras não aparecer, verifique sua conexão e se o navegador permite conteúdo externo.
+              </p>
             </div>
           )}
         </section>
@@ -844,15 +765,50 @@ function Acessibilidade({
 
 const estiloBotao = {
   width: "100%",
-  minHeight: "48px",
-  padding: "12px 16px",
-  borderRadius: "12px",
+  minHeight: "56px",
+  padding: "15px 18px",
+  borderRadius: "14px",
   border: "1px solid var(--pulsan-borda, #d8d8d8)",
   background: "var(--pulsan-card, #ffffff)",
   color: "var(--pulsan-texto, #172c35)",
   cursor: "pointer",
   textAlign: "left",
-  fontWeight: "600",
+  fontWeight: "700",
+  fontSize: "15px",
+};
+
+const estiloControle = {
+  width: "100%",
+  minHeight: "82px",
+  padding: "15px 16px",
+  borderRadius: "15px",
+  border: "2px solid var(--pulsan-borda, #d8d8d8)",
+  background: "var(--pulsan-card, #ffffff)",
+  color: "var(--pulsan-texto, #172c35)",
+  display: "flex",
+  alignItems: "center",
+  gap: "12px",
+  textAlign: "left",
+  cursor: "pointer",
+};
+
+const estiloInterruptor = {
+  width: "48px",
+  height: "28px",
+  borderRadius: "999px",
+  display: "inline-flex",
+  alignItems: "center",
+  flexShrink: 0,
+  transition: "background .18s ease",
+};
+
+const estiloPino = {
+  width: "22px",
+  height: "22px",
+  borderRadius: "50%",
+  background: "#ffffff",
+  boxShadow: "0 1px 4px rgba(0,0,0,.25)",
+  transition: "transform .18s ease",
 };
 
 const textoDescricao = {
