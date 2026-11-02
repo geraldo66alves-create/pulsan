@@ -1,7 +1,6 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import { GoogleGenAI, Type } from "@google/genai";
 import { createClient } from "@supabase/supabase-js";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -26,9 +25,22 @@ if (!process.env.GEMINI_API_KEY) {
   console.error("❌ GEMINI_API_KEY não encontrada no .env.local");
 }
 
-const client = process.env.GEMINI_API_KEY
-  ? new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY })
-  : null;
+let clienteGeminiPromise = null;
+
+async function obterClienteGemini() {
+  if (!process.env.GEMINI_API_KEY) {
+    throw new Error("GEMINI_API_KEY não configurada no servidor.");
+  }
+
+  if (!clienteGeminiPromise) {
+    clienteGeminiPromise = import("@google/genai").then(
+      ({ GoogleGenAI }) =>
+        new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY })
+    );
+  }
+
+  return clienteGeminiPromise;
+}
 
 // =====================================================
 // SUPABASE
@@ -402,11 +414,11 @@ const MODELO_IA = "gemini-3.5-flash-lite";
 // =====================================================
 
 const classificacaoSchema = {
-  type: Type.OBJECT,
+  type: "OBJECT",
 
   properties: {
     classificacao: {
-      type: Type.STRING,
+      type: "STRING",
       enum: [
         "normal",
         "intermediario",
@@ -416,7 +428,7 @@ const classificacaoSchema = {
     },
 
     tipoSituacao: {
-      type: Type.STRING,
+      type: "STRING",
       enum: [
         "nenhum",
         "sofrimento_emocional",
@@ -436,15 +448,15 @@ const classificacaoSchema = {
     },
 
     motivo: {
-      type: Type.STRING,
+      type: "STRING",
     },
 
     alerta: {
-      type: Type.BOOLEAN,
+      type: "BOOLEAN",
     },
 
     prioridadeAlerta: {
-      type: Type.STRING,
+      type: "STRING",
       enum: [
         "nenhuma",
         "baixa",
@@ -455,15 +467,15 @@ const classificacaoSchema = {
     },
 
     ambienteEscolar: {
-      type: Type.BOOLEAN,
+      type: "BOOLEAN",
     },
 
     conteudoOfensivo: {
-      type: Type.BOOLEAN,
+      type: "BOOLEAN",
     },
 
     categoriaOfensa: {
-      type: Type.STRING,
+      type: "STRING",
       enum: [
         "nenhuma",
         "palavrao",
@@ -476,11 +488,11 @@ const classificacaoSchema = {
     },
 
     publicarPermitido: {
-      type: Type.BOOLEAN,
+      type: "BOOLEAN",
     },
 
     motivoModeracao: {
-      type: Type.STRING,
+      type: "STRING",
     },
   },
 
@@ -889,9 +901,7 @@ Não invente contexto.
 Analise SOMENTE o conteúdo recebido.
 `;
 
-  if (!client) {
-    throw new Error("GEMINI_API_KEY não configurada no servidor.");
-  }
+  const client = await obterClienteGemini();
 
   const resposta =
     await client.models.generateContent({
