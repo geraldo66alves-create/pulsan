@@ -1,36 +1,30 @@
 export default async function handler(req, res) {
   try {
-    // Normaliza o caminho recebido pela Vercel.
-    const urlOriginal = req.url || "/";
-    const caminho = urlOriginal.split("?")[0];
-
-    if (
-      caminho !== "/api" &&
-      !caminho.startsWith("/api/")
-    ) {
-      req.url = `/api${urlOriginal.startsWith("/") ? "" : "/"}${urlOriginal}`;
-    }
-
     const modulo = await import("../server/server.js");
     const app = modulo.default;
 
     if (typeof app !== "function") {
-      throw new Error("O servidor Express não foi exportado corretamente.");
+      throw new Error("Servidor Express não exportado.");
     }
+
+    const originalUrl = req.url || "/";
+    const caminho = originalUrl.split("?")[0];
+
+    if (!caminho.startsWith("/api/")) {
+      req.url = `/api/${originalUrl.replace(/^\/+/, "")}`;
+    }
+
+    console.log("PULSAN API:", req.method, req.url);
 
     return app(req, res);
   } catch (erro) {
-    console.error("ERRO AO INICIALIZAR API PULSAN:", erro);
+    console.error("ERRO API PULSAN:", erro);
 
-    if (res.headersSent) {
-      return res.end();
-    }
+    if (res.headersSent) return res.end();
 
     return res.status(500).json({
       sucesso: false,
-      etapa: "inicializacao_api",
-      erro: erro?.message || "Erro desconhecido ao iniciar o servidor.",
-      tipo: erro?.name || "Erro",
+      erro: erro.message || "Erro interno da API",
     });
   }
 }
