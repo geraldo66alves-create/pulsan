@@ -3,9 +3,12 @@ import cors from "cors";
 import dotenv from "dotenv";
 import { GoogleGenAI, Type } from "@google/genai";
 import { createClient } from "@supabase/supabase-js";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
 dotenv.config({
-  path: "../.env.local",
+  path: resolve(__dirname, "../.env.local"),
 });
 
 const app = express();
@@ -14,8 +17,6 @@ app.use(cors());
 app.use(express.json({ limit: "1mb" }));
 
 const PORT = process.env.PORT || 3001;
-import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
 
 // =====================================================
 // GEMINI
@@ -25,9 +26,9 @@ if (!process.env.GEMINI_API_KEY) {
   console.error("❌ GEMINI_API_KEY não encontrada no .env.local");
 }
 
-const client = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY,
-});
+const client = process.env.GEMINI_API_KEY
+  ? new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY })
+  : null;
 
 // =====================================================
 // SUPABASE
@@ -37,8 +38,16 @@ const SUPABASE_URL =
   process.env.SUPABASE_URL ||
   process.env.VITE_SUPABASE_URL;
 
+const SUPABASE_URL_NORMALIZADA =
+  SUPABASE_URL?.replace(/\/+$/, "");
+
 const SUPABASE_SERVICE_ROLE_KEY =
   process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+const SUPABASE_PUBLIC_KEY =
+  process.env.SUPABASE_ANON_KEY ||
+  process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+  process.env.VITE_SUPABASE_ANON_KEY;
 
 let supabaseAdmin = null;
 
@@ -47,7 +56,7 @@ if (
   SUPABASE_SERVICE_ROLE_KEY
 ) {
   supabaseAdmin = createClient(
-    SUPABASE_URL,
+    SUPABASE_URL_NORMALIZADA,
     SUPABASE_SERVICE_ROLE_KEY,
     {
       auth: {
@@ -66,6 +75,320 @@ if (
   console.warn(
     "⚠️ A IA continuará funcionando, mas os alertas não serão salvos."
   );
+}
+
+// =====================================================
+// PROXY DE AUTENTICAÇÃO DO SUPABASE
+// =====================================================
+app.use("/api/supabase-auth", async (req, res) => {
+  try {
+    if (!SUPABASE_URL_NORMALIZADA || !SUPABASE_PUBLIC_KEY) {
+      return res.status(503).json({
+        erro: "Supabase não configurado no servidor.",
+      });
+    }
+
+    const prefixo = "/api/supabase-auth";
+    const caminho = req.originalUrl.slice(prefixo.length) || "/";
+    const destino = new URL(
+      `/auth/v1${caminho}`,
+      SUPABASE_URL_NORMALIZADA
+    );
+
+    const metodosPermitidos = [
+      "GET",
+      "HEAD",
+      "POST",
+      "PUT",
+      "PATCH",
+      "DELETE",
+      "OPTIONS",
+    ];
+
+    if (!metodosPermitidos.includes(req.method)) {
+      return res.status(405).json({
+        erro: "Método não permitido.",
+      });
+    }
+
+    const headers = new Headers();
+    headers.set("apikey", SUPABASE_PUBLIC_KEY);
+
+    const headersPermitidos = [
+      "authorization",
+      "accept",
+      "content-type",
+      "x-client-info",
+      "x-supabase-api-version",
+    ];
+
+    for (const nome of headersPermitidos) {
+      const valor = req.headers[nome];
+      if (valor) headers.set(nome, valor);
+    }
+
+    let corpo;
+
+    if (!["GET", "HEAD", "OPTIONS"].includes(req.method)) {
+      if (req.body !== undefined) {
+        corpo = JSON.stringify(req.body);
+      }
+    }
+
+    console.log("➡️ Supabase Auth:", req.method, destino.pathname);
+
+    const resposta = await fetch(destino, {
+      method: req.method,
+      headers,
+      body: corpo,
+      redirect: "manual",
+    });
+
+    for (const nome of [
+      "content-type",
+      "cache-control",
+      "expires",
+      "pragma",
+      "location",
+    ]) {
+      const valor = resposta.headers.get(nome);
+      if (valor) res.setHeader(nome, valor);
+    }
+
+    const dados = Buffer.from(await resposta.arrayBuffer());
+
+    console.log(
+      "⬅️ Supabase Auth:",
+      resposta.status,
+      destino.pathname
+    );
+
+    return res.status(resposta.status).send(dados);
+  } catch (erro) {
+    console.error("❌ FALHA NO PROXY AUTH:", {
+      mensagem: erro.message,
+      causa: erro.cause?.message,
+      codigo: erro.cause?.code,
+      nome: erro.name,
+    });
+
+    return res.status(502).json({
+      erro: "Falha na comunicação com o Supabase Auth.",
+      detalhe: erro.cause?.message || erro.message,
+      codigo: erro.cause?.code || null,
+    });
+  }
+})
+
+
+// =====================================================
+// PROXY REST DO SUPABASE
+// =====================================================
+
+app.use("/api/supabase-rest", async (req, res) => {
+  try {
+    if (!SUPABASE_URL_NORMALIZADA || !SUPABASE_PUBLIC_KEY) {
+      return res.status(503).json({
+        erro: "Supabase não configurado no servidor.",
+      });
+    }
+
+    const prefixo = "/api/supabase-rest";
+    const caminho = req.originalUrl.slice(prefixo.length) || "/";
+    const destino = new URL(`/rest/v1${caminho}`, SUPABASE_URL_NORMALIZADA);
+
+    const metodosPermitidos = [
+      "GET",
+      "HEAD",
+      "POST",
+      "PATCH",
+      "DELETE",
+      "OPTIONS",
+    ];
+
+    if (!metodosPermitidos.includes(req.method)) {
+      return res.status(405).json({
+        erro: "Método não permitido.",
+      });
+    }
+
+    const headers = new Headers();
+
+    headers.set(
+      "apikey",
+      req.headers.apikey || SUPABASE_PUBLIC_KEY
+    );
+
+    headers.set(
+      "authorization",
+      req.headers.authorization || `Bearer ${SUPABASE_PUBLIC_KEY}`
+    );
+
+    for (const nome of [
+      "accept",
+      "content-type",
+      "prefer",
+      "range",
+      "accept-profile",
+      "content-profile",
+      "x-client-info",
+    ]) {
+      const valor = req.headers[nome];
+
+      if (valor) {
+        headers.set(
+          nome,
+          Array.isArray(valor) ? valor.join(",") : valor
+        );
+      }
+    }
+
+    let corpo;
+
+    if (
+      !["GET", "HEAD", "OPTIONS"].includes(req.method) &&
+      req.body !== undefined
+    ) {
+      corpo =
+        typeof req.body === "string"
+          ? req.body
+          : JSON.stringify(req.body);
+    }
+
+    const resposta = await fetch(destino, {
+      method: req.method,
+      headers,
+      body: corpo,
+    });
+
+    for (const nome of [
+      "content-type",
+      "content-range",
+      "accept-ranges",
+      "preference-applied",
+      "location",
+      "etag",
+    ]) {
+      const valor = resposta.headers.get(nome);
+
+      if (valor) {
+        res.setHeader(nome, valor);
+      }
+    }
+
+    res.status(resposta.status);
+
+    if (
+      req.method === "HEAD" ||
+      resposta.status === 204
+    ) {
+      return res.end();
+    }
+
+    const dados = Buffer.from(
+      await resposta.arrayBuffer()
+    );
+
+    return res.send(dados);
+  } catch (erro) {
+    console.error(
+      "❌ Erro no proxy REST do Supabase:",
+      erro
+    );
+
+    return res.status(502).json({
+      erro: "Não foi possível comunicar com o Supabase.",
+    });
+  }
+});
+
+// =====================================================
+// AUTENTICAÇÃO E SEGURANÇA DO PULSAN
+// =====================================================
+
+async function autenticarUsuario(req, res, next) {
+  try {
+    if (!supabaseAdmin) {
+      return res.status(503).json({
+        erro: "Serviço de autenticação indisponível.",
+      });
+    }
+
+    const autorizacao = req.headers.authorization || "";
+
+    if (!autorizacao.startsWith("Bearer ")) {
+      return res.status(401).json({
+        erro: "Autenticação necessária.",
+      });
+    }
+
+    const token = autorizacao.slice(7).trim();
+
+    if (!token) {
+      return res.status(401).json({
+        erro: "Token não informado.",
+      });
+    }
+
+    const {
+      data: { user },
+      error,
+    } = await supabaseAdmin.auth.getUser(token);
+
+    if (error || !user) {
+      return res.status(401).json({
+        erro: "Sessão inválida ou expirada.",
+      });
+    }
+
+    if (!user.email_confirmed_at) {
+      return res.status(403).json({
+        erro: "Confirme seu e-mail antes de continuar.",
+      });
+    }
+
+    req.usuario = user;
+
+    return next();
+  } catch (erro) {
+    console.error("Erro na autenticação:", erro);
+
+    return res.status(500).json({
+      erro: "Não foi possível validar sua sessão.",
+    });
+  }
+}
+
+async function exigirAdministrador(req, res, next) {
+  try {
+    const administradores = String(
+      process.env.PULSAN_ADMIN_EMAILS || ""
+    )
+      .split(",")
+      .map((email) => email.trim().toLowerCase())
+      .filter(Boolean);
+
+    const emailUsuario = String(
+      req.usuario?.email || ""
+    ).trim().toLowerCase();
+
+    if (
+      !emailUsuario ||
+      !administradores.includes(emailUsuario)
+    ) {
+      return res.status(403).json({
+        erro: "Você não tem permissão para executar esta ação.",
+      });
+    }
+
+    return next();
+  } catch (erro) {
+    console.error("Erro ao verificar administrador:", erro);
+
+    return res.status(500).json({
+      erro: "Não foi possível verificar suas permissões.",
+    });
+  }
 }
 
 // =====================================================
@@ -206,26 +529,13 @@ async function criarAlertaPulsan(
 
   const dadosAlerta = {
     publicacao_id: null,
-
-    classificacao:
-      resultado.classificacao,
-
-    tipo_situacao:
-      resultado.tipoSituacao,
-
-    motivo:
-      resultado.motivo || "",
-
-    prioridade:
-      resultado.prioridadeAlerta,
-
-    ambiente:
-      ambiente || "geral",
-
+    classificacao: resultado.classificacao,
+    tipo_situacao: resultado.tipoSituacao,
+    motivo: resultado.motivo || "",
+    prioridade: resultado.prioridadeAlerta,
+    ambiente: ambiente || "geral",
     resolvido: false,
-
-    texto:
-      texto.trim(),
+    texto: texto.trim(),
   };
 
   const {
@@ -335,15 +645,12 @@ async function criarAlertaPulsan(
     resultado.ambienteEscolar &&
     resultado.classificacao === "urgente"
   ) {
-    for (
-      const responsavel of responsaveisEscola
-    ) {
+    for (const responsavel of responsaveisEscola) {
       destinatarios.push({
         alerta_id: alertaId,
         psicologo_id: null,
         equipe_id: null,
-        responsavel_escola_id:
-          responsavel.id,
+        responsavel_escola_id: responsavel.id,
         recebido: false,
         visualizado: false,
       });
@@ -376,8 +683,7 @@ async function criarAlertaPulsan(
   return {
     criado: true,
     alertaId,
-    quantidadeDestinatarios:
-      destinatarios.length,
+    quantidadeDestinatarios: destinatarios.length,
   };
 }
 
@@ -583,17 +889,18 @@ Não invente contexto.
 Analise SOMENTE o conteúdo recebido.
 `;
 
+  if (!client) {
+    throw new Error("GEMINI_API_KEY não configurada no servidor.");
+  }
+
   const resposta =
     await client.models.generateContent({
       model: MODELO_IA,
       contents: textoSeguro,
       config: {
-        systemInstruction:
-          instrucoes,
-        responseMimeType:
-          "application/json",
-        responseSchema:
-          classificacaoSchema,
+        systemInstruction: instrucoes,
+        responseMimeType: "application/json",
+        responseSchema: classificacaoSchema,
       },
     });
 
@@ -661,24 +968,21 @@ Analise SOMENTE o conteúdo recebido.
   let prioridade = "nenhuma";
 
   if (
-    resultado.classificacao ===
-    "intermediario"
+    resultado.classificacao === "intermediario"
   ) {
     deveAlertar = true;
     prioridade = "media";
   }
 
   if (
-    resultado.classificacao ===
-    "grave"
+    resultado.classificacao === "grave"
   ) {
     deveAlertar = true;
     prioridade = "alta";
   }
 
   if (
-    resultado.classificacao ===
-    "urgente"
+    resultado.classificacao === "urgente"
   ) {
     deveAlertar = true;
     prioridade = "critica";
@@ -768,30 +1072,15 @@ Analise SOMENTE o conteúdo recebido.
   }
 
   return {
-    classificacao:
-      resultado.classificacao,
-
-    tipoSituacao:
-      resultado.tipoSituacao,
-
-    motivo:
-      resultado.motivo || "",
-
-    alerta:
-      deveAlertar,
-
-    prioridadeAlerta:
-      prioridade,
-
-    ambienteEscolar:
-      ehEscolar,
-
+    classificacao: resultado.classificacao,
+    tipoSituacao: resultado.tipoSituacao,
+    motivo: resultado.motivo || "",
+    alerta: deveAlertar,
+    prioridadeAlerta: prioridade,
+    ambienteEscolar: ehEscolar,
     conteudoOfensivo,
-
     categoriaOfensa,
-
     publicarPermitido,
-
     motivoModeracao,
   };
 }
@@ -828,10 +1117,6 @@ app.post(
           "desabafo"
         );
 
-      // =================================================
-      // BLOQUEAR PUBLICAÇÃO OFENSIVA
-      // =================================================
-
       if (
         resultado.publicarPermitido === false
       ) {
@@ -841,10 +1126,6 @@ app.post(
           alertaId: null,
         });
       }
-
-      // =================================================
-      // CRIAR ALERTA AUTOMATICAMENTE
-      // =================================================
 
       let alertaBanco = {
         criado: false,
@@ -868,12 +1149,8 @@ app.post(
 
       return res.json({
         ...resultado,
-
-        alertaCriado:
-          alertaBanco.criado || false,
-
-        alertaId:
-          alertaBanco.alertaId || null,
+        alertaCriado: alertaBanco.criado || false,
+        alertaId: alertaBanco.alertaId || null,
       });
 
     } catch (erro) {
@@ -883,8 +1160,7 @@ app.post(
       );
 
       return res.status(500).json({
-        erro:
-          "Não foi possível analisar o desabafo.",
+        erro: "Não foi possível analisar o desabafo.",
       });
     }
   }
@@ -928,8 +1204,7 @@ app.post(
       );
 
       return res.status(500).json({
-        erro:
-          "Não foi possível analisar a mensagem.",
+        erro: "Não foi possível analisar a mensagem.",
       });
     }
   }
@@ -972,8 +1247,7 @@ app.post(
       );
 
       return res.status(500).json({
-        erro:
-          "Não foi possível analisar a conversa escolar.",
+        erro: "Não foi possível analisar a conversa escolar.",
       });
     }
   }
@@ -989,16 +1263,14 @@ app.get(
     try {
       if (!supabaseAdmin) {
         return res.status(503).json({
-          erro:
-            "Supabase administrativo não configurado.",
+          erro: "Supabase administrativo não configurado.",
           alertas: [],
         });
       }
 
       const tipo =
         String(
-          req.query.tipo ||
-          "equipe_pulsan"
+          req.query.tipo || "equipe_pulsan"
         ).toLowerCase();
 
       let query =
@@ -1011,58 +1283,29 @@ app.get(
             ascending: false,
           });
 
-      // -----------------------------------------------
-      // EQUIPE PULSAN
-      // -----------------------------------------------
-
-      if (
-        tipo === "equipe_pulsan"
-      ) {
-        query =
-          query.not(
-            "equipe_id",
-            "is",
-            null
-          );
-      }
-
-      // -----------------------------------------------
-      // PSICÓLOGO
-      // -----------------------------------------------
-
-      else if (
-        tipo === "psicologo"
-      ) {
-        const psicologoId =
-          req.query.psicologoId;
+      if (tipo === "equipe_pulsan") {
+        query = query.not("equipe_id", "is", null);
+      } else if (tipo === "psicologo") {
+        const psicologoId = req.query.psicologoId;
 
         if (!psicologoId) {
           return res.status(400).json({
-            erro:
-              "psicologoId não informado.",
+            erro: "psicologoId não informado.",
             alertas: [],
           });
         }
 
-        query =
-          query.eq(
-            "psicologo_id",
-            psicologoId
-          );
-      }
-
-      else {
+        query = query.eq("psicologo_id", psicologoId);
+      } else {
         return res.status(400).json({
-          erro:
-            "Tipo de destinatário inválido.",
+          erro: "Tipo de destinatário inválido.",
           alertas: [],
         });
       }
 
       const {
         data: destinatarios,
-        error:
-          erroDestinatarios,
+        error: erroDestinatarios,
       } = await query;
 
       if (erroDestinatarios) {
@@ -1072,8 +1315,7 @@ app.get(
         );
 
         return res.status(500).json({
-          erro:
-            "Não foi possível buscar os destinatários dos alertas.",
+          erro: "Não foi possível buscar os destinatários dos alertas.",
           alertas: [],
         });
       }
@@ -1087,22 +1329,13 @@ app.get(
         });
       }
 
-      // -----------------------------------------------
-      // BUSCAR IDS DOS ALERTAS
-      // -----------------------------------------------
-
       const idsAlertas = [
         ...new Set(
           destinatarios.map(
-            (item) =>
-              item.alerta_id
+            (item) => item.alerta_id
           )
         ),
       ];
-
-      // -----------------------------------------------
-      // BUSCAR ALERTAS
-      // -----------------------------------------------
 
       const {
         data: alertasBanco,
@@ -1110,10 +1343,7 @@ app.get(
       } = await supabaseAdmin
         .from("alertas_ia")
         .select("*")
-        .in(
-          "id",
-          idsAlertas
-        )
+        .in("id", idsAlertas)
         .order("id", {
           ascending: false,
         });
@@ -1125,8 +1355,7 @@ app.get(
         );
 
         return res.status(500).json({
-          erro:
-            "Não foi possível buscar os alertas.",
+          erro: "Não foi possível buscar os alertas.",
           alertas: [],
         });
       }
@@ -1141,41 +1370,25 @@ app.get(
           )
         );
 
-      // -----------------------------------------------
-      // JUNTAR ALERTA + DESTINATÁRIO
-      // -----------------------------------------------
-
       const alertas =
         destinatarios
-          .map(
-            (destinatario) => {
-              const alerta =
-                mapaAlertas.get(
-                  destinatario.alerta_id
-                );
+          .map((destinatario) => {
+            const alerta =
+              mapaAlertas.get(
+                destinatario.alerta_id
+              );
 
-              if (!alerta) {
-                return null;
-              }
-
-              return {
-                ...alerta,
-
-                destinatario_id:
-                  destinatario.id,
-
-                visualizado:
-                  Boolean(
-                    destinatario.visualizado
-                  ),
-
-                recebido:
-                  Boolean(
-                    destinatario.recebido
-                  ),
-              };
+            if (!alerta) {
+              return null;
             }
-          )
+
+            return {
+              ...alerta,
+              destinatario_id: destinatario.id,
+              visualizado: Boolean(destinatario.visualizado),
+              recebido: Boolean(destinatario.recebido),
+            };
+          })
           .filter(Boolean);
 
       return res.json({
@@ -1189,8 +1402,7 @@ app.get(
       );
 
       return res.status(500).json({
-        erro:
-          "Não foi possível carregar os alertas.",
+        erro: "Não foi possível carregar os alertas.",
         alertas: [],
       });
     }
@@ -1207,18 +1419,15 @@ app.patch(
     try {
       if (!supabaseAdmin) {
         return res.status(503).json({
-          erro:
-            "Supabase administrativo não configurado.",
+          erro: "Supabase administrativo não configurado.",
         });
       }
 
-      const alertaId =
-        req.params.id;
+      const alertaId = req.params.id;
 
       if (!alertaId) {
         return res.status(400).json({
-          erro:
-            "ID do alerta não informado.",
+          erro: "ID do alerta não informado.",
         });
       }
 
@@ -1226,22 +1435,13 @@ app.patch(
         data,
         error,
       } = await supabaseAdmin
-        .from(
-          "destinatarios_alerta"
-        )
+        .from("destinatarios_alerta")
         .update({
           visualizado: true,
           recebido: true,
         })
-        .eq(
-          "alerta_id",
-          alertaId
-        )
-        .not(
-          "equipe_id",
-          "is",
-          null
-        )
+        .eq("alerta_id", alertaId)
+        .not("equipe_id", "is", null)
         .select(
           "id, alerta_id, equipe_id, visualizado, recebido"
         );
@@ -1253,18 +1453,14 @@ app.patch(
         );
 
         return res.status(500).json({
-          erro:
-            "Não foi possível marcar o alerta como visualizado.",
+          erro: "Não foi possível marcar o alerta como visualizado.",
         });
       }
 
       return res.json({
         sucesso: true,
-
         alertaId,
-
-        destinatariosAtualizados:
-          data?.length || 0,
+        destinatariosAtualizados: data?.length || 0,
       });
 
     } catch (erro) {
@@ -1274,8 +1470,7 @@ app.patch(
       );
 
       return res.status(500).json({
-        erro:
-          "Não foi possível atualizar o alerta.",
+        erro: "Não foi possível atualizar o alerta.",
       });
     }
   }
@@ -1285,199 +1480,235 @@ app.patch(
 // ATUALIZAR VERIFICAÇÃO DO PSICÓLOGO
 // =====================================================
 
-app.patch("/api/psicologos/:id/verificacao", async (req, res) => {
-  try {
-    if (!supabaseAdmin) {
-      return res.status(503).json({
-        erro: "Supabase administrativo não configurado.",
-      });
-    }
+app.patch(
+  "/api/psicologos/:id/verificacao",
+  autenticarUsuario,
+  exigirAdministrador,
+  async (req, res) => {
+    try {
+      if (!supabaseAdmin) {
+        return res.status(503).json({
+          erro: "Supabase administrativo não configurado.",
+        });
+      }
 
-    const { verificado } = req.body;
+      const { verificado } = req.body;
 
-    if (typeof verificado !== "boolean") {
-      return res.status(400).json({
-        erro: "O campo verificado deve ser true ou false.",
-      });
-    }
+      if (typeof verificado !== "boolean") {
+        return res.status(400).json({
+          erro: "O campo verificado deve ser true ou false.",
+        });
+      }
 
-    const { data: psicologoAtual, error: erroBusca } =
-      await supabaseAdmin
+      const {
+        data: psicologoAtual,
+        error: erroBusca,
+      } = await supabaseAdmin
         .from("psicologos")
         .select("id, usuario_id, nome, email, crp")
         .eq("id", req.params.id)
         .maybeSingle();
 
-    if (erroBusca) {
-      console.error("Erro ao buscar psicólogo:", erroBusca);
-      return res.status(500).json({
-        erro: "Não foi possível localizar o psicólogo.",
-      });
-    }
-
-    if (!psicologoAtual) {
-      return res.status(404).json({
-        erro: "Psicólogo não encontrado.",
-      });
-    }
-
-    const status = verificado ? "aprovado" : "recusado";
-
-    const { data, error } = await supabaseAdmin
-      .from("psicologos")
-      .update({
-        verificado,
-        disponivel: verificado,
-        ativo: verificado,
-      })
-      .eq("id", req.params.id)
-      .select(
-        "id, usuario_id, nome, email, telefone, crp, estado_crp, area_atuacao, verificado, ativo, disponivel, created_at"
-      )
-      .single();
-
-    if (error) {
-      console.error("Erro ao atualizar psicólogo:", error);
-
-      return res.status(500).json({
-        erro: "Não foi possível atualizar o psicólogo.",
-        detalhes: error.message,
-      });
-    }
-
-    // Mantém o status da solicitação também no perfil do usuário.
-    if (psicologoAtual.usuario_id) {
-      const { error: erroPerfil } = await supabaseAdmin
-        .from("perfis")
-        .update({
-          verificacao_psicologo: status,
-          psicologo_parceiro: verificado,
-        })
-        .eq("id", psicologoAtual.usuario_id);
-
-      if (erroPerfil) {
+      if (erroBusca) {
         console.error(
-          "⚠️ Psicólogo atualizado, mas não foi possível atualizar o perfil:",
-          erroPerfil
+          "Erro ao buscar psicólogo:",
+          erroBusca
         );
+
+        return res.status(500).json({
+          erro: "Não foi possível localizar o psicólogo.",
+        });
       }
+
+      if (!psicologoAtual) {
+        return res.status(404).json({
+          erro: "Psicólogo não encontrado.",
+        });
+      }
+
+      const status = verificado ? "aprovado" : "recusado";
+
+      const {
+        data,
+        error,
+      } = await supabaseAdmin
+        .from("psicologos")
+        .update({
+          verificado,
+          disponivel: verificado,
+          ativo: verificado,
+        })
+        .eq("id", req.params.id)
+        .select(
+          "id, usuario_id, nome, email, telefone, crp, estado_crp, area_atuacao, verificado, ativo, disponivel, created_at"
+        )
+        .single();
+
+      if (error) {
+        console.error(
+          "Erro ao atualizar psicólogo:",
+          error
+        );
+
+        return res.status(500).json({
+          erro: "Não foi possível atualizar o psicólogo.",
+          detalhes: error.message,
+        });
+      }
+
+      if (psicologoAtual.usuario_id) {
+        const { error: erroPerfil } = await supabaseAdmin
+          .from("perfis")
+          .update({
+            verificacao_psicologo: status,
+            psicologo_parceiro: verificado,
+          })
+          .eq("id", psicologoAtual.usuario_id);
+
+        if (erroPerfil) {
+          console.error(
+            "⚠️ Psicólogo atualizado, mas não foi possível atualizar o perfil:",
+            erroPerfil
+          );
+        }
+      }
+
+      return res.json({
+        sucesso: true,
+        status,
+        psicologo: data,
+      });
+    } catch (error) {
+      console.error(
+        "Erro na verificação do psicólogo:",
+        error
+      );
+
+      return res.status(500).json({
+        erro: "Erro interno ao atualizar psicólogo.",
+      });
     }
-
-    return res.json({
-      sucesso: true,
-      status,
-      psicologo: data,
-    });
-  } catch (error) {
-    console.error("Erro na verificação do psicólogo:", error);
-
-    return res.status(500).json({
-      erro: "Erro interno ao atualizar psicólogo.",
-    });
   }
-});
+);
 
 // =====================================================
 // LISTAR PSICÓLOGOS
 // =====================================================
 
-app.get("/api/psicologos", async (req, res) => {
-  try {
-    if (!supabaseAdmin) {
-      return res.status(503).json({
-        erro: "Supabase administrativo não configurado.",
-        psicologos: [],
+app.get(
+  "/api/psicologos",
+  autenticarUsuario,
+  exigirAdministrador,
+  async (req, res) => {
+    try {
+      if (!supabaseAdmin) {
+        return res.status(503).json({
+          erro: "Supabase administrativo não configurado.",
+          psicologos: [],
+        });
+      }
+
+      const {
+        data: psicologosBanco,
+        error,
+      } = await supabaseAdmin
+        .from("psicologos")
+        .select(
+          "id, usuario_id, nome, email, telefone, crp, estado_crp, area_atuacao, verificado, ativo, disponivel, created_at"
+        )
+        .order("created_at", {
+          ascending: false,
+        });
+
+      if (error) {
+        console.error(
+          "Erro ao buscar psicólogos:",
+          error
+        );
+
+        return res.status(500).json({
+          erro: "Não foi possível buscar os psicólogos.",
+          psicologos: [],
+        });
+      }
+
+      const lista = psicologosBanco || [];
+
+      const usuarioIds = [
+        ...new Set(
+          lista
+            .map((psicologo) => psicologo.usuario_id)
+            .filter(Boolean)
+        ),
+      ];
+
+      let perfisPorUsuario = new Map();
+
+      if (usuarioIds.length > 0) {
+        const {
+          data: perfis,
+          error: erroPerfis,
+        } = await supabaseAdmin
+          .from("perfis")
+          .select("id, verificacao_psicologo, psicologo_parceiro")
+          .in("id", usuarioIds);
+
+        if (erroPerfis) {
+          console.error(
+            "⚠️ Não foi possível carregar os status dos perfis:",
+            erroPerfis
+          );
+        } else {
+          perfisPorUsuario = new Map(
+            (perfis || []).map((perfil) => [
+              perfil.id,
+              perfil,
+            ])
+          );
+        }
+      }
+
+      const psicologos = lista.map((psicologo) => {
+        const perfil = perfisPorUsuario.get(psicologo.usuario_id);
+
+        let verificacao_psicologo = "pendente";
+
+        if (
+          perfil?.verificacao_psicologo === "aprovado" ||
+          psicologo.verificado === true
+        ) {
+          verificacao_psicologo = "aprovado";
+        } else if (
+          perfil?.verificacao_psicologo === "recusado"
+        ) {
+          verificacao_psicologo = "recusado";
+        }
+
+        return {
+          ...psicologo,
+          verificacao_psicologo,
+          psicologo_parceiro:
+            Boolean(perfil?.psicologo_parceiro) ||
+            psicologo.verificado === true,
+        };
       });
-    }
 
-    const { data: psicologosBanco, error } = await supabaseAdmin
-      .from("psicologos")
-      .select(
-        "id, usuario_id, nome, email, telefone, crp, estado_crp, area_atuacao, verificado, ativo, disponivel, created_at"
-      )
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      console.error("Erro ao buscar psicólogos:", error);
+      return res.json({
+        psicologos,
+      });
+    } catch (erro) {
+      console.error(
+        "Erro inesperado:",
+        erro
+      );
 
       return res.status(500).json({
-        erro: "Não foi possível buscar os psicólogos.",
+        erro: "Erro inesperado ao buscar os psicólogos.",
         psicologos: [],
       });
     }
-
-    const lista = psicologosBanco || [];
-    const usuarioIds = [
-      ...new Set(
-        lista
-          .map((psicologo) => psicologo.usuario_id)
-          .filter(Boolean)
-      ),
-    ];
-
-    let perfisPorUsuario = new Map();
-
-    if (usuarioIds.length > 0) {
-      const {
-        data: perfis,
-        error: erroPerfis,
-      } = await supabaseAdmin
-        .from("perfis")
-        .select("id, verificacao_psicologo, psicologo_parceiro")
-        .in("id", usuarioIds);
-
-      if (erroPerfis) {
-        console.error(
-          "⚠️ Não foi possível carregar os status dos perfis:",
-          erroPerfis
-        );
-      } else {
-        perfisPorUsuario = new Map(
-          (perfis || []).map((perfil) => [
-            perfil.id,
-            perfil,
-          ])
-        );
-      }
-    }
-
-    const psicologos = lista.map((psicologo) => {
-      const perfil = perfisPorUsuario.get(psicologo.usuario_id);
-
-      let verificacao_psicologo = "pendente";
-
-      if (
-        perfil?.verificacao_psicologo === "aprovado" ||
-        psicologo.verificado === true
-      ) {
-        verificacao_psicologo = "aprovado";
-      } else if (
-        perfil?.verificacao_psicologo === "recusado"
-      ) {
-        verificacao_psicologo = "recusado";
-      }
-
-      return {
-        ...psicologo,
-        verificacao_psicologo,
-        psicologo_parceiro:
-          Boolean(perfil?.psicologo_parceiro) ||
-          psicologo.verificado === true,
-      };
-    });
-
-    return res.json({
-      psicologos,
-    });
-  } catch (erro) {
-    console.error("Erro inesperado:", erro);
-
-    return res.status(500).json({
-      erro: "Erro inesperado ao buscar psicólogos.",
-      psicologos: [],
-    });
   }
-});
+);
 
 // =====================================================
 // STATUS
@@ -1488,14 +1719,9 @@ app.get(
   (req, res) => {
     res.json({
       funcionando: true,
-
       sistema: "Pulsan IA",
-
       modelo: MODELO_IA,
-
-      supabase:
-        Boolean(supabaseAdmin),
-
+      supabase: Boolean(supabaseAdmin),
       endpoints: [
         "/api/analisar-desabafo",
         "/api/analisar-mensagem",
@@ -1517,8 +1743,7 @@ app.post(
     try {
       if (!supabaseAdmin) {
         return res.status(503).json({
-          erro:
-            "Supabase administrativo não configurado.",
+          erro: "Supabase administrativo não configurado.",
         });
       }
 
@@ -1539,8 +1764,7 @@ app.post(
         !crp
       ) {
         return res.status(400).json({
-          erro:
-            "Usuário, nome, e-mail e CRP são obrigatórios.",
+          erro: "Usuário, nome, e-mail e CRP são obrigatórios.",
         });
       }
 
@@ -1560,15 +1784,13 @@ app.post(
         );
 
         return res.status(500).json({
-          erro:
-            "Não foi possível verificar o cadastro.",
+          erro: "Não foi possível verificar o cadastro.",
         });
       }
 
       if (psicologoExistente) {
         return res.status(409).json({
-          erro:
-            "Este e-mail já está cadastrado como psicólogo.",
+          erro: "Este e-mail já está cadastrado como psicólogo.",
         });
       }
 
@@ -1601,8 +1823,7 @@ app.post(
         );
 
         return res.status(500).json({
-          erro:
-            "Não foi possível salvar o psicólogo no Supabase.",
+          erro: "Não foi possível salvar o psicólogo no Supabase.",
         });
       }
 
@@ -1636,8 +1857,7 @@ app.post(
       );
 
       return res.status(500).json({
-        erro:
-          "Erro inesperado ao cadastrar psicólogo.",
+        erro: "Erro inesperado ao cadastrar psicólogo.",
       });
     }
   }
@@ -1647,74 +1867,78 @@ app.post(
 // REFLEXÃO PARA NOTIFICAÇÃO
 // =====================================================
 
-app.get("/api/notificacoes/reflexao", async (req, res) => {
-  try {
-    if (!supabaseAdmin) {
-      return res.status(503).json({
-        erro: "Supabase administrativo não configurado.",
+app.get(
+  "/api/notificacoes/reflexao",
+  async (req, res) => {
+    try {
+      if (!supabaseAdmin) {
+        return res.status(503).json({
+          erro: "Supabase administrativo não configurado.",
+        });
+      }
+
+      const agora = new Date();
+
+      const horarioAtual = agora
+        .toTimeString()
+        .slice(0, 8);
+
+      const {
+        data,
+        error,
+      } = await supabaseAdmin
+        .from("reflexoes_notificacoes")
+        .select("*")
+        .eq("ativa", true)
+        .lte("horario", horarioAtual)
+        .order("horario", {
+          ascending: false,
+        })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        console.error(
+          "❌ Erro ao buscar reflexão:",
+          error
+        );
+
+        return res.status(500).json({
+          erro: "Não foi possível buscar a reflexão.",
+        });
+      }
+
+      if (!data) {
+        return res.status(404).json({
+          erro: "Nenhuma reflexão disponível.",
+        });
+      }
+
+      return res.json({
+        sucesso: true,
+        reflexao: data,
       });
-    }
-
-    const agora = new Date();
-
-    const horarioAtual = agora
-      .toTimeString()
-      .slice(0, 8);
-
-    const {
-      data,
-      error,
-    } = await supabaseAdmin
-      .from("reflexoes_notificacoes")
-      .select("*")
-      .eq("ativa", true)
-      .lte("horario", horarioAtual)
-      .order("horario", {
-        ascending: false,
-      })
-      .limit(1)
-      .maybeSingle();
-
-    if (error) {
+    } catch (erro) {
       console.error(
-        "❌ Erro ao buscar reflexão:",
-        error
+        "❌ Erro inesperado ao buscar reflexão:",
+        erro
       );
 
       return res.status(500).json({
-        erro: "Não foi possível buscar a reflexão.",
+        erro: "Erro interno ao buscar reflexão.",
       });
     }
-
-    if (!data) {
-      return res.status(404).json({
-        erro: "Nenhuma reflexão disponível.",
-      });
-    }
-
-    return res.json({
-      sucesso: true,
-      reflexao: data,
-    });
-  } catch (erro) {
-    console.error(
-      "❌ Erro inesperado ao buscar reflexão:",
-      erro
-    );
-
-    return res.status(500).json({
-      erro: "Erro interno ao buscar reflexão.",
-    });
   }
-});
+);
 
 // =====================================================
 // SERVIDOR
 // =====================================================
 
-app.listen(
-  PORT,
-  () => {
+export default app;
+
+if (process.env.VERCEL !== "1") {
+  app.listen(PORT, () => {
     console.log(
       `🤖 Pulsan IA funcionando na porta ${PORT}`
     );
@@ -1722,5 +1946,5 @@ app.listen(
     console.log(
       `📡 http://localhost:${PORT}/api/status`
     );
-  }
-);
+  });
+}

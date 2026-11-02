@@ -1,9 +1,10 @@
+
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), "");
+  loadEnv(mode, process.cwd(), "");
 
   return {
     plugins: [
@@ -19,8 +20,7 @@ export default defineConfig(({ mode }) => {
         manifest: {
           name: "Pulsan – ajuda anônima a quem precisa",
           short_name: "Pulsan",
-          description:
-            "Pulsan é uma plataforma de apoio emocional e ajuda anônima.",
+          description: "Pulsan é uma plataforma de apoio emocional e ajuda anônima.",
           theme_color: "#0F2D5B",
           background_color: "#FFFFFF",
           display: "standalone",
@@ -46,14 +46,18 @@ export default defineConfig(({ mode }) => {
     ],
     server: {
       proxy: {
-        "/api/supabase-rest": {
-          target: env.VITE_SUPABASE_URL,
+        "/api/supabase-auth": {
+          target: "http://localhost:3001",
           changeOrigin: true,
-          secure: true,
-          rewrite: (path) =>
-            path.replace(/^\/api\/supabase-rest/, "/rest/v1"),
+          secure: false,
+        },
+        "/api/supabase-rest": {
+          target: "http://localhost:3001",
+          changeOrigin: true,
+          secure: false,
         },
       },
     },
   };
 });
+
