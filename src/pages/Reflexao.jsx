@@ -159,7 +159,7 @@ const iconesSentimento = {
   irritado: "spark",
   vazio: "eye",
   desanimado: "leaf",
-  medo: "eye",
+  desmotivado: "wind",
   inseguro: "mirror",
   sobrecarregado: "briefcase",
   frustrado: "spark",
@@ -533,50 +533,47 @@ const sentimentos = [
   },
 
   {
-    id: "medo",
-    icone: "eye",
-    nome: "Com medo",
-    descricao: "Talvez o medo esteja tentando dizer alguma coisa.",
-
+    id: "desmotivado",
+    icone: "wind",
+    nome: "Desmotivado",
+    descricao: "Talvez esteja difícil encontrar ânimo até para começar.",
     reflexoes: [
-      "O medo nem sempre está dizendo para você parar. Às vezes, está dizendo que aquilo importa.",
-      "Você tem medo de fracassar ou medo de descobrir que consegue?",
-      "Quantas decisões você já tomou apenas para não sentir medo?",
-      "Talvez coragem não seja ausência de medo. Talvez seja não deixar que ele escolha tudo por você.",
-      "Você está protegendo sua paz ou evitando uma possibilidade?",
-      "O medo está te impedindo de viver ou está mostrando algo que precisa ser compreendido?",
-      "Talvez você possa dar um passo pequeno em vez de exigir de si mesmo um salto enorme.",
+      "Tem dias em que até aquilo de que você gosta parece exigir uma energia que não está sobrando.",
+      "Você está sem vontade de fazer as coisas ou está cansado de tentar e não ver resultado?",
+      "Nem sempre a falta de motivação é falta de interesse. Às vezes, é o peso de muita coisa acumulada.",
+      "Você não precisa esperar a vontade aparecer para dar um passo pequeno, mas também não precisa se cobrar como se estivesse tudo bem.",
+      "O que costumava despertar sua vontade e que, ultimamente, parece ter perdido a graça?",
+      "Talvez hoje a meta não seja recuperar todo o seu ânimo, mas encontrar uma coisa possível para começar.",
+      "Você tem se comparado com uma versão sua que tinha mais energia, sem considerar tudo o que está enfrentando agora?",
     ],
-
     sons: [
       {
-        nome: "Som ambiente",
-        descricao: "para desacelerar",
-        arquivo: "/sons/ambiente.mp3",
-        icone: "wind",
+        nome: "Floresta",
+        descricao: "para respirar e recomeçar no seu ritmo",
+        arquivo: "/sons/floresta.mp3",
+        icone: "leaf",
       },
       {
         nome: "Ondas",
-        descricao: "para acalmar",
+        descricao: "para desacelerar a cobrança",
         arquivo: "/sons/ondas.mp3",
         icone: "waves",
       },
       {
-        nome: "Chuva",
-        descricao: "para voltar ao presente",
-        arquivo: "/sons/chuva.mp3",
-        icone: "cloudRain",
+        nome: "Piano suave",
+        descricao: "para organizar os pensamentos",
+        arquivo: "/sons/piano.mp3",
+        icone: "piano",
       },
     ],
-
     momento: {
-      titulo: "E se o medo não precisasse decidir por você?",
+      titulo: "Você não precisa recuperar todo o ânimo hoje.",
       descricao:
-        "Você não precisa deixar de sentir medo para começar a caminhar.",
-      video: "/videos/medo.mp4",
-      audio: "/sons/medo.mp3",
+        "Quando a motivação diminui, até tarefas simples podem parecer grandes. Talvez seja possível começar por algo pequeno, sem transformar esse momento em mais uma cobrança.",
+      video: "/videos/desmotivado.mp4",
+      audio: "/sons/desmotivado.mp3",
       reflexao:
-        "O que você faria hoje se tivesse certeza de que poderia tentar novamente caso desse errado?",
+        "Qual é uma coisa pequena que você conseguiria fazer hoje, mesmo sem estar com vontade?",
     },
   },
 
@@ -815,6 +812,7 @@ const sentimentos = [
 function Reflexao({ irPara, tema, alterarTema }) {
   const [sentimentoSelecionado, setSentimentoSelecionado] = useState(null);
   const [cardAtual, setCardAtual] = useState(0);
+  const [compartilhando, setCompartilhando] = useState(false);
 
   // Reflexões carregadas do Supabase
   const [reflexoesBanco, setReflexoesBanco] = useState([]);
@@ -1214,11 +1212,7 @@ function Reflexao({ irPara, tema, alterarTema }) {
     setCarregandoFrasePulsan(true);
 
     const sentimentoBanco =
-      id === "pensando"
-        ? "pensando demais"
-        : id === "medo"
-          ? "com medo"
-          : id;
+      id === "pensando" ? "pensando demais" : id;
 
     const { data, error } = await supabase
       .from("frases_pulsan")
@@ -1366,11 +1360,7 @@ function Reflexao({ irPara, tema, alterarTema }) {
 
 
     const sentimentoBanco =
-      id === "pensando"
-        ? "pensando demais"
-        : id === "medo"
-          ? "com medo"
-          : id;
+      id === "pensando" ? "pensando demais" : id;
 
     const { data, error } = await supabase
       .from("reflexoes")
@@ -2159,6 +2149,168 @@ function Reflexao({ irPara, tema, alterarTema }) {
   const reflexaoAtual =
     sentimentoComReflexoes.reflexoes[cardAtual];
 
+  // Cada emoção possui uma identidade visual própria no card compartilhado.
+  const temasCompartilhamento = {
+    cansado: { fundo: ["#102B4E", "#315C86"], detalhe: "#B8D7F4", texto: "#FFFFFF", etiqueta: "UM MOMENTO PARA DESCANSAR" },
+    ansioso: { fundo: ["#DCEEFF", "#A8C7E8"], detalhe: "#FFFFFF", texto: "#17385B", etiqueta: "VOLTE PARA O PRESENTE" },
+    triste: { fundo: ["#292B49", "#77718F"], detalhe: "#DCD5F0", texto: "#FFFFFF", etiqueta: "UM ESPAÇO PARA SENTIR" },
+    pensando: { fundo: ["#E6E9F4", "#B8C5DD"], detalhe: "#FFFFFF", texto: "#263957", etiqueta: "UM RESPIRO PARA A MENTE" },
+    irritado: { fundo: ["#452B2B", "#A65D48"], detalhe: "#F5C7A6", texto: "#FFFFFF", etiqueta: "RESPEITE O QUE VOCÊ SENTE" },
+    vazio: { fundo: ["#101D35", "#354D70"], detalhe: "#A9C4E8", texto: "#FFFFFF", etiqueta: "UM MOMENTO DE REFLEXÃO" },
+    desanimado: { fundo: ["#244B3B", "#8AAE8A"], detalhe: "#DCEBD4", texto: "#FFFFFF", etiqueta: "UM PASSO DE CADA VEZ" },
+    desmotivado: { fundo: ["#173D32", "#83A98B"], detalhe: "#DCEFD9", texto: "#FFFFFF", etiqueta: "SEU TEMPO TAMBÉM IMPORTA" },
+    inseguro: { fundo: ["#34304F", "#9186B5"], detalhe: "#E3DDF5", texto: "#FFFFFF", etiqueta: "LEMBRE-SE DO SEU VALOR" },
+    sobrecarregado: { fundo: ["#263C50", "#7894A5"], detalhe: "#D5E5EA", texto: "#FFFFFF", etiqueta: "VOCÊ NÃO PRECISA CARREGAR TUDO" },
+    frustrado: { fundo: ["#493B32", "#B58B65"], detalhe: "#F2D8B8", texto: "#FFFFFF", etiqueta: "SEU ESFORÇO TEM VALOR" },
+    futuro: { fundo: ["#203B60", "#8CAFCB"], detalhe: "#E2F0FC", texto: "#FFFFFF", etiqueta: "UM PASSO DE CADA VEZ" },
+    depressivo: { fundo: ["#26344D", "#7889A5"], detalhe: "#D9E1F0", texto: "#FFFFFF", etiqueta: "VOCÊ MERECE ACOLHIMENTO" },
+    solitario: { fundo: ["#3D3453", "#9A87A9"], detalhe: "#E9DDF0", texto: "#FFFFFF", etiqueta: "VOCÊ MERECE CONEXÃO" },
+    "sem-esperanca": { fundo: ["#26364A", "#647D91"], detalhe: "#DCE8EE", texto: "#FFFFFF", etiqueta: "VOCÊ NÃO ESTÁ SOZINHO" },
+  };
+
+  async function compartilharReflexao() {
+    if (!reflexaoAtual || !sentimento) return;
+    setCompartilhando(true);
+    try {
+      const tema = temasCompartilhamento[sentimento.id] || {
+        fundo: ["#173D32", "#83A98B"], detalhe: "#DCEFD9", texto: "#FFFFFF", etiqueta: "UMA REFLEXÃO PARA VOCÊ",
+      };
+      const canvas = document.createElement("canvas");
+      canvas.width = 1080;
+      canvas.height = 1350;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Não foi possível preparar a imagem.");
+
+      const gradiente = ctx.createLinearGradient(0, 0, 1080, 1350);
+      gradiente.addColorStop(0, tema.fundo[0]);
+      gradiente.addColorStop(1, tema.fundo[1]);
+      ctx.fillStyle = gradiente;
+      ctx.fillRect(0, 0, 1080, 1350);
+
+      // Elementos abstratos variam com a emoção e não interferem na leitura.
+      ctx.globalAlpha = 0.13;
+      ctx.strokeStyle = tema.detalhe;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(920, 190, 210, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(920, 190, 155, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(120, 1190, 250, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+
+      ctx.fillStyle = tema.detalhe;
+      ctx.font = "600 28px Arial, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("P U L S A N", 540, 125);
+      ctx.font = "500 23px Arial, sans-serif";
+      ctx.globalAlpha = 0.9;
+      ctx.fillText(tema.etiqueta, 540, 245);
+      ctx.globalAlpha = 1;
+
+      ctx.fillStyle = tema.texto;
+      ctx.font = "700 36px Arial, sans-serif";
+      ctx.fillText(sentimento.nome.toLocaleUpperCase("pt-BR"), 540, 335);
+
+      // A tipografia se adapta ao tamanho da reflexão: frases curtas ficam
+      // maiores; frases longas diminuem gradualmente para caber sem cortes.
+      const frase = `“${String(reflexaoAtual).trim()}”`;
+      const maxWidth = 900;
+      const areaTextoTopo = 410;
+      const areaTextoBase = 1080;
+      const alturaMaximaTexto = areaTextoBase - areaTextoTopo;
+      const palavras = frase.split(/\\s+/);
+      let linhas = [];
+      let tamanhoFonte = 76;
+      let alturaLinha = 0;
+
+      for (let tamanho = 76; tamanho >= 42; tamanho -= 2) {
+        ctx.font = `700 ${tamanho}px Georgia, serif`;
+        const linhasTeste = [];
+        let linhaTeste = "";
+
+        palavras.forEach((palavra) => {
+          const teste = linhaTeste ? `${linhaTeste} ${palavra}` : palavra;
+          if (ctx.measureText(teste).width > maxWidth && linhaTeste) {
+            linhasTeste.push(linhaTeste);
+            linhaTeste = palavra;
+          } else {
+            linhaTeste = teste;
+          }
+        });
+        if (linhaTeste) linhasTeste.push(linhaTeste);
+
+        const alturaTeste = Math.round(tamanho * 1.28);
+        const totalAltura = linhasTeste.length * alturaTeste;
+        if (totalAltura <= alturaMaximaTexto) {
+          tamanhoFonte = tamanho;
+          alturaLinha = alturaTeste;
+          linhas = linhasTeste;
+          break;
+        }
+      }
+
+      ctx.font = `700 ${tamanhoFonte}px Georgia, serif`;
+      const alturaTexto = linhas.length * alturaLinha;
+      let y = areaTextoTopo + (alturaMaximaTexto - alturaTexto) / 2 + tamanhoFonte;
+      linhas.forEach((texto) => {
+        ctx.fillText(texto, 540, y, maxWidth);
+        y += alturaLinha;
+      });
+
+      ctx.globalAlpha = 0.8;
+      ctx.fillStyle = tema.detalhe;
+      ctx.font = "400 25px Arial, sans-serif";
+      ctx.fillText("Uma reflexão para levar com você.", 540, 1190);
+      ctx.font = "700 24px Arial, sans-serif";
+      ctx.fillText("PULSAN  •  CUIDADO E ACOLHIMENTO", 540, 1270);
+      ctx.globalAlpha = 1;
+
+      const blob = await new Promise((resolve, reject) => {
+        canvas.toBlob((resultado) => resultado ? resolve(resultado) : reject(new Error("Falha ao gerar a imagem.")), "image/png");
+      });
+      const nomeArquivo = `pulsan-${sentimento.id}-${Date.now()}.png`;
+      const arquivo = new File([blob], nomeArquivo, { type: "image/png" });
+
+      if (navigator.canShare?.({ files: [arquivo] }) && navigator.share) {
+        await navigator.share({
+          files: [arquivo],
+          title: `Reflexão Pulsan — ${sentimento.nome}`,
+          text: "Uma reflexão para levar com você.",
+        });
+      } else {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = nomeArquivo;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+        if (navigator.share) {
+          try {
+            await navigator.share({
+              title: `Reflexão Pulsan — ${sentimento.nome}`,
+              text: `“${reflexaoAtual}” — Uma reflexão Pulsan.`,
+            });
+          } catch (erro) {
+            if (erro?.name !== "AbortError") console.error("Erro ao compartilhar texto:", erro);
+          }
+        }
+      }
+    } catch (erro) {
+      if (erro?.name !== "AbortError") {
+        console.error("Erro ao compartilhar reflexão:", erro);
+        alert("Não foi possível preparar o card para compartilhamento. Tente novamente.");
+      }
+    } finally {
+      setCompartilhando(false);
+    }
+  }
+
   return (
     <div className="pulsan-reflexao-page" style={styles.page}>
       <Header irPara={irPara} />
@@ -2240,6 +2392,33 @@ function Reflexao({ irPara, tema, alterarTema }) {
           </span>
 
           <span><Icon name="arrowRight" size={18} /></span>
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "center", margin: "18px 0 8px" }}>
+          <button
+            type="button"
+            onClick={compartilharReflexao}
+            disabled={compartilhando}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 10,
+              padding: "13px 22px",
+              border: "1px solid rgba(58,125,255,0.25)",
+              borderRadius: 999,
+              background: "linear-gradient(135deg, #3A7DFF, #0F2D5B)",
+              color: "#FFFFFF",
+              fontSize: 14,
+              fontWeight: 700,
+              cursor: compartilhando ? "wait" : "pointer",
+              opacity: compartilhando ? 0.7 : 1,
+              boxShadow: "0 7px 20px rgba(15,45,91,0.18)",
+            }}
+          >
+            <Icon name="share-2" size={19} />
+            {compartilhando ? "Preparando card..." : "Compartilhar reflexão"}
+          </button>
         </div>
 
         {/* =================================================
