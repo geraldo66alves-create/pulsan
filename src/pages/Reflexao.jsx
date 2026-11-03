@@ -2279,52 +2279,88 @@ function Reflexao({ irPara, tema, alterarTema }) {
 
       const frase = `“${String(reflexaoAtual).trim()}”`;
       const maxWidth = 850;
-      const areaTopo = 620;
-      const areaAltura = 700;
-      let linhas = [];
-      let tamanhoFonte = 76;
-      let alturaLinha = 0;
-      for (let tamanho = 78; tamanho >= 42; tamanho -= 2) {
+      const areaTopo = 600;
+      const areaAltura = 790;
+
+      // Quebra o texto por palavras e também por caracteres quando houver
+      // uma palavra muito comprida. Assim nenhuma linha precisa ser achatada
+      // pelo terceiro argumento de fillText.
+      function distribuirTexto(tamanho) {
         ctx.font = `600 ${tamanho}px Georgia, "Times New Roman", serif`;
-        const testeLinhas = [];
+        const linhasCalculadas = [];
+        const palavras = frase.split(/\s+/).filter(Boolean);
         let linha = "";
-        frase.split(/\s+/).forEach((palavra) => {
+
+        const adicionarPalavra = (palavra) => {
           const teste = linha ? `${linha} ${palavra}` : palavra;
-          if (ctx.measureText(teste).width > maxWidth && linha) {
-            testeLinhas.push(linha);
+          if (ctx.measureText(teste).width <= maxWidth) {
+            linha = teste;
+            return;
+          }
+
+          if (linha) {
+            linhasCalculadas.push(linha);
+            linha = "";
+          }
+
+          if (ctx.measureText(palavra).width <= maxWidth) {
             linha = palavra;
-          } else linha = teste;
-        });
-        if (linha) testeLinhas.push(linha);
-        const alturaTeste = Math.round(tamanho * 1.34);
-        if (testeLinhas.length * alturaTeste <= areaAltura) {
-          linhas = testeLinhas;
+            return;
+          }
+
+          // Trata até palavras sem espaços que ultrapassem a largura disponível.
+          let trecho = "";
+          for (const caractere of palavra) {
+            const tentativa = trecho + caractere;
+            if (ctx.measureText(tentativa).width > maxWidth && trecho) {
+              linhasCalculadas.push(trecho);
+              trecho = caractere;
+            } else {
+              trecho = tentativa;
+            }
+          }
+          linha = trecho;
+        };
+
+        palavras.forEach(adicionarPalavra);
+        if (linha) linhasCalculadas.push(linha);
+
+        const alturaLinhaCalculada = Math.ceil(tamanho * 1.32);
+        return {
+          linhas: linhasCalculadas,
+          alturaLinha: alturaLinhaCalculada,
+          alturaTotal: linhasCalculadas.length * alturaLinhaCalculada,
+        };
+      }
+
+      // Cada frase recebe o maior tamanho de fonte que cabe na mesma área.
+      // Frases curtas ficam maiores; frases longas diminuem gradualmente.
+      let tamanhoFonte = 76;
+      let distribuicao = null;
+      for (let tamanho = 76; tamanho >= 22; tamanho -= 2) {
+        const tentativa = distribuirTexto(tamanho);
+        if (tentativa.linhas.length && tentativa.alturaTotal <= areaAltura) {
           tamanhoFonte = tamanho;
-          alturaLinha = alturaTeste;
+          distribuicao = tentativa;
           break;
         }
       }
-      if (!linhas.length) {
-        tamanhoFonte = 40;
-        alturaLinha = 54;
-        ctx.font = `600 ${tamanhoFonte}px Georgia, serif`;
-        let linha = "";
-        frase.split(/\s+/).forEach((palavra) => {
-          const teste = linha ? `${linha} ${palavra}` : palavra;
-          if (ctx.measureText(teste).width > maxWidth && linha) {
-            linhas.push(linha);
-            linha = palavra;
-          } else linha = teste;
-        });
-        if (linha) linhas.push(linha);
+
+      // Salvaguarda para reflexões excepcionalmente extensas.
+      if (!distribuicao) {
+        tamanhoFonte = 20;
+        distribuicao = distribuirTexto(tamanhoFonte);
       }
+
       ctx.font = `600 ${tamanhoFonte}px Georgia, "Times New Roman", serif`;
       ctx.fillStyle = tema.texto;
-      const alturaTexto = linhas.length * alturaLinha;
-      let y = areaTopo + (areaAltura - alturaTexto) / 2 + tamanhoFonte;
-      linhas.forEach((linha) => {
-        ctx.fillText(linha, largura / 2, y, maxWidth);
-        y += alturaLinha;
+      ctx.textAlign = "center";
+      const alturaTexto = distribuicao.alturaTotal;
+      let y = areaTopo + (areaAltura - alturaTexto) / 2 + tamanhoFonte * 0.82;
+      distribuicao.linhas.forEach((linha) => {
+        // Sem maxWidth: evita que o Canvas comprima horizontalmente a frase.
+        ctx.fillText(linha, largura / 2, y);
+        y += distribuicao.alturaLinha;
       });
 
       ctx.globalAlpha = 0.78;
