@@ -2149,23 +2149,23 @@ function Reflexao({ irPara, tema, alterarTema }) {
   const reflexaoAtual =
     sentimentoComReflexoes.reflexoes[cardAtual];
 
-  // Cada emoção possui uma identidade visual própria no card compartilhado.
+  // Identidade visual suave e própria para cada emoção no compartilhamento.
   const temasCompartilhamento = {
-    cansado: { fundo: ["#102B4E", "#315C86"], detalhe: "#B8D7F4", texto: "#FFFFFF", etiqueta: "UM MOMENTO PARA DESCANSAR" },
-    ansioso: { fundo: ["#DCEEFF", "#A8C7E8"], detalhe: "#FFFFFF", texto: "#17385B", etiqueta: "VOLTE PARA O PRESENTE" },
-    triste: { fundo: ["#292B49", "#77718F"], detalhe: "#DCD5F0", texto: "#FFFFFF", etiqueta: "UM ESPAÇO PARA SENTIR" },
-    pensando: { fundo: ["#E6E9F4", "#B8C5DD"], detalhe: "#FFFFFF", texto: "#263957", etiqueta: "UM RESPIRO PARA A MENTE" },
-    irritado: { fundo: ["#452B2B", "#A65D48"], detalhe: "#F5C7A6", texto: "#FFFFFF", etiqueta: "RESPEITE O QUE VOCÊ SENTE" },
-    vazio: { fundo: ["#101D35", "#354D70"], detalhe: "#A9C4E8", texto: "#FFFFFF", etiqueta: "UM MOMENTO DE REFLEXÃO" },
-    desanimado: { fundo: ["#244B3B", "#8AAE8A"], detalhe: "#DCEBD4", texto: "#FFFFFF", etiqueta: "UM PASSO DE CADA VEZ" },
-    desmotivado: { fundo: ["#173D32", "#83A98B"], detalhe: "#DCEFD9", texto: "#FFFFFF", etiqueta: "SEU TEMPO TAMBÉM IMPORTA" },
-    inseguro: { fundo: ["#34304F", "#9186B5"], detalhe: "#E3DDF5", texto: "#FFFFFF", etiqueta: "LEMBRE-SE DO SEU VALOR" },
-    sobrecarregado: { fundo: ["#263C50", "#7894A5"], detalhe: "#D5E5EA", texto: "#FFFFFF", etiqueta: "VOCÊ NÃO PRECISA CARREGAR TUDO" },
-    frustrado: { fundo: ["#493B32", "#B58B65"], detalhe: "#F2D8B8", texto: "#FFFFFF", etiqueta: "SEU ESFORÇO TEM VALOR" },
-    futuro: { fundo: ["#203B60", "#8CAFCB"], detalhe: "#E2F0FC", texto: "#FFFFFF", etiqueta: "UM PASSO DE CADA VEZ" },
-    depressivo: { fundo: ["#26344D", "#7889A5"], detalhe: "#D9E1F0", texto: "#FFFFFF", etiqueta: "VOCÊ MERECE ACOLHIMENTO" },
-    solitario: { fundo: ["#3D3453", "#9A87A9"], detalhe: "#E9DDF0", texto: "#FFFFFF", etiqueta: "VOCÊ MERECE CONEXÃO" },
-    "sem-esperanca": { fundo: ["#26364A", "#647D91"], detalhe: "#DCE8EE", texto: "#FFFFFF", etiqueta: "VOCÊ NÃO ESTÁ SOZINHO" },
+    cansado: { fundo: ["#E9EEF2", "#D6E0E8"], detalhe: "#9AAEBE", texto: "#34495A", etiqueta: "UM MOMENTO PARA DESCANSAR", forma: "lua" },
+    ansioso: { fundo: ["#EAF1F2", "#D5E5E7"], detalhe: "#9BBABD", texto: "#35565A", etiqueta: "VOLTE PARA O PRESENTE", forma: "ondas" },
+    triste: { fundo: ["#F0EBEF", "#E2D9E4"], detalhe: "#B9A8BC", texto: "#55485A", etiqueta: "UM ESPAÇO PARA SENTIR", forma: "chuva" },
+    pensando: { fundo: ["#EEF0F4", "#DCE2EB"], detalhe: "#AAB8CA", texto: "#46546A", etiqueta: "UM RESPIRO PARA A MENTE", forma: "circulos" },
+    irritado: { fundo: ["#F3EAE5", "#E9D8CE"], detalhe: "#C5A393", texto: "#624B40", etiqueta: "RESPEITE O QUE VOCÊ SENTE", forma: "arcos" },
+    vazio: { fundo: ["#E9EDF0", "#D9E1E7"], detalhe: "#A5B5C1", texto: "#40515D", etiqueta: "UM MOMENTO DE REFLEXÃO", forma: "circulos" },
+    desanimado: { fundo: ["#EAF0E9", "#DCE8D9"], detalhe: "#A9BCA5", texto: "#435642", etiqueta: "UM PASSO DE CADA VEZ", forma: "folha" },
+    desmotivado: { fundo: ["#EEF1E9", "#E0E8D8"], detalhe: "#B1BEA5", texto: "#4C5944", etiqueta: "SEU TEMPO TAMBÉM IMPORTA", forma: "folha" },
+    inseguro: { fundo: ["#F0EDF3", "#E2DCEB"], detalhe: "#B6A9C6", texto: "#554A63", etiqueta: "LEMBRE-SE DO SEU VALOR", forma: "arcos" },
+    sobrecarregado: { fundo: ["#E9EFF0", "#D8E3E4"], detalhe: "#A4B9BA", texto: "#405657", etiqueta: "VOCÊ NÃO PRECISA CARREGAR TUDO", forma: "ondas" },
+    frustrado: { fundo: ["#F2EEE8", "#E8DFD2"], detalhe: "#C5B49C", texto: "#5D5143", etiqueta: "SEU ESFORÇO TEM VALOR", forma: "arcos" },
+    futuro: { fundo: ["#E9EFF4", "#D8E5ED"], detalhe: "#A8BECE", texto: "#40576A", etiqueta: "UM PASSO DE CADA VEZ", forma: "horizonte" },
+    depressivo: { fundo: ["#ECEEF2", "#DDE2EA"], detalhe: "#AEB9C9", texto: "#465266", etiqueta: "VOCÊ MERECE ACOLHIMENTO", forma: "lua" },
+    solitario: { fundo: ["#F0ECF1", "#E3DCE8"], detalhe: "#B9AABD", texto: "#55495B", etiqueta: "VOCÊ MERECE CONEXÃO", forma: "circulos" },
+    "sem-esperanca": { fundo: ["#E9EFF0", "#D9E5E5"], detalhe: "#A9BDBB", texto: "#405654", etiqueta: "VOCÊ NÃO ESTÁ SOZINHO", forma: "horizonte" },
   };
 
   async function compartilharReflexao() {
@@ -2173,100 +2173,171 @@ function Reflexao({ irPara, tema, alterarTema }) {
     setCompartilhando(true);
     try {
       const tema = temasCompartilhamento[sentimento.id] || {
-        fundo: ["#173D32", "#83A98B"], detalhe: "#DCEFD9", texto: "#FFFFFF", etiqueta: "UMA REFLEXÃO PARA VOCÊ",
+        fundo: ["#EEF1EF", "#DCE6E0"], detalhe: "#AABCB0", texto: "#43564A",
+        etiqueta: "UMA REFLEXÃO PARA VOCÊ", forma: "circulos",
       };
+      // Formato vertical 9:16, ideal para Stories e também legível ao enviar como imagem.
+      const largura = 1080;
+      const altura = 1920;
       const canvas = document.createElement("canvas");
-      canvas.width = 1080;
-      canvas.height = 1350;
+      canvas.width = largura;
+      canvas.height = altura;
       const ctx = canvas.getContext("2d");
       if (!ctx) throw new Error("Não foi possível preparar a imagem.");
 
-      const gradiente = ctx.createLinearGradient(0, 0, 1080, 1350);
+      const gradiente = ctx.createLinearGradient(0, 0, largura * 0.35, altura);
       gradiente.addColorStop(0, tema.fundo[0]);
       gradiente.addColorStop(1, tema.fundo[1]);
       ctx.fillStyle = gradiente;
-      ctx.fillRect(0, 0, 1080, 1350);
+      ctx.fillRect(0, 0, largura, altura);
 
-      // Elementos abstratos variam com a emoção e não interferem na leitura.
-      ctx.globalAlpha = 0.13;
+      // Moldura discreta e formas leves, com desenho diferente por sentimento.
       ctx.strokeStyle = tema.detalhe;
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.arc(920, 190, 210, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(920, 190, 155, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(120, 1190, 250, 0, Math.PI * 2);
-      ctx.stroke();
+      ctx.lineWidth = 2;
+      ctx.globalAlpha = 0.32;
+      ctx.strokeRect(42, 42, largura - 84, altura - 84);
+      const desenharCirculo = (x, y, raio) => {
+        ctx.beginPath();
+        ctx.arc(x, y, raio, 0, Math.PI * 2);
+        ctx.stroke();
+      };
+      if (tema.forma === "ondas") {
+        for (let i = 0; i < 5; i++) {
+          ctx.beginPath();
+          ctx.moveTo(0, 330 + i * 35);
+          ctx.bezierCurveTo(280, 220 + i * 35, 650, 440 + i * 35, 1080, 300 + i * 35);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(0, 1510 + i * 30);
+          ctx.bezierCurveTo(300, 1400 + i * 30, 700, 1620 + i * 30, 1080, 1480 + i * 30);
+          ctx.stroke();
+        }
+      } else if (tema.forma === "folha") {
+        ctx.beginPath();
+        ctx.ellipse(900, 330, 105, 225, -0.55, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(790, 500);
+        ctx.quadraticCurveTo(860, 340, 1000, 170);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.ellipse(150, 1540, 75, 160, 0.6, 0, Math.PI * 2);
+        ctx.stroke();
+      } else if (tema.forma === "lua") {
+        desenharCirculo(870, 330, 125);
+        ctx.fillStyle = tema.fundo[0];
+        ctx.beginPath();
+        ctx.arc(930, 285, 118, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = tema.detalhe;
+        desenharCirculo(870, 330, 170);
+      } else if (tema.forma === "chuva") {
+        for (let i = 0; i < 9; i++) {
+          ctx.beginPath();
+          ctx.moveTo(130 + i * 105, 250 + (i % 2) * 35);
+          ctx.lineTo(90 + i * 105, 350 + (i % 2) * 35);
+          ctx.stroke();
+        }
+      } else if (tema.forma === "horizonte") {
+        for (let i = 0; i < 5; i++) {
+          ctx.beginPath();
+          ctx.moveTo(100, 300 + i * 38);
+          ctx.quadraticCurveTo(540, 230 + i * 38, 980, 300 + i * 38);
+          ctx.stroke();
+        }
+      } else {
+        desenharCirculo(900, 300, 150);
+        desenharCirculo(900, 300, 205);
+        desenharCirculo(170, 1570, 145);
+      }
+      if (tema.forma === "arcos") {
+        for (let i = 0; i < 4; i++) {
+          ctx.beginPath();
+          ctx.arc(900, 320, 115 + i * 42, Math.PI * 0.1, Math.PI * 1.25);
+          ctx.stroke();
+        }
+      }
       ctx.globalAlpha = 1;
 
-      ctx.fillStyle = tema.detalhe;
-      ctx.font = "600 28px Arial, sans-serif";
       ctx.textAlign = "center";
-      ctx.fillText("P U L S A N", 540, 125);
-      ctx.font = "500 23px Arial, sans-serif";
-      ctx.globalAlpha = 0.9;
-      ctx.fillText(tema.etiqueta, 540, 245);
+      ctx.fillStyle = tema.texto;
+      ctx.globalAlpha = 0.78;
+      ctx.font = "600 30px Arial, sans-serif";
+      ctx.fillText("P U L S A N", largura / 2, 190);
+      ctx.globalAlpha = 0.8;
+      ctx.fillStyle = tema.detalhe;
+      ctx.fillRect(480, 235, 120, 3);
       ctx.globalAlpha = 1;
 
       ctx.fillStyle = tema.texto;
-      ctx.font = "700 36px Arial, sans-serif";
-      ctx.fillText(sentimento.nome.toLocaleUpperCase("pt-BR"), 540, 335);
+      ctx.font = "600 25px Arial, sans-serif";
+      ctx.fillText(tema.etiqueta, largura / 2, 430, 880);
+      ctx.globalAlpha = 0.72;
+      ctx.font = "500 25px Arial, sans-serif";
+      ctx.fillText(sentimento.nome.toLocaleUpperCase("pt-BR"), largura / 2, 505, 880);
+      ctx.globalAlpha = 1;
 
-      // A tipografia se adapta ao tamanho da reflexão: frases curtas ficam
-      // maiores; frases longas diminuem gradualmente para caber sem cortes.
       const frase = `“${String(reflexaoAtual).trim()}”`;
-      const maxWidth = 900;
-      const areaTextoTopo = 410;
-      const areaTextoBase = 1080;
-      const alturaMaximaTexto = areaTextoBase - areaTextoTopo;
-      const palavras = frase.split(/\\s+/);
+      const maxWidth = 850;
+      const areaTopo = 620;
+      const areaAltura = 700;
       let linhas = [];
       let tamanhoFonte = 76;
       let alturaLinha = 0;
-
-      for (let tamanho = 76; tamanho >= 42; tamanho -= 2) {
-        ctx.font = `700 ${tamanho}px Georgia, serif`;
-        const linhasTeste = [];
-        let linhaTeste = "";
-
-        palavras.forEach((palavra) => {
-          const teste = linhaTeste ? `${linhaTeste} ${palavra}` : palavra;
-          if (ctx.measureText(teste).width > maxWidth && linhaTeste) {
-            linhasTeste.push(linhaTeste);
-            linhaTeste = palavra;
-          } else {
-            linhaTeste = teste;
-          }
+      for (let tamanho = 78; tamanho >= 42; tamanho -= 2) {
+        ctx.font = `600 ${tamanho}px Georgia, "Times New Roman", serif`;
+        const testeLinhas = [];
+        let linha = "";
+        frase.split(/\s+/).forEach((palavra) => {
+          const teste = linha ? `${linha} ${palavra}` : palavra;
+          if (ctx.measureText(teste).width > maxWidth && linha) {
+            testeLinhas.push(linha);
+            linha = palavra;
+          } else linha = teste;
         });
-        if (linhaTeste) linhasTeste.push(linhaTeste);
-
-        const alturaTeste = Math.round(tamanho * 1.28);
-        const totalAltura = linhasTeste.length * alturaTeste;
-        if (totalAltura <= alturaMaximaTexto) {
+        if (linha) testeLinhas.push(linha);
+        const alturaTeste = Math.round(tamanho * 1.34);
+        if (testeLinhas.length * alturaTeste <= areaAltura) {
+          linhas = testeLinhas;
           tamanhoFonte = tamanho;
           alturaLinha = alturaTeste;
-          linhas = linhasTeste;
           break;
         }
       }
-
-      ctx.font = `700 ${tamanhoFonte}px Georgia, serif`;
+      if (!linhas.length) {
+        tamanhoFonte = 40;
+        alturaLinha = 54;
+        ctx.font = `600 ${tamanhoFonte}px Georgia, serif`;
+        let linha = "";
+        frase.split(/\s+/).forEach((palavra) => {
+          const teste = linha ? `${linha} ${palavra}` : palavra;
+          if (ctx.measureText(teste).width > maxWidth && linha) {
+            linhas.push(linha);
+            linha = palavra;
+          } else linha = teste;
+        });
+        if (linha) linhas.push(linha);
+      }
+      ctx.font = `600 ${tamanhoFonte}px Georgia, "Times New Roman", serif`;
+      ctx.fillStyle = tema.texto;
       const alturaTexto = linhas.length * alturaLinha;
-      let y = areaTextoTopo + (alturaMaximaTexto - alturaTexto) / 2 + tamanhoFonte;
-      linhas.forEach((texto) => {
-        ctx.fillText(texto, 540, y, maxWidth);
+      let y = areaTopo + (areaAltura - alturaTexto) / 2 + tamanhoFonte;
+      linhas.forEach((linha) => {
+        ctx.fillText(linha, largura / 2, y, maxWidth);
         y += alturaLinha;
       });
 
-      ctx.globalAlpha = 0.8;
-      ctx.fillStyle = tema.detalhe;
-      ctx.font = "400 25px Arial, sans-serif";
-      ctx.fillText("Uma reflexão para levar com você.", 540, 1190);
-      ctx.font = "700 24px Arial, sans-serif";
-      ctx.fillText("PULSAN  •  CUIDADO E ACOLHIMENTO", 540, 1270);
+      ctx.globalAlpha = 0.78;
+      ctx.fillStyle = tema.texto;
+      ctx.font = "400 26px Arial, sans-serif";
+      ctx.fillText("Guarde esta mensagem para quando precisar.", largura / 2, 1510, 900);
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = tema.texto;
+      ctx.font = "600 30px Arial, sans-serif";
+      ctx.fillText("@pulsan_sb", largura / 2, 1690);
+      ctx.globalAlpha = 0.65;
+      ctx.font = "400 21px Arial, sans-serif";
+      ctx.fillText("CUIDADO • ESCUTA • ACOLHIMENTO", largura / 2, 1740);
       ctx.globalAlpha = 1;
 
       const blob = await new Promise((resolve, reject) => {
@@ -2289,12 +2360,12 @@ function Reflexao({ irPara, tema, alterarTema }) {
         document.body.appendChild(link);
         link.click();
         link.remove();
-        URL.revokeObjectURL(url);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
         if (navigator.share) {
           try {
             await navigator.share({
               title: `Reflexão Pulsan — ${sentimento.nome}`,
-              text: `“${reflexaoAtual}” — Uma reflexão Pulsan.`,
+              text: `“${reflexaoAtual}” — @pulsan_sb`,
             });
           } catch (erro) {
             if (erro?.name !== "AbortError") console.error("Erro ao compartilhar texto:", erro);
