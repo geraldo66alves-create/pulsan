@@ -635,50 +635,46 @@ function Cadastro({ irPara }) {
 
          // ==========================================
 
-         const { data: cadastroAuth, error: erroAuth } =
+        const { data: cadastroAuth, error: erroAuth } =
+  await supabase.auth.signUp({
+    email: emailNormalizado,
+    password: senha,
+    options: {
+      data: {
+        nome: nome.trim(),
+        tipo_usuario: tipo,
+      },
+    },
+  });
 
-            await supabase.auth.signUp({
+if (erroAuth) {
+  throw new Error(erroAuth.message || "Não foi possível criar a conta.");
+}
 
-               email: emailNormalizado,
+const usuarioAuth = cadastroAuth?.user;
 
-               password: senha,
+if (!usuarioAuth) {
+  throw new Error("O Supabase não retornou o usuário criado.");
+}
 
-               options: {
-            data: {
+if (!cadastroAuth.session) {
+  throw new Error(
+    "A conta foi criada, mas não há sessão ativa para salvar a foto. Verifique a confirmação de e-mail."
+  );
+}
 
-                     nome: nome.trim(),
+const { error: erroFoto } = await supabase
+  .from("perfis")
+  .update({ foto_url: foto })
+  .eq("id", usuarioAuth.id);
 
-                     tipo_usuario: tipo,
-
-                     // A foto acompanha o cadastro para que o trigger do perfil
-
-                     // possa gravá-la em public.perfis.foto_url.
-
-                     foto_url: foto,
-
-                  },
-
-               },
-
-            });
-
-         if (erroAuth) {
-
-            throw new Error(
-
-               erroAuth.message || "Não foi possível criar a conta."
-
-            );
-
-         }
-
-         const usuarioAuth = cadastroAuth?.user;
-
-         if (!usuarioAuth) {
-
-            throw new Error("O Supabase não retornou o usuário criado.");
-
-         }
+if (erroFoto) {
+  console.error("Erro ao salvar foto do perfil:", erroFoto);
+  throw new Error(
+    "A conta foi criada, mas não foi possível salvar a foto do perfil: " +
+    erroFoto.message
+  );
+}
 
          // A foto é enviada junto aos metadados do usuário no cadastro.
 

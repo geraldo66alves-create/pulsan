@@ -999,10 +999,7 @@ function Reflexao({ irPara, tema, alterarTema }) {
   const sentimentoComReflexoes = sentimento
     ? {
         ...sentimento,
-        reflexoes:
-          reflexoesBanco.length > 0
-            ? reflexoesBanco
-            : sentimento.reflexoes,
+        reflexoes: reflexoesBanco,
       }
     : null;
 
@@ -1294,8 +1291,33 @@ function Reflexao({ irPara, tema, alterarTema }) {
   }
 
  
+  function obterIdentificadorUsuarioReflexoes() {
+    for (const armazenamento of [localStorage, sessionStorage]) {
+      for (const chave of ["pulsanUsuarioAtual", "usuarioLogado"]) {
+        try {
+          const valor = armazenamento.getItem(chave);
+          if (!valor) continue;
+          try {
+            const usuario = JSON.parse(valor);
+            const id = usuario?.id || usuario?.usuario_id || usuario?.user_id || usuario?.email;
+            if (id) return String(id).trim().toLowerCase();
+          } catch (_) {
+            if (valor.includes("@")) return valor.trim().toLowerCase();
+          }
+        } catch (_) {}
+      }
+      for (const chave of ["pulsanEmail", "emailUsuario", "usuarioEmail"]) {
+        try {
+          const email = armazenamento.getItem(chave);
+          if (email) return email.trim().toLowerCase();
+        } catch (_) {}
+      }
+    }
+    return "anonimo";
+  }
+
   function obterChaveHistoricoReflexoes(idSentimento) {
-    return `pulsanReflexoesVistas:${idSentimento}`;
+    return `pulsanReflexoesVistas:${obterIdentificadorUsuarioReflexoes()}:${idSentimento}`;
   }
 
   function carregarHistoricoReflexoes(idSentimento) {
@@ -1364,11 +1386,10 @@ function Reflexao({ irPara, tema, alterarTema }) {
 
     const { data, error } = await supabase
       .from("reflexoes")
-      .select("id, mensagem, ativa, situacao")
+      .select("id, mensagem, ativa, sentimento, situacao")
       .ilike("sentimento", sentimentoBanco)
-      .ilike("situacao", sentimentoBanco)
       .eq("ativa", true)
-      .limit(200);
+      .limit(1000);
 
     if (error) {
       console.error("Erro ao carregar reflexões do Supabase:", error);
@@ -1383,28 +1404,29 @@ function Reflexao({ irPara, tema, alterarTema }) {
       `[Pulsan] ${data?.length || 0} reflexões carregadas para "${sentimentoBanco}".`
     );
 
-    // Remove duplicadas ANTES de embaralhar as reflexões.
-    // A comparação ignora maiúsculas/minúsculas e espaços extras.
+    // Separa reflexões coladas no mesmo registro por quebra de linha ou
+    // marcadores explícitos de lista, sem dividir frases por ponto final.
     const mapaReflexoes = new Map();
-
     (data || []).forEach((item) => {
-      const mensagem = String(item?.mensagem || "").trim();
-
-      if (!mensagem) return;
-
-      const chave = mensagem
-        .replace(/\s+/g, " ")
-        .toLowerCase();
-
-      if (!mapaReflexoes.has(chave)) {
-        mapaReflexoes.set(chave, mensagem);
-      }
+      const mensagemOriginal = String(item?.mensagem || "").trim();
+      if (!mensagemOriginal) return;
+      const partes = mensagemOriginal
+        .replace(/\r\n?/g, "\n")
+        .split(/\n+|\s*[•▪●]\s*|\s*\|\|\s*/g)
+        .map((parte) => parte.replace(/^\s*(?:(?:[-*])|(?:\d+[.)]))\s*/, "").trim())
+        .filter(Boolean);
+      partes.forEach((mensagem) => {
+        const chave = mensagem.replace(/\s+/g, " ").trim().toLocaleLowerCase("pt-BR");
+        if (chave && !mapaReflexoes.has(chave)) mapaReflexoes.set(chave, mensagem);
+      });
     });
 
-    // Embaralha somente depois de garantir que não existem repetidas.
-    const reflexoesEmbaralhadas = Array.from(
-      mapaReflexoes.values()
-    ).sort(() => Math.random() - 0.5);
+    const reflexoesEmbaralhadas = Array.from(mapaReflexoes.values());
+    for (let i = reflexoesEmbaralhadas.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [reflexoesEmbaralhadas[i], reflexoesEmbaralhadas[j]] =
+        [reflexoesEmbaralhadas[j], reflexoesEmbaralhadas[i]];
+    }
 
     reflexoesVistasRef.current = carregarHistoricoReflexoes(id);
 
@@ -2146,26 +2168,42 @@ function Reflexao({ irPara, tema, alterarTema }) {
     );
   }
 
-  const reflexaoAtual =
-    sentimentoComReflexoes.reflexoes[cardAtual];
+  if (!sentimentoComReflexoes?.reflexoes?.length) {
+    return (
+      <div className="pulsan-reflexao-page" style={styles.page}>
+        <Header irPara={irPara} />
+        <main style={styles.container}>
+          <button type="button" onClick={voltarSentimentos} style={styles.voltar}>
+            <Icon name="arrowLeft" size={17} /> Voltar
+          </button>
+          <div style={styles.fraseInicio}>
+            <p>Ainda não há reflexões cadastradas para este sentimento.</p>
+          </div>
+        </main>
+        <MenuInferior />
+      </div>
+    );
+  }
+
+  const reflexaoAtual = sentimentoComReflexoes.reflexoes[cardAtual];
 
   // Identidade visual suave e própria para cada emoção no compartilhamento.
   const temasCompartilhamento = {
     cansado: { fundo: ["#E9EEF2", "#D6E0E8"], detalhe: "#9AAEBE", texto: "#34495A", etiqueta: "UM MOMENTO PARA DESCANSAR", forma: "lua" },
-    ansioso: { fundo: ["#EAF1F2", "#D5E5E7"], detalhe: "#9BBABD", texto: "#35565A", etiqueta: "VOLTE PARA O PRESENTE", forma: "ondas" },
+    ansioso: { fundo: ["#EAF1F2", "#D5E5E7"], detalhe: "#9BBABD", texto: "#35565A", etiqueta: "VOLTE PARA O PRESENTE", forma: "espiral" },
     triste: { fundo: ["#F0EBEF", "#E2D9E4"], detalhe: "#B9A8BC", texto: "#55485A", etiqueta: "UM ESPAÇO PARA SENTIR", forma: "chuva" },
-    pensando: { fundo: ["#EEF0F4", "#DCE2EB"], detalhe: "#AAB8CA", texto: "#46546A", etiqueta: "UM RESPIRO PARA A MENTE", forma: "circulos" },
-    irritado: { fundo: ["#F3EAE5", "#E9D8CE"], detalhe: "#C5A393", texto: "#624B40", etiqueta: "RESPEITE O QUE VOCÊ SENTE", forma: "arcos" },
-    vazio: { fundo: ["#E9EDF0", "#D9E1E7"], detalhe: "#A5B5C1", texto: "#40515D", etiqueta: "UM MOMENTO DE REFLEXÃO", forma: "circulos" },
+    pensando: { fundo: ["#EEF0F4", "#DCE2EB"], detalhe: "#AAB8CA", texto: "#46546A", etiqueta: "UM RESPIRO PARA A MENTE", forma: "constelacao" },
+    irritado: { fundo: ["#F3EAE5", "#E9D8CE"], detalhe: "#C5A393", texto: "#624B40", etiqueta: "RESPEITE O QUE VOCÊ SENTE", forma: "sol" },
+    vazio: { fundo: ["#E9EDF0", "#D9E1E7"], detalhe: "#A5B5C1", texto: "#40515D", etiqueta: "UM MOMENTO DE REFLEXÃO", forma: "geometria" },
     desanimado: { fundo: ["#EAF0E9", "#DCE8D9"], detalhe: "#A9BCA5", texto: "#435642", etiqueta: "UM PASSO DE CADA VEZ", forma: "folha" },
-    desmotivado: { fundo: ["#EEF1E9", "#E0E8D8"], detalhe: "#B1BEA5", texto: "#4C5944", etiqueta: "SEU TEMPO TAMBÉM IMPORTA", forma: "folha" },
-    inseguro: { fundo: ["#F0EDF3", "#E2DCEB"], detalhe: "#B6A9C6", texto: "#554A63", etiqueta: "LEMBRE-SE DO SEU VALOR", forma: "arcos" },
-    sobrecarregado: { fundo: ["#E9EFF0", "#D8E3E4"], detalhe: "#A4B9BA", texto: "#405657", etiqueta: "VOCÊ NÃO PRECISA CARREGAR TUDO", forma: "ondas" },
-    frustrado: { fundo: ["#F2EEE8", "#E8DFD2"], detalhe: "#C5B49C", texto: "#5D5143", etiqueta: "SEU ESFORÇO TEM VALOR", forma: "arcos" },
-    futuro: { fundo: ["#E9EFF4", "#D8E5ED"], detalhe: "#A8BECE", texto: "#40576A", etiqueta: "UM PASSO DE CADA VEZ", forma: "horizonte" },
-    depressivo: { fundo: ["#ECEEF2", "#DDE2EA"], detalhe: "#AEB9C9", texto: "#465266", etiqueta: "VOCÊ MERECE ACOLHIMENTO", forma: "lua" },
-    solitario: { fundo: ["#F0ECF1", "#E3DCE8"], detalhe: "#B9AABD", texto: "#55495B", etiqueta: "VOCÊ MERECE CONEXÃO", forma: "circulos" },
-    "sem-esperanca": { fundo: ["#E9EFF0", "#D9E5E5"], detalhe: "#A9BDBB", texto: "#405654", etiqueta: "VOCÊ NÃO ESTÁ SOZINHO", forma: "horizonte" },
+    desmotivado: { fundo: ["#EEF1E9", "#E0E8D8"], detalhe: "#B1BEA5", texto: "#4C5944", etiqueta: "SEU TEMPO TAMBÉM IMPORTA", forma: "brotos" },
+    inseguro: { fundo: ["#F0EDF3", "#E2DCEB"], detalhe: "#B6A9C6", texto: "#554A63", etiqueta: "LEMBRE-SE DO SEU VALOR", forma: "portal" },
+    sobrecarregado: { fundo: ["#E9EFF0", "#D8E3E4"], detalhe: "#A4B9BA", texto: "#405657", etiqueta: "VOCÊ NÃO PRECISA CARREGAR TUDO", forma: "horizonte" },
+    frustrado: { fundo: ["#F2EEE8", "#E8DFD2"], detalhe: "#C5B49C", texto: "#5D5143", etiqueta: "SEU ESFORÇO TEM VALOR", forma: "montanhas" },
+    futuro: { fundo: ["#E9EFF4", "#D8E5ED"], detalhe: "#A8BECE", texto: "#40576A", etiqueta: "UM PASSO DE CADA VEZ", forma: "sol-nascente" },
+    depressivo: { fundo: ["#ECEEF2", "#DDE2EA"], detalhe: "#AEB9C9", texto: "#465266", etiqueta: "VOCÊ MERECE ACOLHIMENTO", forma: "nuvens" },
+    solitario: { fundo: ["#F0ECF1", "#E3DCE8"], detalhe: "#B9AABD", texto: "#55495B", etiqueta: "VOCÊ MERECE CONEXÃO", forma: "elos" },
+    "sem-esperanca": { fundo: ["#E9EFF0", "#D9E5E5"], detalhe: "#A9BDBB", texto: "#405654", etiqueta: "VOCÊ NÃO ESTÁ SOZINHO", forma: "estrela" },
   };
 
   async function compartilharReflexao() {
@@ -2245,6 +2283,27 @@ function Reflexao({ irPara, tema, alterarTema }) {
           ctx.quadraticCurveTo(540, 230 + i * 38, 980, 300 + i * 38);
           ctx.stroke();
         }
+      } else if (tema.forma === "espiral") {
+        for (let i = 0; i < 7; i++) { ctx.beginPath(); ctx.arc(850, 330, 45 + i * 32, 0.2, Math.PI * 1.7); ctx.stroke(); }
+      } else if (tema.forma === "constelacao" || tema.forma === "elos" || tema.forma === "estrela") {
+        const pontos = [[170,280],[340,390],[520,250],[720,410],[900,260],[250,1510],[520,1630],[850,1500]];
+        pontos.forEach(([x,y], i) => { desenharCirculo(x,y,tema.forma === "elos" ? 22 : 7); if (i>0) { ctx.beginPath(); ctx.moveTo(pontos[i-1][0],pontos[i-1][1]); ctx.lineTo(x,y); ctx.stroke(); } });
+      } else if (tema.forma === "sol") {
+        desenharCirculo(850,330,95);
+        for (let i=0;i<12;i++) { const a=Math.PI*2*i/12; ctx.beginPath(); ctx.moveTo(850+Math.cos(a)*125,330+Math.sin(a)*125); ctx.lineTo(850+Math.cos(a)*190,330+Math.sin(a)*190); ctx.stroke(); }
+      } else if (tema.forma === "geometria") {
+        for (let i=0;i<5;i++) { ctx.strokeRect(120+i*35,260+i*35,220+i*35,220+i*35); }
+      } else if (tema.forma === "brotos") {
+        for (let i=0;i<4;i++) { ctx.beginPath(); ctx.ellipse(850+i*25,280+i*65,45,105,-0.6,0,Math.PI*2); ctx.stroke(); }
+      } else if (tema.forma === "portal") {
+        for (let i=0;i<5;i++) { ctx.beginPath(); ctx.arc(540,440,130+i*42,Math.PI,Math.PI*2); ctx.stroke(); }
+      } else if (tema.forma === "montanhas") {
+        for (let i=0;i<4;i++) { ctx.beginPath(); ctx.moveTo(80,420+i*30); ctx.lineTo(350,180+i*30); ctx.lineTo(590,420+i*30); ctx.lineTo(810,230+i*30); ctx.lineTo(1000,420+i*30); ctx.stroke(); }
+      } else if (tema.forma === "sol-nascente") {
+        ctx.beginPath(); ctx.arc(540,440,150,Math.PI,Math.PI*2); ctx.stroke();
+        for (let i=0;i<7;i++) { ctx.beginPath(); ctx.moveTo(250+i*95,440); ctx.lineTo(250+i*95,520); ctx.stroke(); }
+      } else if (tema.forma === "nuvens") {
+        for (let i=0;i<4;i++) { ctx.beginPath(); ctx.arc(250+i*190,330+(i%2)*50,65,Math.PI,Math.PI*2); ctx.stroke(); }
       } else {
         desenharCirculo(900, 300, 150);
         desenharCirculo(900, 300, 205);

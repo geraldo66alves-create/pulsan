@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { supabase } from "../lib/supabase";
 
 function AcessibilidadeInicial({
   irPara,
@@ -132,44 +133,89 @@ function AcessibilidadeInicial({
     },
   ];
 
-  function entrarNoAmbiente() {
-    setSalvando(true);
+  function lerUsuarioArmazenado() {
+    const chaves = ["pulsanUsuarioAtual", "usuarioLogado"];
 
-    // Marca que a apresentação inicial já foi concluída para esta conta.
-    // O ID vem do usuário salvo no login/cadastro.
-    try {
-      const usuarioAtual = JSON.parse(
-        localStorage.getItem("pulsanUsuarioAtual") || "null"
-      );
-
-      if (usuarioAtual?.id) {
-        localStorage.setItem(
-          `pulsanAcessibilidadeConfigurada_${usuarioAtual.id}`,
-          "true"
-        );
+    for (const armazenamento of [localStorage, sessionStorage]) {
+      for (const chave of chaves) {
+        try {
+          const valor = armazenamento.getItem(chave);
+          if (!valor) continue;
+          const usuario = JSON.parse(valor);
+          if (usuario && typeof usuario === "object" && usuario.id) {
+            return usuario;
+          }
+        } catch (erro) {
+          console.warn(`Não foi possível ler ${chave}:`, erro);
+        }
       }
-    } catch (erro) {
-      console.error("Erro ao salvar primeiro acesso:", erro);
     }
 
-    // Mantém as configurações globais já escolhidas.
-    setTimeout(() => {
-      const tipo = localStorage.getItem("pulsanTipo");
+    return null;
+  }
 
-      if (
-        tipo === "admin" ||
-        tipo === "administrador" ||
-        tipo === "equipe_pulsan"
-      ) {
+  async function entrarNoAmbiente() {
+    if (salvando) return;
+    setSalvando(true);
+
+    try {
+      // A sessão pode estar no armazenamento local ou no armazenamento
+      // temporário, dependendo de como o Pulsan foi aberto.
+      let usuarioAtual = lerUsuarioArmazenado();
+
+      // Se os dados locais não trouxerem o ID, consulta a sessão autenticada.
+      if (!usuarioAtual?.id) {
+        const { data, error } = await supabase.auth.getUser();
+        if (!error && data?.user?.id) {
+          usuarioAtual = {
+            ...(usuarioAtual || {}),
+            id: data.user.id,
+            user_metadata: data.user.user_metadata || {},
+          };
+        }
+      }
+
+      if (!usuarioAtual?.id) {
+        alert(
+          "Não foi possível identificar sua conta. Faça login novamente para salvar sua configuração de acessibilidade."
+        );
+        setSalvando(false);
+        return;
+      }
+
+      // O Login.jsx consulta esta chave individual para não repetir
+      // a apresentação inicial nos próximos acessos desta mesma conta.
+      const chaveConfiguracao =
+        `pulsanAcessibilidadeConfigurada_${usuarioAtual.id}`;
+      localStorage.setItem(chaveConfiguracao, "true");
+      sessionStorage.setItem(chaveConfiguracao, "true");
+
+      // Recupera o tipo nos dois armazenamentos. Se necessário, usa
+      // os dados do próprio usuário autenticado.
+      const tipoArmazenado =
+        localStorage.getItem("pulsanTipo") ||
+        sessionStorage.getItem("pulsanTipo");
+      const tipoUsuario = String(
+        tipoArmazenado ||
+          usuarioAtual.tipo_usuario ||
+          usuarioAtual.tipo ||
+          usuarioAtual.user_metadata?.tipo_usuario ||
+          ""
+      ).toLowerCase();
+
+      if (["admin", "administrador", "equipe_pulsan"].includes(tipoUsuario)) {
         irPara("painel-admin");
-      } else if (tipo === "colaborador") {
+      } else if (tipoUsuario === "colaborador") {
         irPara("empresa");
       } else {
         irPara("ambiente");
       }
-
+    } catch (erro) {
+      console.error("Erro ao concluir a configuração inicial:", erro);
+      alert("Ocorreu um erro ao salvar. Tente novamente.");
+    } finally {
       setSalvando(false);
-    }, 120);
+    }
   }
 
   return (
