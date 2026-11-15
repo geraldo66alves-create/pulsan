@@ -1,5 +1,345 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { supabase } from "../lib/supabase";
+
+
+const palavrasOfensivasComentarios = [
+    "idiota",
+    "imbecil",
+    "burro",
+    "burra",
+    "burro demais",
+    "burra demais",
+    "otario",
+    "otaria",
+    "otário",
+    "otária",
+    "retardado",
+    "retardada",
+    "retardado mental",
+    "retardada mental",
+    "babaca",
+    "besta",
+    "cretino",
+    "cretina",
+    "canalha",
+    "patife",
+    "inutil",
+    "inútil",
+    "incompetente",
+    "idiota completo",
+    "idiota completa",
+    "palhaco",
+    "palhaço",
+    "palhaca",
+    "palhaça",
+    "otario de merda",
+    "otária de merda",
+    "sem noção",
+    "sem nocao",
+    "animal",
+    "verme",
+    "lixo",
+    "fracassado",
+    "fracassada",
+    "ridiculo",
+    "ridículo",
+    "ridicula",
+    "ridícula",
+    "nojento",
+    "nojenta",
+    "asqueroso",
+    "asquerosa",
+    "repugnante",
+    "desgraçado",
+    "desgracado",
+    "desgraçada",
+    "desgracada",
+    "maldito",
+    "maldita",
+    "miseravel",
+    "miserável",
+    "safado",
+    "safada",
+    "sacana",
+    "vagabundo",
+    "vagabunda",
+    "moleque",
+    "moleca",
+
+    "merda",
+    "merdinha",
+    "merdao",
+    "merdão",
+    "porra",
+    "porrinha",
+    "caralho",
+    "caralhinho",
+    "cacete",
+    "caceteiro",
+    "caceteira",
+    "foda",
+    "foda-se",
+    "fodase",
+    "foder",
+    "fudê",
+    "fude",
+    "fuder",
+    "fudido",
+    "fudida",
+    "fodido",
+    "fodida",
+    "fucking",
+    "fuck",
+    "shit",
+    "bosta",
+    "bostinha",
+    "bostao",
+    "bostão",
+    "cu",
+    "cuzinho",
+    "cuzão",
+    "cuzao",
+    "cuzona",
+    "buceta",
+    "bucetinha",
+    "bucetao",
+    "bucetão",
+    "xota",
+    "xoxota",
+    "xoxotinha",
+    "pica",
+    "picao",
+    "picão",
+    "piroca",
+    "piroquinha",
+    "rola",
+    "rolinha",
+    "pau no cu",
+
+    "filho da puta",
+    "filha da puta",
+    "filho de uma puta",
+    "filha de uma puta",
+    "filho de puta",
+    "filha de puta",
+    "seu filho da puta",
+    "sua filha da puta",
+    "seu filho de uma puta",
+    "sua filha de uma puta",
+    "seu merda",
+    "sua merda",
+    "seu idiota",
+    "sua idiota",
+    "seu imbecil",
+    "sua imbecil",
+    "seu otario",
+    "sua otaria",
+    "seu otário",
+    "sua otária",
+    "seu babaca",
+    "sua babaca",
+    "seu burro",
+    "sua burra",
+    "seu retardado",
+    "sua retardada",
+    "seu desgraçado",
+    "sua desgraçada",
+    "seu desgracado",
+    "sua desgracada",
+    "seu canalha",
+    "sua canalha",
+    "seu vagabundo",
+    "sua vagabunda",
+    "seu lixo",
+    "sua lixo",
+    "seu verme",
+    "sua verme",
+    "seu nojento",
+    "sua nojenta",
+
+    "vai se foder",
+    "vai tomar no cu",
+    "vai pro inferno",
+    "vai para o inferno",
+    "vai à merda",
+    "vai a merda",
+    "vai pra merda",
+    "vai para merda",
+    "vai se ferrar",
+    "vai se lascar",
+    "vai se danar",
+    "foda-se você",
+    "foda se voce",
+    "foda-se voce",
+    "foda se você",
+    "que se foda",
+    "que se dane",
+    "que se lasque",
+    "que se ferre",
+    "puta que pariu",
+    "puta que o pariu",
+    "filho do caralho",
+    "filha do caralho",
+    "seu pedaço de merda",
+    "sua pedaço de merda",
+    "pedaço de merda",
+    "pedaco de merda",
+    "bando de idiotas",
+    "bando de imbecis",
+    "bando de babacas",
+    "seus idiotas",
+    "suas idiotas",
+    "seus imbecis",
+    "suas imbecis",
+    "seus babacas",
+    "suas babacas",
+
+    "puta",
+    "puto",
+    "putinha",
+    "putinha de merda",
+    "puto de merda",
+    "vadia",
+    "vadia de merda",
+    "vadiazinha",
+    "prostituta de merda",
+    "prostituto de merda",
+    "piranha",
+    "piranha de merda",
+    "piranha velha",
+    "cachorra",
+    "cachorro de merda",
+    "cachorra de merda",
+    "galinha",
+    "galinha de merda",
+
+    "tomar no cu",
+    "tomou no cu",
+    "toma no cu",
+    "vai tomar no cu",
+    "enfia no cu",
+    "enfia isso no cu",
+    "enfia essa merda",
+    "enfia essa porra",
+    "enfia isso",
+    "chupa",
+    "chupa meu pau",
+    "chupa essa",
+    "chupa essa porra",
+    "vai chupar",
+    "vai chupar o dedo",
+    "lambe meu",
+    "se foder",
+    "se fode",
+    "foda se",
+    "foda voce",
+    "foda você",
+
+    "vou te matar",
+    "eu vou te matar",
+    "quero te matar",
+    "vou acabar com voce",
+    "vou acabar com você",
+    "vou acabar contigo",
+    "quero acabar contigo",
+    "vou te pegar",
+    "vou te arrebentar",
+    "vou te bater",
+    "vou bater em voce",
+    "vou bater em você",
+    "vou te espancar",
+    "vou quebrar sua cara",
+    "quebrar sua cara",
+    "vou acabar com sua vida",
+    "acabar com sua vida",
+    "merece morrer",
+    "você merece morrer",
+    "voce merece morrer",
+    "tomara que morra",
+    "tomara que voce morra",
+    "tomara que você morra",
+    "vai morrer",
+    "vou fazer voce sofrer",
+    "vou fazer você sofrer",
+
+    "lixo humano",
+    "ser humano lixo",
+    "escoria",
+    "escória",
+    "escoria humana",
+    "escória humana",
+    "sem vergonha",
+    "sem-vergonha",
+    "cara de pau",
+    "cara de merda",
+    "mente de merda",
+    "vida de merda",
+    "trabalho de merda",
+    "escola de merda",
+    "empresa de merda",
+    "professor de merda",
+    "professora de merda",
+    "aluno de merda",
+    "aluna de merda",
+    "colega de merda",
+    "amigo de merda",
+    "amiga de merda",
+
+    "fdp",
+    "f d p",
+    "f.d.p",
+    "vsf",
+    "vai tomar no c",
+    "vtc",
+    "vtnc",
+    "pqp",
+    "p q p",
+    "p.q.p",
+    "tnc",
+    "toma no c",
+    "seu fdp",
+    "sua fdp",
+    "seu f d p",
+    "sua f d p",
+    "filho duma puta",
+    "filha duma puta",
+    "filho duma p",
+    "filha duma p",
+    "fdp de merda",
+    "idiota de merda",
+    "imbecil de merda",
+    "babaca de merda",
+    "otario de merda",
+    "otária de merda",
+    "burro de merda",
+    "burra de merda",
+    "retardado de merda",
+    "retardada de merda",
+];
+
+function normalizarTextoComentario(conteudo) {
+  return String(conteudo || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[0-9]/g, (numero) => ({ "0": "o", "1": "i", "2": "z", "3": "e", "4": "a", "5": "s", "6": "g", "7": "t", "8": "b", "9": "g" }[numero] || numero))
+    .replace(/[@!$]/g, (simbolo) => ({ "@": "a", "!": "i", "$": "s" }[simbolo] || simbolo))
+    .replace(/[.,!?;:()[\]{}"'`´~^_*+=<>/@#$%&|\\-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function possuiPalavraOfensivaComentario(conteudo) {
+  const textoNormalizado = normalizarTextoComentario(conteudo);
+  return palavrasOfensivasComentarios.some((palavra) => {
+    const palavraNormalizada = normalizarTextoComentario(palavra);
+    if (!palavraNormalizada) return false;
+    if (palavraNormalizada.includes(" ")) return textoNormalizado.includes(palavraNormalizada);
+    const regex = new RegExp(`(^|\\s)${palavraNormalizada}(?=\\s|$)`, "i");
+    return regex.test(textoNormalizado);
+  });
+}
 
 function Icon({ name, size = 18, stroke = "currentColor", strokeWidth = 1.9 }) {
   const common = {
@@ -14,7 +354,6 @@ function Icon({ name, size = 18, stroke = "currentColor", strokeWidth = 1.9 }) {
     "aria-hidden": true,
     style: { flex: "0 0 auto", display: "inline-block", verticalAlign: "middle" },
   };
-
   const paths = {
     heart: <><path d="M20.8 8.8c0 5.1-8.8 10-8.8 10s-8.8-4.9-8.8-10A4.8 4.8 0 0 1 12 6.1a4.8 4.8 0 0 1 8.8 2.7Z" /></>,
     user: <><circle cx="12" cy="8" r="3.5" /><path d="M5 20c.7-3.3 3.1-5 7-5s6.3 1.7 7 5" /></>,
@@ -32,10 +371,8 @@ function Icon({ name, size = 18, stroke = "currentColor", strokeWidth = 1.9 }) {
     shield: <><path d="M12 3 20 6v5c0 5-3.3 8.4-8 10-4.7-1.6-8-5-8-10V6l8-3Z" /><path d="m9 12 2 2 4-4" /></>,
     flame: <><path d="M12 21c4 0 7-2.8 7-6.6 0-3.2-2-5.6-4.2-7.9.1 2-1 3.4-2.1 4.3.2-3.3-1.3-5.6-3.5-7.8.1 3.8-4.2 5.7-4.2 10.2C5 17.6 8.1 21 12 21Z" /></>,
   };
-
   return <svg {...common}>{paths[name] || paths.heart}</svg>;
 }
-
 
 function obterDadosPerfilPulsan() {
   const chaves = ["usuarioLogado", "pulsanUsuarioAtual"];
@@ -62,27 +399,20 @@ function obterDadosPerfilPulsan() {
 }
 
 function Ambiente({ irPara, tema = "claro" }) {
-  // O tema é controlado centralmente pelo App.jsx e alterado pelo Perfil.
   const modoEscuro = tema === "escuro";
   const tipoPerfil = obterDadosPerfilPulsan();
   const ambientesPermitidos =
-    tipoPerfil === "aluno" ? ["escola"] :
-    tipoPerfil === "colaborador" ? ["empresa"] :
-    ["escola", "empresa"];
+    tipoPerfil === "aluno" ? ["escola", "geral"] :
+    tipoPerfil === "colaborador" ? ["trabalho", "geral"] :
+    tipoPerfil === "visitante" ? ["geral"] :
+    ["geral"];
 
   const [desabafos, setDesabafos] = useState([]);
-  const [carregandoDesabafos, setCarregandoDesabafos] =
-    useState(true);
-
-  const [comentariosAbertos, setComentariosAbertos] =
-    useState(null);
-
+  const [carregandoDesabafos, setCarregandoDesabafos] = useState(true);
+  const [comentariosAbertos, setComentariosAbertos] = useState(null);
   const [aba, setAba] = useState("feed");
-
   const [comentario, setComentario] = useState("");
-  const [enviandoComentario, setEnviandoComentario] =
-    useState(false);
-
+  const [enviandoComentario, setEnviandoComentario] = useState(false);
   const [notificacoes, setNotificacoes] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem("pulsanNotificacoes") || "[]");
@@ -90,22 +420,21 @@ function Ambiente({ irPara, tema = "claro" }) {
       return [];
     }
   });
+  const [statusMinicurso, setStatusMinicurso] = useState({
+    etapas_concluidas: 0,
+    concluido: false,
+    carregando: true,
+  });
 
   async function deletarDesabafo(id) {
     const confirmar = window.confirm("Deseja realmente deletar este desabafo?");
     if (!confirmar) return;
-
-    const { error } = await supabase
-      .from("posts_ambiente")
-      .delete()
-      .eq("id", id);
-
+    const { error } = await supabase.from("posts_ambiente").delete().eq("id", id);
     if (error) {
       console.error("Erro ao deletar desabafo:", error);
       alert("Não foi possível deletar o desabafo.");
       return;
     }
-
     setDesabafos((atual) => atual.filter((item) => item.id !== id));
   }
 
@@ -114,19 +443,13 @@ function Ambiente({ irPara, tema = "claro" }) {
       "Escolha o motivo da denúncia:\n1 - Ofensa ou discurso de ódio\n2 - Bullying ou assédio\n3 - Conteúdo inadequado\n4 - Ameaça ou risco\n5 - Outro",
       "1"
     );
-
     if (!motivo) return;
-
-    const descricao = window.prompt(
-      "Se quiser, explique melhor a denúncia (opcional):"
-    );
-
+    const descricao = window.prompt("Se quiser, explique melhor a denúncia (opcional):");
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       alert("Faça login para denunciar.");
       return;
     }
-
     const { error } = await supabase.from("denuncias").insert([{
       usuario_id: user.id,
       desabafo_id: desabafo.id,
@@ -134,89 +457,109 @@ function Ambiente({ irPara, tema = "claro" }) {
       descricao: descricao || null,
       status: "pendente"
     }]);
-
     if (error) {
       console.error("Erro ao denunciar desabafo:", error);
       alert("Não foi possível enviar a denúncia.");
       return;
     }
-
     alert("Denúncia enviada. Obrigado por ajudar a manter o ambiente seguro.");
   }
 
-  // =====================================================
-  // USUÁRIO
-  // =====================================================
-
   const [usuario, setUsuario] = useState({});
 
-  useEffect(() => {
-    async function carregarUsuario() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+  const carregarStatusMinicurso = useCallback(async (usuarioAutenticado = null) => {
+    try {
+      let user = usuarioAutenticado;
+      if (user === null) {
+        const { data, error } = await supabase.auth.getUser();
+        if (error) throw error;
+        user = data?.user || null;
+      }
+      if (!user?.id) {
+        setStatusMinicurso({ etapas_concluidas: 0, concluido: false, carregando: false });
+        return false;
+      }
+      const { data, error } = await supabase.rpc("pulsan_status_minicurso_chat");
+      if (error) throw error;
+      const registro = Array.isArray(data) ? data[0] : data;
+      const etapas = Math.min(7, Math.max(0, Number(registro?.etapas_concluidas) || 0));
+      const concluido = registro?.concluido === true || etapas >= 7;
+      setStatusMinicurso({ etapas_concluidas: etapas, concluido, carregando: false });
+      return concluido;
+    } catch (erro) {
+      console.error("Erro ao consultar progresso do minicurso:", erro);
+      setStatusMinicurso((atual) => ({ ...atual, carregando: false }));
+      return false;
+    }
+  }, []);
 
+  useEffect(() => {
+    let ativo = true;
+    async function carregarUsuario() {
+      const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        setUsuario(user);
+        if (ativo) {
+          setUsuario(user);
+          carregarStatusMinicurso(user);
+        }
       } else {
         try {
           const usuarioLocal = JSON.parse(
             localStorage.getItem("usuarioLogado") ||
-              localStorage.getItem("pulsanUsuarioAtual") ||
-              "{}"
+            localStorage.getItem("pulsanUsuarioAtual") ||
+            "{}"
           );
-
-          setUsuario(usuarioLocal || {});
+          if (ativo) {
+            setUsuario(usuarioLocal || {});
+            setStatusMinicurso({ etapas_concluidas: 0, concluido: false, carregando: false });
+          }
         } catch (erro) {
-          setUsuario({});
+          if (ativo) {
+            setUsuario({});
+            setStatusMinicurso({ etapas_concluidas: 0, concluido: false, carregando: false });
+          }
         }
       }
     }
-
     carregarUsuario();
-  }, []);
+    const { data: listener } = supabase.auth.onAuthStateChange((_evento, session) => {
+      if (session?.user) {
+        setUsuario(session.user);
+        carregarStatusMinicurso(session.user);
+      } else {
+        setUsuario({});
+        setStatusMinicurso({ etapas_concluidas: 0, concluido: false, carregando: false });
+      }
+    });
+    return () => {
+      ativo = false;
+      listener?.subscription?.unsubscribe();
+    };
+  }, [carregarStatusMinicurso]);
 
-  const usuarioId =
-    usuario.id ||
-    usuario.email ||
-    "usuario";
-
-  const nomeUsuario =
-    usuario.nome ||
-    usuario.name ||
-    usuario.user_metadata?.nome ||
-    "Usuário";
+  const usuarioId = usuario.id || usuario.email || "usuario";
+  const nomeUsuario = usuario.nome || usuario.name || usuario.user_metadata?.nome || "Usuário";
 
   function usuarioAuthId() {
     return usuario.id || null;
   }
 
-  // =====================================================
-  // TEMPO RELATIVO COM ATUALIZAÇÃO AUTOMÁTICA
-  // =====================================================
-
   const [tempoAtual, setTempoAtual] = useState(new Date());
 
   useEffect(() => {
-    const intervalo = setInterval(() => {
-      setTempoAtual(new Date());
-    }, 30000); // Atualiza a cada 30 segundos
-
+    const intervalo = setInterval(() => setTempoAtual(new Date()), 30000);
     return () => clearInterval(intervalo);
   }, []);
 
   function formatarTempoRelativo(dataISO) {
     if (!dataISO) return "Agora";
-
     const dataObj = new Date(dataISO);
     if (Number.isNaN(dataObj.getTime())) return "Agora";
-
     const diffMs = tempoAtual - dataObj;
     const diffSeg = Math.floor(diffMs / 1000);
     const diffMin = Math.floor(diffSeg / 60);
     const diffHora = Math.floor(diffMin / 60);
     const diffDia = Math.floor(diffHora / 24);
-
     if (diffSeg < 60) return "Agora";
     if (diffMin < 1) return "Agora";
     if (diffMin === 1) return "Há 1 minuto";
@@ -225,24 +568,16 @@ function Ambiente({ irPara, tema = "claro" }) {
     if (diffHora < 24) return `Há ${diffHora} horas`;
     if (diffDia === 1) return "Ontem";
     if (diffDia < 7) return `Há ${diffDia} dias`;
-
     return dataObj.toLocaleDateString("pt-BR", {
       day: "2-digit",
       month: "short",
     }).replace(".", "");
   }
 
-  // =====================================================
-  // CARREGAR DESABAFOS E COMENTÁRIOS COM REALTIME
-  // =====================================================
-
   const montadoRef = useRef(false);
 
   useEffect(() => {
-    // React StrictMode executa o efeito de montagem duas vezes em desenvolvimento.
-    // Por isso a referência precisa voltar para true sempre que o efeito montar.
     montadoRef.current = true;
-
     return () => {
       montadoRef.current = false;
     };
@@ -250,115 +585,59 @@ function Ambiente({ irPara, tema = "claro" }) {
 
   const carregarDesabafos = useCallback(async () => {
     if (!montadoRef.current) return;
-
     setCarregandoDesabafos(true);
-
     try {
-      const { data, error } = await supabase
-        .from("posts_ambiente")
-        .select("*")
-        .order("criado_em", {
-          ascending: false,
-        });
-
+      const { data, error } = await supabase.rpc("pulsan_listar_posts_anonimos");
       if (error) {
-        console.error(
-          "Erro ao carregar desabafos:",
-          error
-        );
-
-        if (montadoRef.current) {
-          setDesabafos([]);
-        }
-
+        console.error("Erro ao carregar desabafos:", error);
+        if (montadoRef.current) setDesabafos([]);
         return;
       }
-
-      // Publicações antigas (ambiente NULL) permanecem visíveis para todos.
-      // Visitantes, psicólogos e equipe visualizam os dois ambientes.
-      const postsVisiveis = (data || []).filter((post) =>
-        !post.ambiente || ambientesPermitidos.includes(post.ambiente)
-      );
-
+      const postsVisiveis = data || [];
       const postsComComentarios = await Promise.all(
         postsVisiveis.map(async (post) => {
-          const {
-            data: comentariosBanco,
-            error: erroComentarios,
-          } = await supabase
+          const { data: comentariosBanco, error: erroComentarios } = await supabase
             .from("comentarios_ambiente")
             .select("*")
             .eq("post_id", post.id)
-            .order("criado_em", {
-              ascending: true,
-            });
-
+            .order("criado_em", { ascending: true });
           if (erroComentarios) {
-            console.error(
-              "Erro ao carregar comentários do desabafo:",
-              post.id,
-              erroComentarios
-            );
+            console.error("Erro ao carregar comentários do desabafo:", post.id, erroComentarios);
           }
-
           return {
             ...post,
-            usuarioId: post.usuario_id,
-            nomeUsuario:
-              post.nome_usuario ||
-              "Usuário anônimo",
-            fotoUsuario:
-              post.foto_usuario || "",
+            souAutor: post.sou_autor === true,
+            usuarioId: post.sou_autor === true ? usuarioId : null,
+            nomeUsuario: post.nome_usuario || "Usuário anônimo",
+            fotoUsuario: post.foto_usuario || "",
             texto: post.texto,
-            apoiadores: Array.isArray(post.apoiadores)
-              ? post.apoiadores
-              : [],
-            comentarios: (comentariosBanco || []).map(
-              (comentarioBanco) => ({
-                id: comentarioBanco.id,
-                usuarioId:
-                  comentarioBanco.usuario_id,
-                nome: "Anônimo",
-                texto: comentarioBanco.texto,
-                data: comentarioBanco.criado_em,
-              })
-            ),
+            apoiadores: Array.isArray(post.apoiadores) ? post.apoiadores : [],
+            comentarios: (comentariosBanco || []).map((comentarioBanco) => ({
+              id: comentarioBanco.id,
+              usuarioId: comentarioBanco.usuario_id,
+              nome: "Anônimo",
+              texto: comentarioBanco.texto,
+              data: comentarioBanco.criado_em,
+            })),
           };
         })
       );
-
-      if (montadoRef.current) {
-        setDesabafos(postsComComentarios);
-      }
+      if (montadoRef.current) setDesabafos(postsComComentarios);
     } catch (erro) {
-      console.error(
-        "Erro inesperado ao carregar o Ambiente:",
-        erro
-      );
-
-      if (montadoRef.current) {
-        setDesabafos([]);
-      }
+      console.error("Erro inesperado ao carregar o Ambiente:", erro);
+      if (montadoRef.current) setDesabafos([]);
     } finally {
-      if (montadoRef.current) {
-        setCarregandoDesabafos(false);
-      }
+      if (montadoRef.current) setCarregandoDesabafos(false);
     }
-  }, [tipoPerfil]);
-  // Setup do Realtime para os desabafos
+  }, [tipoPerfil, usuarioId]);
+
   useEffect(() => {
-    if (!usuarioId) return;
-
-    // Disparo inicial
+    if (!usuario.id) return;
     carregarDesabafos();
-
-    // Aguarda que o Realtime esteja autenticado
     const sessao = JSON.parse(localStorage.getItem("pulsanSessao") || "{}");
     if (sessao.session?.access_token) {
       supabase.realtime.setAuth(sessao.session.access_token);
     }
-
-    // Débounce para evitar múltiplas recargas simultâneas
     let timeoutAtualizacao;
     function agendarAtualizacao() {
       clearTimeout(timeoutAtualizacao);
@@ -366,56 +645,18 @@ function Ambiente({ irPara, tema = "claro" }) {
         if (montadoRef.current) carregarDesabafos();
       }, 400);
     }
-
-    // Canal 1: Novos desabafos inseridos
-    const canalNovoPost = supabase
-      .channel("ambiente-novo-post")
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "posts_ambiente",
-        },
-        () => {
-          agendarAtualizacao();
-        }
-      )
-      .subscribe();
-
-    // Canal 2: Desabafos atualizados (apoios, exclusões)
-    const canalAtualizacaoPost = supabase
-      .channel("ambiente-atualizacao-post")
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "posts_ambiente",
-        },
-        () => {
-          agendarAtualizacao();
-        }
-      )
-      .subscribe();
-
-    // Canal 3: Novos comentários
-    const canalNovoComentario = supabase
-      .channel("ambiente-novo-comentario")
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "comentarios_ambiente",
-        },
-        () => {
-          agendarAtualizacao();
-        }
-      )
-      .subscribe();
-
-    // Cleanup
+    const canalNovoPost = supabase.channel("ambiente-novo-post")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "posts_ambiente" }, () => {
+        agendarAtualizacao();
+      }).subscribe();
+    const canalAtualizacaoPost = supabase.channel("ambiente-atualizacao-post")
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "posts_ambiente" }, () => {
+        agendarAtualizacao();
+      }).subscribe();
+    const canalNovoComentario = supabase.channel("ambiente-novo-comentario")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "comentarios_ambiente" }, () => {
+        agendarAtualizacao();
+      }).subscribe();
     return () => {
       clearTimeout(timeoutAtualizacao);
       supabase.removeChannel(canalNovoPost);
@@ -429,9 +670,8 @@ function Ambiente({ irPara, tema = "claro" }) {
   }, [notificacoes]);
 
   function notificarNovoComentario(post, textoComentario) {
-    const souDono = String(post.usuario_id || post.usuarioId) === String(usuarioId);
+    const souDono = post.souAutor === true;
     if (!souDono) return;
-
     const novaNotificacao = {
       id: Date.now(),
       tipo: "comentario",
@@ -441,9 +681,7 @@ function Ambiente({ irPara, tema = "claro" }) {
       data: new Date().toISOString(),
       lida: false,
     };
-
     setNotificacoes((lista) => [novaNotificacao, ...lista]);
-
     if ("Notification" in window && Notification.permission === "granted") {
       new Notification("Novo comentário no Pulsan", {
         body: "Alguém comentou no seu desabafo.",
@@ -451,60 +689,28 @@ function Ambiente({ irPara, tema = "claro" }) {
     }
   }
 
-  // =====================================================
-  // SEQUÊNCIA DE APOIO
-  // =====================================================
-
   function registrarApoioDiario() {
-    const hoje = new Date()
-      .toISOString()
-      .split("T")[0];
-
+    const hoje = new Date().toISOString().split("T")[0];
     let salvo = {};
-
     try {
-      salvo = JSON.parse(
-        localStorage.getItem(
-          "pulsanSequenciaApoio"
-        ) || "{}"
-      );
+      salvo = JSON.parse(localStorage.getItem("pulsanSequenciaApoio") || "{}");
     } catch (erro) {
       salvo = {};
     }
-
-    if (salvo.ultimoDia === hoje) {
-      return;
-    }
-
+    if (salvo.ultimoDia === hoje) return;
     const ontem = new Date();
     ontem.setDate(ontem.getDate() - 1);
-
-    const dataOntem = ontem
-      .toISOString()
-      .split("T")[0];
-
-    const sequencia =
-      salvo.ultimoDia === dataOntem
-        ? (salvo.sequencia || 0) + 1
-        : 1;
-
-    localStorage.setItem(
-      "pulsanSequenciaApoio",
-      JSON.stringify({
-        sequencia,
-        ultimoDia: hoje,
-      })
-    );
+    const dataOntem = ontem.toISOString().split("T")[0];
+    const sequencia = salvo.ultimoDia === dataOntem ? (salvo.sequencia || 0) + 1 : 1;
+    localStorage.setItem("pulsanSequenciaApoio", JSON.stringify({
+      sequencia,
+      ultimoDia: hoje,
+    }));
   }
 
   function obterSequenciaApoio() {
     try {
-      const dados = JSON.parse(
-        localStorage.getItem(
-          "pulsanSequenciaApoio"
-        ) || "{}"
-      );
-
+      const dados = JSON.parse(localStorage.getItem("pulsanSequenciaApoio") || "{}");
       return Number(dados.sequencia) || 0;
     } catch (erro) {
       return 0;
@@ -514,7 +720,6 @@ function Ambiente({ irPara, tema = "claro" }) {
   async function compartilharSequenciaApoio() {
     const dias = obterSequenciaApoio();
     const mensagem = `Já estou há ${dias} dias espalhando apoio no Pulsan. Você também pode fazer a diferença!`;
-
     if (navigator.share) {
       try {
         await navigator.share({
@@ -531,354 +736,143 @@ function Ambiente({ irPara, tema = "claro" }) {
     }
   }
 
-  // =====================================================
-  // APOIAR
-  // =====================================================
-
   async function apoiar(id) {
     const idUsuario = usuarioAuthId();
-
-    if (!idUsuario) {
+        if (!idUsuario) {
       alert("Entre na sua conta para apoiar um desabafo.");
       return;
     }
-
-    const post = desabafos.find(
-      (item) => item.id === id
-    );
-
-    if (!post) {
-      return;
-    }
-
-    const { data: novosApoiadores, error } = await supabase.rpc(
-      "alternar_apoio",
-      {
-        p_post_id: id,
-      }
-    );
-
+    const post = desabafos.find((item) => item.id === id);
+    if (!post) return;
+    const { data: novosApoiadores, error } = await supabase.rpc("alternar_apoio", {
+      p_post_id: id,
+    });
     if (error) {
-      console.error(
-        "Erro ao registrar apoio:",
-        error
-      );
-
-      alert(
-        "Não foi possível registrar o apoio."
-      );
-
+      console.error("Erro ao registrar apoio:", error);
+      alert("Não foi possível registrar o apoio.");
       return;
     }
-
-    const apoiadoresAtualizados = Array.isArray(
-      novosApoiadores
-    )
-      ? novosApoiadores
-      : [];
-
-    setDesabafos((listaAtual) =>
-      listaAtual.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              apoiadores: apoiadoresAtualizados,
-            }
-          : item
-      )
-    );
-
+    const apoiadoresAtualizados = Array.isArray(novosApoiadores) ? novosApoiadores : [];
+    setDesabafos((listaAtual) => listaAtual.map((item) =>
+      item.id === id ? { ...item, apoiadores: apoiadoresAtualizados } : item
+    ));
     registrarApoioDiario();
   }
 
-  // =====================================================
-  // COMENTAR
-  // =====================================================
-
   async function enviarComentario(id) {
-    if (!comentario.trim()) {
+    const textoComentario = comentario.trim();
+    if (!textoComentario) return;
+    if (possuiPalavraOfensivaComentario(textoComentario)) {
+      alert("Seu comentário contém linguagem ofensiva ou inadequada. Revise o texto antes de enviar.");
       return;
     }
-
     const idUsuario = usuarioAuthId();
-
     if (!idUsuario) {
-      alert(
-        "Entre na sua conta para comentar."
-      );
-
+      alert("Entre na sua conta para comentar.");
       return;
     }
-
     setEnviandoComentario(true);
-
-    const textoComentario =
-      comentario.trim();
-
-    const { data, error } = await supabase
-      .from("comentarios_ambiente")
-      .insert({
-        post_id: id,
-        usuario_id: idUsuario,
-        texto: textoComentario,
-      })
-      .select()
-      .single();
-
+    const { data, error } = await supabase.from("comentarios_ambiente").insert({
+      post_id: id,
+      usuario_id: idUsuario,
+      texto: textoComentario,
+    }).select().single();
     if (error) {
-      console.error(
-        "Erro ao enviar comentário:",
-        error
-      );
-
-      alert(
-        "Não foi possível enviar o comentário."
-      );
-
+      console.error("Erro ao enviar comentário:", error);
+      alert("Não foi possível enviar o comentário.");
       setEnviandoComentario(false);
       return;
     }
-
-    setDesabafos((listaAtual) =>
-      listaAtual.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              comentarios: [
-                ...(Array.isArray(
-                  item.comentarios
-                )
-                  ? item.comentarios
-                  : []),
-                {
-                  id: data.id,
-                  usuarioId:
-                    data.usuario_id,
-                  nome: "Anônimo",
-                  texto: data.texto,
-                  data: data.criado_em,
-                },
-              ],
-            }
-          : item
-      )
-    );
-
+    setDesabafos((listaAtual) => listaAtual.map((item) =>
+      item.id === id ? {
+        ...item,
+        comentarios: [
+          ...(Array.isArray(item.comentarios) ? item.comentarios : []),
+          {
+            id: data.id,
+            usuarioId: data.usuario_id,
+            nome: "Anônimo",
+            texto: data.texto,
+            data: data.criado_em,
+          },
+        ],
+      } : item
+    ));
     setComentario("");
     setEnviandoComentario(false);
-
-    notificarNovoComentario(
-      desabafos.find((item) => item.id === id) || {},
-      textoComentario
-    );
+    notificarNovoComentario(desabafos.find((item) => item.id === id) || {}, textoComentario);
   }
 
-  // =====================================================
-  // SOLICITAR CHAT
-  // =====================================================
-
- async function solicitarChat(desabafo) {
-  try {
-    const {
-      data: { user },
-      error: erroUsuario,
-    } = await supabase.auth.getUser();
-
-    if (erroUsuario || !user) {
-      alert("Faça login para solicitar uma conversa.");
-      return;
-    }
-
-    const destinatarioId =
-      desabafo.usuario_id ||
-      desabafo.usuarioId ||
-      desabafo.autor_id ||
-      desabafo.destinatario_id;
-
-    if (!destinatarioId) {
-      alert("Não foi possível identificar a pessoa deste desabafo.");
-      return;
-    }
-
-    if (String(user.id) === String(destinatarioId)) {
-      alert("Você não pode solicitar conversa consigo mesmo.");
-      return;
-    }
-
-    // 1. PRIMEIRO: procura uma conversa ATIVA ligada exatamente a este desabafo.
-    // Se existir, o usuário volta para ela. Não cria uma nova solicitação.
-    const { data: conversaAtiva, error: erroConversaAtiva } = await supabase
-      .from("conversas")
-      .select("*")
-      .eq("desabafo_post_id", desabafo.id)
-      .eq("status", "ativa")
-      .or(`solicitante_id.eq.${user.id},destinatario_id.eq.${user.id}`)
-      .order("criada_em", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (erroConversaAtiva) {
-      console.error("Erro ao verificar conversa ativa:", erroConversaAtiva);
-      alert(
-        `Não foi possível verificar a conversa deste desabafo.\n\n${
-          erroConversaAtiva.message || "Verifique as políticas do Supabase."
-        }`
-      );
-      return;
-    }
-
-    if (conversaAtiva) {
-      localStorage.setItem(
-        "pulsanAbrirConversaId",
-        String(conversaAtiva.id)
-      );
-      localStorage.setItem(
-        "pulsanConversaAtual",
-        JSON.stringify(conversaAtiva)
-      );
-      localStorage.setItem(
-        "pulsanIdDesabafoConversa",
-        String(desabafo.id)
-      );
-      localStorage.setItem(
-        "pulsanDesabafoConversa",
-        String(desabafo.texto || "")
-      );
-
-      if (typeof irPara === "function") {
-        irPara("conversa");
+  async function solicitarChat(desabafo) {
+    try {
+      const { data: { user }, error: erroUsuario } = await supabase.auth.getUser();
+      if (erroUsuario || !user) {
+        alert("Faça login para solicitar uma conversa.");
+        return;
       }
-
-      return;
-    }
-
-    // 2. Se não existe conversa ativa, verifica se já existe um pedido
-    // pendente para ESTE desabafo.
-    const { data: solicitacaoPendente, error: erroBusca } = await supabase
-      .from("solicitacoes_chat")
-      .select("id, status, desabafo_post_id")
-      .eq("solicitante_id", user.id)
-      .eq("destinatario_id", destinatarioId)
-      .eq("desabafo_post_id", desabafo.id)
-      .eq("status", "pendente")
-      .maybeSingle();
-
-    if (erroBusca) {
-      console.error("Erro ao verificar solicitação:", erroBusca);
-      alert(
-        `Erro ao verificar solicitação:\n\n${
-          erroBusca.message || "Verifique a configuração do Supabase."
-        }`
-      );
-      return;
-    }
-
-    if (solicitacaoPendente) {
-      alert("Você já enviou uma solicitação para este desabafo.");
-      return;
-    }
-
-    // 3. Sem conversa ativa e sem solicitação pendente: cria um novo pedido.
-    const { error: erroInsercao } = await supabase
-      .from("solicitacoes_chat")
-      .insert({
-        solicitante_id: user.id,
-        destinatario_id: destinatarioId,
-        desabafo_post_id: desabafo.id,
-        status: "pendente",
+      if (!desabafo?.id || desabafo.souAutor) {
+        alert("Não foi possível solicitar uma conversa para este desabafo.");
+        return;
+      }
+      const minicursoConcluido = await carregarStatusMinicurso(user);
+      if (!minicursoConcluido) {
+        alert("Para oferecer uma conversa privada, primeiro conclua as 7 etapas do minicurso de acolhimento.");
+        irPara("mini-curso-chat");
+        return;
+      }
+      const { data, error } = await supabase.rpc("pulsan_solicitar_chat_post", {
+        p_post_id: desabafo.id,
       });
-
-    if (erroInsercao) {
-      console.error(
-        "Erro detalhado ao criar solicitação:",
-        JSON.stringify(erroInsercao, null, 2)
-      );
-
-      alert(
-        `Não foi possível enviar a solicitação.\n\n${
-          erroInsercao.message ||
-          "Verifique a tabela solicitacoes_chat e as políticas RLS."
-        }`
-      );
-      return;
+      if (error) {
+        const mensagem = String(error.message || "").toLowerCase();
+        if (mensagem.includes("minicurso") || mensagem.includes("minicurso_chat")) {
+          alert("Conclua as 7 etapas do minicurso antes de solicitar uma nova conversa privada.");
+          irPara("mini-curso-chat");
+          return;
+        }
+        throw error;
+      }
+      const resultado = Array.isArray(data) ? data[0] : data;
+      if (resultado?.status === "conversa_existente" && resultado?.conversa_id) {
+        alert("Você já possui uma conversa sobre este desabafo.");
+        return;
+      }
+      if (resultado?.status === "solicitacao_existente") {
+        alert("Você já enviou uma solicitação para este desabafo.");
+        return;
+      }
+      alert("Solicitação de chat enviada!");
+    } catch (erro) {
+      console.error("Erro ao solicitar conversa:", erro);
+      alert(erro?.message || "Não foi possível enviar a solicitação.");
     }
-
-    alert("Solicitação de chat enviada!");
-  } catch (erro) {
-    console.error("Erro inesperado ao solicitar conversa:", erro);
-    alert(
-      `Ocorreu um erro ao solicitar a conversa.\n\n${
-        erro.message || "Erro desconhecido."
-      }`
-    );
   }
-}
-
-  // =====================================================
-  // DENUNCIAR
-  // =====================================================
 
   function denunciar(item) {
-    const motivo = window.prompt(
-      "Digite o motivo da denúncia:"
-    );
-
-    if (!motivo) {
-      return;
-    }
-
+    const motivo = window.prompt("Digite o motivo da denúncia:");
+    if (!motivo) return;
     let denuncias = [];
-
     try {
-      denuncias = JSON.parse(
-        localStorage.getItem(
-          "pulsanDenuncias"
-        ) || "[]"
-      );
-
-      if (!Array.isArray(denuncias)) {
-        denuncias = [];
-      }
+      denuncias = JSON.parse(localStorage.getItem("pulsanDenuncias") || "[]");
+      if (!Array.isArray(denuncias)) denuncias = [];
     } catch (erro) {
       denuncias = [];
     }
-
     denuncias.push({
       id: Date.now(),
-
       publicacaoId: item.id,
-
       motivo,
-
       usuarioId,
-
       data: new Date().toISOString(),
     });
-
-    localStorage.setItem(
-      "pulsanDenuncias",
-      JSON.stringify(denuncias)
-    );
-
-    alert(
-      "Denúncia enviada. Obrigado por ajudar a manter o Pulsan seguro."
-    );
+    localStorage.setItem("pulsanDenuncias", JSON.stringify(denuncias));
+    alert("Denúncia enviada. Obrigado por ajudar a manter o Pulsan seguro.");
   }
 
-  // =====================================================
-  // TELA
-  // =====================================================
-
-  const meusDesabafos = desabafos.filter(
-    (item) => String(item.usuarioId || item.usuario_id || item.autor_id || "") === String(usuarioId)
-  );
-
+  const meusDesabafos = desabafos.filter((item) => item.souAutor === true);
   const listaExibicao = aba === "meus"
     ? meusDesabafos
-    : desabafos.filter(
-        (item) => String(item.usuarioId || item.usuario_id || item.autor_id || "") !== String(usuarioId)
-      );
-
+    : desabafos.filter((item) => item.souAutor !== true);
   const notificacoesNaoLidas = notificacoes.filter((item) => !item.lida).length;
   const sequenciaAtual = obterSequenciaApoio();
 
@@ -898,7 +892,6 @@ function Ambiente({ irPara, tema = "claro" }) {
         textoCor: "#9F1239",
       };
     }
-
     if (item.prioridade === "importante" || item.urgencia === "intermediario") {
       return {
         tipo: "apoio",
@@ -910,7 +903,6 @@ function Ambiente({ irPara, tema = "claro" }) {
         textoCor: "#8A5A00",
       };
     }
-
     return {
       tipo: "conversa",
       icone: "check",
@@ -948,7 +940,6 @@ function Ambiente({ irPara, tema = "claro" }) {
           --ambiente-primary-soft: #EAF3FF;
           --ambiente-input: #FFFFFF;
         }
-
         .ambiente-pulsan.ambiente-dark {
           --ambiente-bg: #081B35;
           --ambiente-bg-soft: #0A2342;
@@ -963,16 +954,13 @@ function Ambiente({ irPara, tema = "claro" }) {
           --ambiente-primary-soft: #15365F;
           --ambiente-input: #0B2547;
         }
-
         .ambiente-pulsan .ambiente-header {
           background: rgba(255,255,255,.92);
           border-bottom-color: var(--ambiente-border);
         }
-
         .ambiente-pulsan.ambiente-dark .ambiente-header {
           background: rgba(8,27,53,.94);
         }
-
         .ambiente-pulsan .ambiente-nav-btn,
         .ambiente-pulsan .ambiente-card,
         .ambiente-pulsan .ambiente-comment,
@@ -981,46 +969,37 @@ function Ambiente({ irPara, tema = "claro" }) {
           color: var(--ambiente-text);
           border-color: var(--ambiente-border);
         }
-
         .ambiente-pulsan .ambiente-action {
           background: var(--ambiente-card-soft);
           color: var(--ambiente-text);
           border-color: var(--ambiente-border);
         }
-
         .ambiente-pulsan .ambiente-action.primary {
           background: var(--ambiente-primary);
           border-color: var(--ambiente-primary);
           color: #FFFFFF;
         }
-
         .ambiente-pulsan .ambiente-action.supported {
           background: var(--ambiente-primary-soft);
           border-color: #A8C7FF;
           color: var(--ambiente-primary);
         }
-
         .ambiente-pulsan .ambiente-comment-input {
           color: var(--ambiente-text);
           background: var(--ambiente-input);
           border-color: var(--ambiente-border-strong);
         }
-
         .ambiente-pulsan .ambiente-comment-input::placeholder {
           color: var(--ambiente-muted);
         }
-
         .ambiente-pulsan.ambiente-dark .ambiente-hero-card {
           background: linear-gradient(135deg,#0F2D5B 0%,#15365F 100%) !important;
           border-color: var(--ambiente-border-strong) !important;
         }
-
         .ambiente-pulsan.ambiente-dark .ambiente-mini-fab {
           background: var(--ambiente-card);
           color: var(--ambiente-text);
         }
-
-        /* Contraste reforçado no modo escuro. O tema continua vindo do Perfil/App. */
         .ambiente-pulsan.ambiente-dark .ambiente-header,
         .ambiente-pulsan.ambiente-dark .ambiente-nav-btn {
           color: #FFFFFF !important;
@@ -1031,7 +1010,7 @@ function Ambiente({ irPara, tema = "claro" }) {
         .ambiente-pulsan.ambiente-dark .ambiente-hero-card > div > div:first-child p {
           color: #D7E5F7 !important;
         }
-        .ambiente-pulsan.ambiente-dark .ambiente-hero-card > div:last-child > div {
+        .ambiente-pulsan.ambiente-dark .ambiente-hero-card > div:nth-child(2) > div {
           background: #15365F !important;
           border-color: #416DA4 !important;
           color: #FFFFFF !important;
@@ -1097,8 +1076,27 @@ function Ambiente({ irPara, tema = "claro" }) {
           border-color: #6EA0FF !important;
           color: #FFFFFF !important;
         }
-
-        /* Animações de entrada */
+        .ambiente-pulsan .ambiente-minicurso {
+          background: var(--ambiente-card);
+          border: 1px solid var(--ambiente-border);
+          border-radius: 22px;
+          padding: 20px;
+          margin: 0 0 18px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 18px;
+          box-shadow: 0 8px 26px rgba(15,45,91,.06);
+        }
+        @media (max-width: 560px) {
+          .ambiente-pulsan .ambiente-minicurso {
+            align-items: stretch;
+            flex-direction: column;
+          }
+          .ambiente-pulsan .ambiente-minicurso button {
+            width: 100%;
+          }
+        }
         @keyframes fadeInUp {
           from {
             opacity: 0;
@@ -1109,7 +1107,6 @@ function Ambiente({ irPara, tema = "claro" }) {
             transform: translateY(0);
           }
         }
-
         @keyframes slideInFromTop {
           from {
             opacity: 0;
@@ -1120,31 +1117,23 @@ function Ambiente({ irPara, tema = "claro" }) {
             transform: translateY(0);
           }
         }
-
         .ambiente-post {
           animation: fadeInUp 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
         }
-
         .ambiente-comment {
           animation: slideInFromTop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
         }
-
-        /* Pulso suave para novos comentários */
         .ambiente-comment-new {
           box-shadow: 0 0 0 3px rgba(58, 125, 255, 0.1);
           animation: fadeInUp 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
-
-        /* Transição suave em apoios */
         .ambiente-action {
           transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         }
-
         .ambiente-action:hover {
           transform: translateY(-1px);
           box-shadow: 0 4px 12px rgba(15, 45, 91, 0.12);
         }
-
         .ambiente-shell { width: min(100% - 32px, 980px); margin: 0 auto; }
         .ambiente-header { position: sticky; top: 0; z-index: 30; backdrop-filter: blur(16px); background: var(--ambiente-card); border-bottom: 1px solid var(--ambiente-border); }
         .ambiente-header-inner { width: min(100% - 32px, 1180px); min-height: 76px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 18px; }
@@ -1153,6 +1142,7 @@ function Ambiente({ irPara, tema = "claro" }) {
         .ambiente-nav { display:flex; align-items:center; gap:8px; }
         .ambiente-nav-btn { border:1px solid #DCE9FA; background:var(--ambiente-card); color:var(--ambiente-text); border-radius:13px; padding:10px 14px; font-weight:750; cursor:pointer; transition:.2s; }
         .ambiente-nav-btn.active { background:#3A7DFF; border-color:#3A7DFF; color:#fff; }
+
         .ambiente-hero { padding:30px 0 12px; }
         .ambiente-hero-card { background:linear-gradient(135deg,#FFFFFF 0%,#EAF3FF 100%); border:1px solid #C9DCFA; border-radius:28px; padding:28px; box-shadow:0 12px 40px rgba(15,45,91,.08); }
         .ambiente-grid { display:grid; grid-template-columns:1fr 310px; gap:18px; align-items:start; }
@@ -1166,14 +1156,43 @@ function Ambiente({ irPara, tema = "claro" }) {
         .ambiente-comment-form { display:flex; gap:8px; margin-top:12px; }
         .ambiente-comment-input { flex:1; min-width:0; border:1px solid #C9DCFA; border-radius:14px; padding:12px 14px; outline:none; color:var(--ambiente-text); background:var(--ambiente-card); }
         .ambiente-side { position:sticky; top:94px; }
-        .ambiente-fab { position:fixed; right:24px; bottom:88px; z-index:40; width:64px; height:64px; border:0; border-radius:50%; background:#3A7DFF; color:#fff; font-size:27px; cursor:pointer; box-shadow:0 12px 30px rgba(58,125,255,.35); }
-        .ambiente-mini-fab { position:fixed; right:100px; bottom:103px; z-index:40; width:38px; height:38px; border:1px solid #DCE9FA; border-radius:50%; background:var(--ambiente-card); color:var(--ambiente-text); font-size:19px; cursor:pointer; box-shadow:0 8px 20px rgba(15,45,91,.14); }
-        @media (max-width: 820px) {
-          .ambiente-grid { grid-template-columns:1fr; }
-          .ambiente-side { position:static; }
-          .ambiente-header-inner { min-height:68px; }
-          .ambiente-nav-btn span { display:none; }
+       .ambiente-fab {
+          position: fixed !important;
+          right: 24px !important;
+          left: auto !important;
+          bottom: calc(100px + env(safe-area-inset-bottom, 0px)) !important;
+          z-index: 2000 !important;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 10px;
+          width: auto;
+          min-width: 156px;
+          min-height: 56px;
+          height: auto;
+          padding: 0 22px;
+          border: 0;
+          border-radius: 999px;
+          background: #3A7DFF;
+          color: #FFFFFF;
+          font-size: 15px;
+          font-weight: 800;
+          line-height: 1;
+          white-space: nowrap;
+          cursor: pointer;
+          box-shadow: 0 12px 30px rgba(58,125,255,.35);
+          transition: transform .2s ease, box-shadow .2s ease, background .2s ease;
         }
+        .ambiente-pulsan .ambiente-fab:hover {
+          transform: translateY(-3px);
+          box-shadow: 0 16px 34px rgba(58,125,255,.42);
+          background: #286CEB;
+        }
+        .ambiente-pulsan .ambiente-fab:focus-visible {
+          outline: 3px solid #A8C7FF;
+          outline-offset: 4px;
+        }
+       
         @media (max-width: 560px) {
           .ambiente-shell, .ambiente-header-inner { width:min(100% - 20px, 980px); }
           .ambiente-hero { padding-top:16px; }
@@ -1186,12 +1205,19 @@ function Ambiente({ irPara, tema = "claro" }) {
           .ambiente-action.primary { grid-column:1 / -1; }
           .ambiente-comment-form { flex-direction:column; }
           .ambiente-comment-form button { min-height:44px; }
-          .ambiente-fab { right:16px; bottom:78px; }
+         
           .ambiente-mini-fab { right:90px; bottom:92px; }
+          .ambiente-fab {
+            right: 16px !important;
+            bottom: calc(92px + env(safe-area-inset-bottom, 0px)) !important;
+            min-width: 148px;
+            min-height: 54px;
+            padding: 0 18px;
+            font-size: 14px;
+          }
         }
       `}</style>
-
-      <header className="ambiente-header">
+            <header className="ambiente-header">
         <div className="ambiente-header-inner">
           <div className="ambiente-brand">
             <img className="ambiente-logo" src="/logo.png" alt="Pulsan" />
@@ -1200,7 +1226,6 @@ function Ambiente({ irPara, tema = "claro" }) {
               <p style={{ margin: "2px 0 0", color: "#5E7594", fontSize: 12 }}>Um espaço para ouvir e ser ouvido.</p>
             </div>
           </div>
-
           <nav className="ambiente-nav" aria-label="Navegação do Ambiente">
             <button className={`ambiente-nav-btn ${aba === "feed" ? "active" : ""}`} onClick={() => setAba("feed")}>
               <Icon name="heart" size={17} /> <span>Comunidade</span>
@@ -1232,15 +1257,81 @@ function Ambiente({ irPara, tema = "claro" }) {
                   Um espaço de apoio onde pessoas podem compartilhar o que sentem, receber acolhimento e oferecer uma palavra de cuidado — sem julgamentos.
                 </p>
               </div>
-              <div style={{ fontSize: 58, lineHeight: 1, padding: 8 }}>🦋</div>
+              <div style={{ width: 64, height: 64, lineHeight: 1, padding: 8, color: "#3A7DFF", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Icon name="heart" size={48} strokeWidth={1.6} />
+              </div>
             </div>
-
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 20 }}>
               <div style={{ background: "rgba(255,255,255,.82)", border: "1px solid #D7E6FA", borderRadius: 14, padding: "10px 13px", color: "#0F2D5B", fontSize: 13 }}><Icon name="lock" size={15} /> Identidade protegida</div>
               <div style={{ background: "rgba(255,255,255,.82)", border: "1px solid #D7E6FA", borderRadius: 14, padding: "10px 13px", color: "#0F2D5B", fontSize: 13 }}><Icon name="users" size={15} /> Apoio entre pessoas</div>
               <div style={{ background: "rgba(255,255,255,.82)", border: "1px solid #D7E6FA", borderRadius: 14, padding: "10px 13px", color: "#0F2D5B", fontSize: 13 }}><Icon name="message" size={15} /> Conversas com consentimento</div>
             </div>
+            <div style={{
+              marginTop: 22,
+              padding: 20,
+              borderRadius: 20,
+              background: modoEscuro ? "rgba(110,160,255,.12)" : "rgba(255,255,255,.78)",
+              border: `1px solid ${modoEscuro ? "#416DA4" : "#C9DCFA"}`,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 18,
+              flexWrap: "wrap"
+            }}>
+              <div style={{ flex: "1 1 240px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 7 }}>
+                  <Icon name="heart" size={19} />
+                  <strong style={{ fontSize: 16 }}>Um momento para cuidar de você</strong>
+                </div>
+                <p style={{ margin: 0, color: modoEscuro ? "#D7E5F7" : "#4D6687", fontSize: 13, lineHeight: 1.6 }}>
+                  Nem sempre precisamos conversar. Às vezes, uma pausa, um exercício de respiração ou alguns minutos de autocuidado já podem ajudar.
+                </p>
+              </div>
+              <button
+                onClick={() => irPara("autocuidado")}
+                style={{
+                  border: 0,
+                  borderRadius: 13,
+                  padding: "12px 20px",
+                  background: "#3A7DFF",
+                  color: "#FFFFFF",
+                  fontWeight: 800,
+                  fontSize: 13,
+                  cursor: "pointer",
+                  whiteSpace: "nowrap"
+                }}
+              >
+                Começar agora
+              </button>
+            </div>
           </div>
+        </section>
+
+        <section className="ambiente-minicurso">
+          <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+            <span style={{ width: 42, height: 42, flex: "0 0 42px", borderRadius: 13, background: "var(--ambiente-primary-soft)", color: "var(--ambiente-primary)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Icon name="shield" size={21} />
+            </span>
+            <div style={{ minWidth: 0 }}>
+              <strong style={{ display: "block", fontSize: 15 }}>
+                {statusMinicurso.carregando
+                  ? "Verificando seus cursos..."
+                  : statusMinicurso.concluido
+                    ? "Você está com todos os cursos em dia!"
+                    : "Você tem um minicurso pendente."}
+              </strong>
+              {!statusMinicurso.carregando && !statusMinicurso.concluido && (
+                <span style={{ display: "block", marginTop: 4, color: "var(--ambiente-muted)", fontSize: 12, lineHeight: 1.5 }}>
+                  Conclua o minicurso para liberar as solicitações de conversas privadas.
+                </span>
+              )}
+            </div>
+          </div>
+          {!statusMinicurso.carregando && !statusMinicurso.concluido && (
+            <button className="ambiente-action primary" onClick={() => irPara("mini-curso-chat")} style={{ whiteSpace: "nowrap", minHeight: 44 }}>
+              Fazer minicurso
+            </button>
+          )}
         </section>
 
         {notificacoesNaoLidas > 0 && (
@@ -1275,7 +1366,9 @@ function Ambiente({ irPara, tema = "claro" }) {
 
             {!carregandoDesabafos && listaExibicao.length === 0 && (
               <div className="ambiente-card" style={{ padding: "42px 22px", textAlign: "center" }}>
-                <div style={{ fontSize: 48, marginBottom: 10 }}>🦋</div>
+                <div style={{ marginBottom: 10, color: "#3A7DFF" }}>
+                  <Icon name="heart" size={42} strokeWidth={1.6} />
+                </div>
                 <h3 style={{ margin: "0 0 7px" }}>{aba === "meus" ? "Você ainda não publicou um desabafo." : "Ainda não existem desabafos."}</h3>
                 <p style={{ margin: 0, color: "#667D9B", lineHeight: 1.6 }}>
                   {aba === "meus" ? "Quando quiser colocar seus sentimentos para fora, este espaço estará aqui." : "Quando alguém compartilhar, você poderá acolher, comentar ou oferecer uma conversa."}
@@ -1287,7 +1380,7 @@ function Ambiente({ irPara, tema = "claro" }) {
               const apoiadores = Array.isArray(item.apoiadores) ? item.apoiadores : [];
               const comentarios = Array.isArray(item.comentarios) ? item.comentarios : [];
               const jaApoiou = apoiadores.includes(String(usuarioId));
-              const dono = String(item.usuarioId || item.autorId || item.donoId || item.usuario_id || "") === String(usuarioId);
+              const dono = item.souAutor === true;
               const urgencia = obterNivelUrgencia(item);
 
               return (
@@ -1334,8 +1427,15 @@ function Ambiente({ irPara, tema = "claro" }) {
                       <Icon name="message" size={16} /> Comentar{comentarios.length > 0 ? ` ${comentarios.length}` : ""}
                     </button>
                     {!dono && (
-                      <button className="ambiente-action primary" onClick={() => solicitarChat(item)}>
-                        <><Icon name="users" size={16} /> Oferecer conversa privada</>
+                      <button
+                        className="ambiente-action primary"
+                        onClick={() => statusMinicurso.concluido ? solicitarChat(item) : irPara("mini-curso-chat")}
+                        disabled={statusMinicurso.carregando}
+                        title={statusMinicurso.concluido ? "Oferecer conversa privada" : "Conclua o minicurso para oferecer uma conversa privada"}
+                      >
+                        {statusMinicurso.concluido
+                          ? <><Icon name="users" size={16} /> Oferecer conversa privada</>
+                          : <><Icon name="shield" size={16} /> Concluir minicurso para conversar</>}
                       </button>
                     )}
                   </div>
@@ -1426,8 +1526,15 @@ function Ambiente({ irPara, tema = "claro" }) {
       </main>
 
       <button className="ambiente-mini-fab" onClick={() => setAba(aba === "meus" ? "feed" : "meus")} title="Alternar entre comunidade e meus desabafos" aria-label="Alternar entre comunidade e meus desabafos">⋯</button>
-      <button className="ambiente-fab" onClick={() => irPara("desabafar")} title="Desabafar" aria-label="Desabafar"><Icon name="edit" size={20} /></button>
+      {typeof document !== "undefined" && createPortal(
+        <button type="button" className="ambiente-fab" onClick={() => irPara("desabafar")} title="Desabafar" aria-label="Desabafar">
+          <Icon name="edit" size={19} />
+          <span>Desabafar</span>
+        </button>,
+        document.body
+      )}
     </div>
   );
 }
+
 export default Ambiente;

@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 
-// Compartilha a validação entre montagens duplicadas do React StrictMode.
 const validacoesRecuperacao = new Map();
 
 function validarUmaVez(chave, executar) {
@@ -33,7 +32,9 @@ function RedefinirSenha({ irPara }) {
     async function prepararRecuperacao() {
       try {
         const parametros = new URLSearchParams(window.location.search);
-        const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+        const hash = new URLSearchParams(
+          window.location.hash.replace(/^#/, "")
+        );
 
         const erroRetorno =
           parametros.get("error_description") ||
@@ -58,7 +59,9 @@ function RedefinirSenha({ irPara }) {
 
         if (tokenHash) {
           if (tipo !== "recovery") {
-            throw new Error("O link não corresponde a uma recuperação de senha.");
+            throw new Error(
+              "O link não corresponde a uma recuperação de senha."
+            );
           }
 
           const { data, error } = await validarUmaVez(
@@ -71,46 +74,42 @@ function RedefinirSenha({ irPara }) {
           );
 
           if (error) throw error;
-          if (!data?.session) {
-            throw new Error("O Supabase não retornou uma sessão de recuperação válida.");
-          }
-        } else if (codigo) {
-          const { error } = await validarUmaVez(
-            `pulsan-recovery-code:${codigo}`,
-            () => supabase.auth.exchangeCodeForSession(codigo)
-          );
-          if (error) throw error;
-        } else if (accessToken && refreshToken) {
-          if (tipo !== "recovery") {
-            throw new Error("O link não corresponde a uma recuperação de senha.");
-          }
 
-          const { error } = await validarUmaVez(
-            `pulsan-recovery-hash:${accessToken}`,
-            () =>
-              supabase.auth.setSession({
-                access_token: accessToken,
-                refresh_token: refreshToken,
-              })
-          );
-          if (error) throw error;
+          if (!data?.session) {
+            throw new Error(
+              "O Supabase não retornou uma sessão de recuperação válida."
+            );
+          }
         } else {
           const tipoRecuperacao =
-            tipo === "recovery" || parametros.get("redefinir-senha") === "1";
+            tipo === "recovery" ||
+            parametros.get("redefinir-senha") === "1" ||
+            Boolean(codigo) ||
+            Boolean(accessToken && refreshToken);
 
           if (!tipoRecuperacao) {
-            throw new Error("O endereço não contém um pedido de recuperação.");
+            throw new Error(
+              "O endereço não contém um pedido de recuperação."
+            );
           }
+
+          // Com detectSessionInUrl: true, o Supabase processa automaticamente
+          // o código PKCE ou os tokens recebidos na URL. Não trocar novamente.
         }
 
+        // getSession aguarda a inicialização e o processamento automático
+        // do retorno de autenticação pelo cliente Supabase.
         const { data, error } = await supabase.auth.getSession();
+
         if (error) throw error;
 
         if (!data?.session) {
-          throw new Error("Não foi possível validar a sessão de recuperação. Solicite um novo link.");
+          throw new Error(
+            "Não foi possível validar a sessão de recuperação. Solicite um novo link."
+          );
         }
 
-        // Retira tokens e códigos da barra de endereço após a validação.
+        // Remove códigos e tokens da barra de endereço após a validação.
         window.history.replaceState(
           {},
           document.title,
@@ -123,8 +122,10 @@ function RedefinirSenha({ irPara }) {
         }
       } catch (e) {
         console.error("Erro ao validar recuperação de senha:", e);
+
         if (ativo) {
           const mensagem = String(e?.message || "").toLowerCase();
+
           const linkInvalido =
             mensagem.includes("expired") ||
             mensagem.includes("invalid") ||
@@ -189,16 +190,23 @@ function RedefinirSenha({ irPara }) {
         await supabase.auth.getSession();
 
       if (erroSessao) throw erroSessao;
+
       if (!sessaoAtual?.session) {
-        throw new Error("A sessão de recuperação expirou. Solicite um novo link.");
+        throw new Error(
+          "A sessão de recuperação expirou. Solicite um novo link."
+        );
       }
 
-      const { error } = await supabase.auth.updateUser({ password: senha });
+      const { error } = await supabase.auth.updateUser({
+        password: senha,
+      });
+
       if (error) throw error;
 
-      // A senha já foi alterada. O encerramento da sessão é apenas uma etapa
-      // de segurança; uma falha nele não desfaz a alteração concluída.
+      // A senha já foi alterada. O encerramento da sessão é apenas
+      // uma etapa de segurança; uma falha nele não desfaz a alteração.
       const { error: erroSaida } = await supabase.auth.signOut();
+
       if (erroSaida) {
         console.warn(
           "A senha foi alterada, mas não foi possível encerrar a sessão:",
@@ -206,7 +214,12 @@ function RedefinirSenha({ irPara }) {
         );
       }
 
-      window.history.replaceState({}, document.title, window.location.pathname);
+      window.history.replaceState(
+        {},
+        document.title,
+        window.location.pathname
+      );
+
       alert(
         "Sua senha foi redefinida com sucesso. Agora entre no Pulsan usando sua nova senha."
       );
@@ -216,6 +229,7 @@ function RedefinirSenha({ irPara }) {
       }
     } catch (e) {
       console.error("Erro ao redefinir senha:", e);
+
       const mensagem = String(e?.message || "").toLowerCase();
 
       setErro(
@@ -268,7 +282,8 @@ function RedefinirSenha({ irPara }) {
         justifyContent: "center",
         padding: "24px",
         boxSizing: "border-box",
-        background: "linear-gradient(145deg, #EAF3FF 0%, #FFFFFF 62%, #EAF3FF 100%)",
+        background:
+          "linear-gradient(145deg, #EAF3FF 0%, #FFFFFF 62%, #EAF3FF 100%)",
         color: "#0F2D5B",
       }}
     >
@@ -299,7 +314,11 @@ function RedefinirSenha({ irPara }) {
           <img
             src="/logo.png"
             alt="Pulsan"
-            style={{ width: "42px", height: "42px", objectFit: "contain" }}
+            style={{
+              width: "42px",
+              height: "42px",
+              objectFit: "contain",
+            }}
           />
         </div>
 
@@ -366,6 +385,7 @@ function RedefinirSenha({ irPara }) {
             >
               {erro}
             </div>
+
             <button
               type="button"
               onClick={() => irPara("login")}
@@ -397,6 +417,7 @@ function RedefinirSenha({ irPara }) {
               >
                 Nova senha
               </label>
+
               <div style={{ position: "relative" }}>
                 <input
                   id="nova-senha"
@@ -408,6 +429,7 @@ function RedefinirSenha({ irPara }) {
                   disabled={salvando}
                   style={estilos.campo}
                 />
+
                 <button
                   type="button"
                   onClick={() => setMostrarSenha((v) => !v)}
@@ -430,6 +452,7 @@ function RedefinirSenha({ irPara }) {
               >
                 Confirmar nova senha
               </label>
+
               <div style={{ position: "relative" }}>
                 <input
                   id="confirmar-nova-senha"
@@ -441,6 +464,7 @@ function RedefinirSenha({ irPara }) {
                   disabled={salvando}
                   style={estilos.campo}
                 />
+
                 <button
                   type="button"
                   onClick={() => setMostrarConfirmacao((v) => !v)}
@@ -460,7 +484,10 @@ function RedefinirSenha({ irPara }) {
                 marginBottom: "17px",
               }}
             >
-              <strong style={{ fontSize: "12px" }}>A senha precisa ter:</strong>
+              <strong style={{ fontSize: "12px" }}>
+                A senha precisa ter:
+              </strong>
+
               <div
                 style={{
                   display: "grid",
@@ -478,7 +505,10 @@ function RedefinirSenha({ irPara }) {
                   [requisitos.numero, "1 número"],
                   [requisitos.especial, "1 caractere especial"],
                 ].map(([ok, texto]) => (
-                  <span key={texto} style={{ color: ok ? "#16845B" : "#6D7F99" }}>
+                  <span
+                    key={texto}
+                    style={{ color: ok ? "#16845B" : "#6D7F99" }}
+                  >
                     {ok ? "✓" : "•"} {texto}
                   </span>
                 ))}
@@ -533,8 +563,8 @@ function RedefinirSenha({ irPara }) {
             lineHeight: 1.5,
           }}
         >
-          O link de recuperação é temporário e só pode ser utilizado pelo fluxo de
-          autenticação do Supabase.
+          O link de recuperação é temporário e só pode ser utilizado pelo fluxo
+          de autenticação do Supabase.
         </div>
       </section>
     </main>

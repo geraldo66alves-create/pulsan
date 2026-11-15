@@ -1114,7 +1114,7 @@ function Reflexao({ irPara, tema, alterarTema }) {
 
     if (
       !audioMomentoRef.current ||
-      audioMomentoRef.current.dataset?.pulsanSrc !== arquivoAudio
+      audioMomentoRef.current._pulsanSrc !== arquivoAudio
     ) {
       if (audioMomentoRef.current) {
         audioMomentoRef.current.pause();
@@ -1122,8 +1122,7 @@ function Reflexao({ irPara, tema, alterarTema }) {
       }
 
       const audio = new Audio(arquivoAudio);
-      audio.dataset = audio.dataset || {};
-      audio.dataset.pulsanSrc = arquivoAudio;
+      audio._pulsanSrc = arquivoAudio;
 
       audio.volume = 0.65;
       audio.preload = "auto";

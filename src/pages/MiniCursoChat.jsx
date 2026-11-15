@@ -1,983 +1,463 @@
-import React, { useMemo, useState } from "react";
-
-/*
-  ============================================================
-  MINI CURSO PULSAN — COMO ACOLHER E AJUDAR
-  ============================================================
-
-  Vídeos esperados em public/videos/mini-curso/:
-    etapa-1.mp4
-    etapa-2.mp4
-    etapa-3.mp4
-    etapa-4.mp4
-    etapa-5.mp4
-    etapa-6.mp4
-    etapa-7.mp4
-
-  O componente funciona mesmo sem os vídeos.
-  Quando os arquivos forem colocados nos caminhos acima,
-  eles aparecerão automaticamente.
-*/
+import React, { useEffect, useMemo, useState } from "react";
+import { supabase } from "../lib/supabase";
 
 const ETAPAS = [
   {
-    id: 1,
-    titulo: "Perceber",
-    subtitulo: "Nem todo pedido de ajuda é feito em voz alta.",
-    video: "/videos/mini-curso/etapa-1.mp4",
-    abertura:
-      "Antes de ajudar alguém, precisamos aprender a perceber quando uma pessoa pode estar passando por um momento difícil.",
-    mensagem:
-      "Perceber não significa diagnosticar o que alguém está sentindo. Significa notar mudanças, demonstrar cuidado e mostrar que aquela pessoa não está invisível.",
-    situacao:
-      "Uma pessoa que normalmente conversa bastante está mais quieta nos últimos dias. Quando alguém pergunta se está tudo bem, ela responde apenas: \"Estou normal.\" O que você faria?",
+    id: 1, titulo: "Perceber", subtitulo: "Nem todo pedido de ajuda é feito em voz alta.", video: "/videos/mini-curso/etapa-1.mp4",
+    abertura: "Antes de ajudar alguém, precisamos aprender a perceber quando uma pessoa pode estar passando por um momento difícil.",
+    mensagem: "Perceber não significa diagnosticar o que alguém está sentindo. Significa notar mudanças, demonstrar cuidado e mostrar que aquela pessoa não está invisível.",
+    situacao: "Uma pessoa que normalmente conversa bastante está mais quieta nos últimos dias. Quando alguém pergunta se está tudo bem, ela responde apenas: \"Estou normal.\" O que você faria?",
     opcoes: [
-      {
-        texto: "Deixaria passar. Se ela quiser conversar, vai procurar alguém.",
-        correta: false,
-        explicacao:
-          "Nem sempre quem precisa de ajuda consegue dar o primeiro passo. Demonstrar disponibilidade pode fazer diferença.",
-      },
-      {
-        texto: "Perguntaria com cuidado se está tudo bem e mostraria que estou disponível para ouvir.",
-        correta: true,
-        explicacao:
-          "Perfeito. Você não está obrigando a pessoa a falar. Está apenas mostrando que percebeu e que existe alguém disponível.",
-      },
-      {
-        texto: "Perguntaria imediatamente o que aconteceu e insistiria até ela responder.",
-        correta: false,
-        explicacao:
-          "Demonstrar preocupação é importante, mas pressionar pode fazer a pessoa se fechar ainda mais.",
-      },
-    ],
+      { texto: "Deixaria passar. Se ela quiser conversar, vai procurar alguém.", correta: false, explicacao: "Nem sempre quem precisa de ajuda consegue dar o primeiro passo. Demonstrar disponibilidade pode fazer diferença." },
+      { texto: "Perguntaria com cuidado se está tudo bem e mostraria que estou disponível para ouvir.", correta: true, explicacao: "Perfeito. Você não está obrigando a pessoa a falar. Está apenas mostrando que percebeu e que existe alguém disponível." },
+      { texto: "Perguntaria imediatamente o que aconteceu e insistiria até ela responder.", correta: false, explicacao: "Demonstrar preocupação é importante, mas pressionar pode fazer a pessoa se fechar ainda mais." }
+    ]
   },
   {
-    id: 2,
-    titulo: "Aproximar",
-    subtitulo: "Como chegar sem invadir.",
-    video: "/videos/mini-curso/etapa-2.mp4",
-    abertura:
-      "Agora que você percebeu que alguém pode não estar bem, vem uma pergunta importante: como chegar perto sem transformar cuidado em pressão?",
-    mensagem:
-      "Uma abordagem acolhedora deixa espaço para a pessoa escolher se quer conversar. Você demonstra preocupação sem exigir uma explicação.",
-    situacao:
-      "Você percebe que alguém está diferente. Qual destas abordagens demonstra mais cuidado?",
+    id: 2, titulo: "Aproximar", subtitulo: "Como chegar sem invadir.", video: "/videos/mini-curso/etapa-2.mp4",
+    abertura: "Agora que você percebeu que alguém pode não estar bem, vem uma pergunta importante: como chegar perto sem transformar cuidado em pressão?",
+    mensagem: "Uma abordagem acolhedora deixa espaço para a pessoa escolher se quer conversar. Você demonstra preocupação sem exigir uma explicação.",
+    situacao: "Você percebe que alguém está diferente. Qual destas abordagens demonstra mais cuidado?",
     opcoes: [
-      {
-        texto: "\"O que aconteceu? Você precisa me contar agora.\"",
-        correta: false,
-        explicacao:
-          "A intenção pode ser boa, mas a frase coloca pressão e tira da pessoa o direito de escolher quando falar.",
-      },
-      {
-        texto: "\"Percebi que você parece um pouco diferente. Está tudo bem? Se quiser conversar, estou aqui.\"",
-        correta: true,
-        explicacao:
-          "Essa abordagem demonstra atenção, mas respeita o espaço da pessoa.",
-      },
-      {
-        texto: "\"Você está estranho ultimamente. Tem alguma coisa errada com você?\"",
-        correta: false,
-        explicacao:
-          "A frase pode soar como julgamento. O ideal é demonstrar cuidado sem rotular a pessoa.",
-      },
-    ],
+      { texto: "\"O que aconteceu? Você precisa me contar agora.\"", correta: false, explicacao: "A intenção pode ser boa, mas a frase coloca pressão e tira da pessoa o direito de escolher quando falar." },
+      { texto: "\"Percebi que você parece um pouco diferente. Está tudo bem? Se quiser conversar, estou aqui.\"", correta: true, explicacao: "Essa abordagem demonstra atenção, mas respeita o espaço da pessoa." },
+      { texto: "\"Você está estranho ultimamente. Tem alguma coisa errada com você?\"", correta: false, explicacao: "A frase pode soar como julgamento. O ideal é demonstrar cuidado sem rotular a pessoa." }
+    ]
   },
   {
-    id: 3,
-    titulo: "Escutar",
-    subtitulo: "Ouvir é mais do que esperar sua vez de falar.",
-    video: "/videos/mini-curso/etapa-3.mp4",
-    abertura:
-      "Quando alguém começa a desabafar, talvez você já queira responder, aconselhar ou contar uma experiência parecida. Mas existe algo que vem antes: escutar.",
-    mensagem:
-      "Escutar de verdade é prestar atenção, não interromper, não transformar a conversa em uma competição e tentar compreender o que a pessoa está vivendo.",
-    situacao:
-      "A pessoa diz: \"Eu estou cansado de fingir que está tudo bem.\" Qual resposta demonstra mais disponibilidade para ouvir?",
+    id: 3, titulo: "Escutar", subtitulo: "Ouvir é mais do que esperar sua vez de falar.", video: "/videos/mini-curso/etapa-3.mp4",
+    abertura: "Quando alguém começa a desabafar, talvez você já queira responder, aconselhar ou contar uma experiência parecida. Mas existe algo que vem antes: escutar.",
+    mensagem: "Escutar de verdade é prestar atenção, não interromper, não transformar a conversa em uma competição e tentar compreender o que a pessoa está vivendo.",
+    situacao: "A pessoa diz: \"Eu estou cansado de fingir que está tudo bem.\" Qual resposta demonstra mais disponibilidade para ouvir?",
     opcoes: [
-      {
-        texto: "\"Eu sei como é. Comigo aconteceu algo muito pior.\"",
-        correta: false,
-        explicacao:
-          "Comparar sofrimentos pode fazer a pessoa sentir que sua experiência foi diminuída.",
-      },
-      {
-        texto: "\"Você precisa pensar positivo. Isso vai passar.\"",
-        correta: false,
-        explicacao:
-          "A frase tenta resolver rapidamente algo que ainda precisa ser compreendido.",
-      },
-      {
-        texto: "\"Imagino que esteja sendo difícil. Se quiser, pode me contar o que está acontecendo.\"",
-        correta: true,
-        explicacao:
-          "Essa resposta reconhece o sentimento e deixa a pessoa livre para continuar.",
-      },
-    ],
+      { texto: "\"Eu sei como é. Comigo aconteceu algo muito pior.\"", correta: false, explicacao: "Comparar sofrimentos pode fazer a pessoa sentir que sua experiência foi diminuída." },
+      { texto: "\"Você precisa pensar positivo. Isso vai passar.\"", correta: false, explicacao: "A frase tenta resolver rapidamente algo que ainda precisa ser compreendido." },
+      { texto: "\"Imagino que esteja sendo difícil. Se quiser, pode me contar o que está acontecendo.\"", correta: true, explicacao: "Essa resposta reconhece o sentimento e deixa a pessoa livre para continuar." }
+    ]
   },
   {
-    id: 4,
-    titulo: "Acolher",
-    subtitulo: "Você não precisa resolver para fazer diferença.",
-    video: "/videos/mini-curso/etapa-4.mp4",
-    abertura:
-      "Acolher não significa ter a resposta perfeita. Muitas vezes, significa fazer alguém perceber que seus sentimentos não foram ignorados.",
-    mensagem:
-      "Antes de oferecer soluções, procure compreender. Evite diminuir sentimentos, julgar ou dizer que a pessoa deveria simplesmente esquecer o problema.",
-    situacao:
-      "Alguém diz: \"Eu estou muito sobrecarregado e não sei mais o que fazer.\" Qual resposta é mais acolhedora?",
+    id: 4, titulo: "Acolher", subtitulo: "Você não precisa resolver para fazer diferença.", video: "/videos/mini-curso/etapa-4.mp4",
+    abertura: "Acolher não significa ter a resposta perfeita. Muitas vezes, significa fazer alguém perceber que seus sentimentos não foram ignorados.",
+    mensagem: "Antes de oferecer soluções, procure compreender. Evite diminuir sentimentos, julgar ou dizer que a pessoa deveria simplesmente esquecer o problema.",
+    situacao: "Alguém diz: \"Eu estou muito sobrecarregado e não sei mais o que fazer.\" Qual resposta é mais acolhedora?",
     opcoes: [
-      {
-        texto: "\"Todo mundo passa por isso. Você precisa ser forte.\"",
-        correta: false,
-        explicacao:
-          "A frase pode fazer a pessoa sentir que não deveria estar sofrendo.",
-      },
-      {
-        texto: "\"Entendo que isso esteja pesado para você. Quer me contar um pouco mais?\"",
-        correta: true,
-        explicacao:
-          "Você reconhece o que a pessoa está sentindo e abre espaço para ela falar.",
-      },
-      {
-        texto: "\"Se fosse comigo, eu faria exatamente isso...\"",
-        correta: false,
-        explicacao:
-          "A experiência de cada pessoa é diferente. O primeiro passo é compreender, não substituir a história dela pela sua.",
-      },
-    ],
+      { texto: "\"Todo mundo passa por isso. Você precisa ser forte.\"", correta: false, explicacao: "A frase pode fazer a pessoa sentir que não deveria estar sofrendo." },
+      { texto: "\"Entendo que isso esteja pesado para você. Quer me contar um pouco mais?\"", correta: true, explicacao: "Você reconhece o que a pessoa está sentindo e abre espaço para ela falar." },
+      { texto: "\"Se fosse comigo, eu faria exatamente isso...\"", correta: false, explicacao: "A experiência de cada pessoa é diferente. O primeiro passo é compreender, não substituir a história dela pela sua." }
+    ]
   },
   {
-    id: 5,
-    titulo: "Respeitar",
-    subtitulo: "Confiança também é saber guardar.",
-    video: "/videos/mini-curso/etapa-5.mp4",
-    abertura:
-      "Quando alguém compartilha algo pessoal, ela está confiando em você. Essa confiança precisa ser tratada com responsabilidade.",
-    mensagem:
-      "Não compartilhe histórias, prints ou informações pessoais. Também respeite quando alguém não quiser continuar uma conversa.",
-    situacao:
-      "Depois de uma conversa no PULSAN, um amigo pergunta o que a outra pessoa contou. O que você faria?",
+    id: 5, titulo: "Respeitar", subtitulo: "Confiança também é saber guardar.", video: "/videos/mini-curso/etapa-5.mp4",
+    abertura: "Quando alguém compartilha algo pessoal, ela está confiando em você. Essa confiança precisa ser tratada com responsabilidade.",
+    mensagem: "Não compartilhe histórias, prints ou informações pessoais. Também respeite quando alguém não quiser continuar uma conversa.",
+    situacao: "Depois de uma conversa no PULSAN, um amigo pergunta o que a outra pessoa contou. O que você faria?",
     opcoes: [
-      {
-        texto: "Contaria porque meu amigo é de confiança.",
-        correta: false,
-        explicacao:
-          "A informação foi confiada a você, não ao seu amigo. Privacidade continua sendo importante.",
-      },
-      {
-        texto: "Contaria apenas uma parte.",
-        correta: false,
-        explicacao:
-          "Compartilhar apenas uma parte ainda quebra a confiança da pessoa.",
-      },
-      {
-        texto: "Preservaria a conversa e não compartilharia o que foi confiado.",
-        correta: true,
-        explicacao:
-          "Exatamente. Acolhimento também significa proteger a privacidade.",
-      },
-    ],
+      { texto: "Contaria porque meu amigo é de confiança.", correta: false, explicacao: "A informação foi confiada a você, não ao seu amigo. Privacidade continua sendo importante." },
+      { texto: "Contaria apenas uma parte.", correta: false, explicacao: "Compartilhar apenas uma parte ainda quebra a confiança da pessoa." },
+      { texto: "Preservaria a conversa e não compartilharia o que foi confiado.", correta: true, explicacao: "Exatamente. Acolhimento também significa proteger a privacidade." }
+    ]
   },
   {
-    id: 6,
-    titulo: "Reconhecer seus limites",
-    subtitulo: "Ajudar não significa carregar tudo sozinho.",
-    video: "/videos/mini-curso/etapa-6.mp4",
-    abertura:
-      "Existe uma coisa importante que você precisa lembrar: você não precisa resolver a vida de alguém para ajudar.",
-    mensagem:
-      "Seu papel é ouvir, acolher e reconhecer quando uma situação ultrapassa aquilo que você consegue oferecer. Em situações graves, é importante buscar o apoio adequado.",
-    situacao:
-      "Durante uma conversa, você percebe que a situação é muito mais séria do que imaginava. O que fazer?",
+    id: 6, titulo: "Reconhecer seus limites", subtitulo: "Ajudar não significa carregar tudo sozinho.", video: "/videos/mini-curso/etapa-6.mp4",
+    abertura: "Existe uma coisa importante que você precisa lembrar: você não precisa resolver a vida de alguém para ajudar.",
+    mensagem: "Seu papel é ouvir, acolher e reconhecer quando uma situação ultrapassa aquilo que você consegue oferecer. Em situações graves, é importante buscar o apoio adequado.",
+    situacao: "Durante uma conversa, você percebe que a situação é muito mais séria do que imaginava. O que fazer?",
     opcoes: [
-      {
-        texto: "Tentar resolver tudo sozinho para não abandonar a pessoa.",
-        correta: false,
-        explicacao:
-          "Você não precisa assumir sozinho uma situação que exige apoio adequado.",
-      },
-      {
-        texto: "Continuar ouvindo com cuidado, reconhecer seus limites e incentivar a busca pelo apoio adequado quando necessário.",
-        correta: true,
-        explicacao:
-          "Essa é uma postura responsável. Acolher também é saber quando procurar ajuda.",
-      },
-      {
-        texto: "Encerrar a conversa imediatamente sem explicar nada.",
-        correta: false,
-        explicacao:
-          "Reconhecer limites não significa abandonar a pessoa. É possível estabelecer limites com respeito.",
-      },
-    ],
+      { texto: "Tentar resolver tudo sozinho para não abandonar a pessoa.", correta: false, explicacao: "Você não precisa assumir sozinho uma situação que exige apoio adequado." },
+      { texto: "Continuar ouvindo com cuidado, reconhecer seus limites e incentivar a busca pelo apoio adequado quando necessário.", correta: true, explicacao: "Essa é uma postura responsável. Acolher também é saber quando procurar ajuda." },
+      { texto: "Encerrar a conversa imediatamente sem explicar nada.", correta: false, explicacao: "Reconhecer limites não significa abandonar a pessoa. É possível estabelecer limites com respeito." }
+    ]
   },
   {
-    id: 7,
-    titulo: "Desafio final",
-    subtitulo: "Agora vamos descobrir se você está preparado.",
-    video: "/videos/mini-curso/etapa-7.mp4",
-    abertura:
-      "Agora você conhece os principais princípios. Mas conhecer é diferente de saber aplicar. Vamos testar suas decisões.",
-    mensagem:
-      "Pense como se a pessoa estivesse realmente na sua frente. Não procure apenas a resposta que parece bonita. Pense no que realmente seria acolhedor e responsável.",
-    situacao:
-      "Uma pessoa diz: \"Não quero incomodar ninguém com os meus problemas.\" Qual resposta você considera mais acolhedora?",
+    id: 7, titulo: "Desafio final", subtitulo: "Agora vamos descobrir se você está preparado.", video: "/videos/mini-curso/etapa-7.mp4",
+    abertura: "Agora você conhece os principais princípios. Mas conhecer é diferente de saber aplicar. Vamos testar suas decisões.",
+    mensagem: "Pense como se a pessoa estivesse realmente na sua frente. Não procure apenas a resposta que parece bonita. Pense no que realmente seria acolhedor e responsável.",
+    situacao: "Uma pessoa diz: \"Não quero incomodar ninguém com os meus problemas.\" Qual resposta você considera mais acolhedora?",
     opcoes: [
-      {
-        texto: "\"Você está incomodando mesmo, mas pode falar.\"",
-        correta: false,
-        explicacao:
-          "Essa resposta pode reforçar o medo da pessoa de incomodar.",
-      },
-      {
-        texto: "\"Você não precisa passar por isso sozinho. Se quiser falar, eu estou aqui para ouvir.\"",
-        correta: true,
-        explicacao:
-          "Você demonstra disponibilidade sem obrigar a pessoa a falar.",
-      },
-      {
-        texto: "\"Todo mundo tem problemas, então tente esquecer isso.\"",
-        correta: false,
-        explicacao:
-          "Comparar problemas pode diminuir o sentimento da pessoa.",
-      },
-    ],
-  },
+      { texto: "\"Você está incomodando mesmo, mas pode falar.\"", correta: false, explicacao: "Essa resposta pode reforçar o medo da pessoa de incomodar." },
+      { texto: "\"Você não precisa passar por isso sozinho. Se quiser falar, eu estou aqui para ouvir.\"", correta: true, explicacao: "Você demonstra disponibilidade sem obrigar a pessoa a falar." },
+      { texto: "\"Todo mundo tem problemas, então tente esquecer isso.\"", correta: false, explicacao: "Comparar problemas pode diminuir o sentimento da pessoa." }
+    ]
+  }
 ];
 
 const TOTAL_ETAPAS = ETAPAS.length;
+const num = (v, d = 0) => { const n = Number(v); return Number.isFinite(n) ? n : d; };
+const embaralhar = (n) => {
+  const a = [...Array(n).keys()];
+  for (let i = n - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+};
 
-export default function MiniCursoChat({
-  irPara,
-  tema = "claro",
-  acessibilidade = {},
-  alterarAcessibilidade,
-}) {
-  const usuarioMiniCurso = (() => {
-    for (const chave of ["usuarioLogado", "pulsanUsuarioAtual"]) {
-      try {
-        const usuario = JSON.parse(localStorage.getItem(chave) || "{}");
-        if (usuario?.id || usuario?.email) return String(usuario.id || usuario.email);
-      } catch { /* usa a próxima chave */ }
-    }
-    return "visitante-local";
-  })();
-  const chaveMiniCurso = (nome) => `pulsanMiniCursoChat_${usuarioMiniCurso}_${nome}`;
+function obterUsuario() {
+  if (typeof window === "undefined") return "visitante-local";
+  for (const chave of ["usuarioLogado", "pulsanUsuarioAtual"]) {
+    try {
+      const usuario = JSON.parse(localStorage.getItem(chave) || "{}");
+      if (usuario?.id || usuario?.email) return String(usuario.id || usuario.email);
+    } catch { /* tenta a próxima chave */ }
+  }
+  return "visitante-local";
+}
 
+export default function MiniCursoChat({ irPara, tema = "claro", acessibilidade = {}, alterarAcessibilidade }) {
+  const usuario = obterUsuario();
+  const chave = (nome) => `pulsanMiniCursoChat_${usuario}_${nome}`;
+  const reduzir = acessibilidade?.reduzirAnimacoes === true;
+
+  // O progresso só avança quando a pessoa acerta. A etapa salva é sempre a próxima a ser vencida.
   const [etapaAtual, setEtapaAtual] = useState(() => {
-    const salvo = Number(
-      localStorage.getItem(chaveMiniCurso("Etapa")) || localStorage.getItem("pulsanMiniCursoChatEtapa") || 1
-    );
-
+    if (typeof window === "undefined") return 1;
+    const salvo = num(localStorage.getItem(chave("Etapa")) || localStorage.getItem("pulsanMiniCursoChatEtapa"), 1);
     return Math.min(Math.max(salvo, 1), TOTAL_ETAPAS);
   });
+  const [retomou] = useState(() => typeof window !== "undefined" && num(localStorage.getItem(chave("Etapa")), 1) > 1);
+  const [selecionada, setSelecionada] = useState(null);
+  const [confirmada, setConfirmada] = useState(false);
+  const [tentativasEtapa, setTentativasEtapa] = useState(0);
+  const [ordem, setOrdem] = useState(() => embaralhar(3));
+  const [acertos, setAcertos] = useState(() => (typeof window === "undefined" ? 0 : num(localStorage.getItem(chave("Acertos")) || localStorage.getItem("pulsanMiniCursoChatAcertos"), 0)));
+  const [erros, setErros] = useState(() => (typeof window === "undefined" ? 0 : num(localStorage.getItem(chave("Erros")), 0)));
+  const [concluido, setConcluido] = useState(false);
+  const [carregandoStatus, setCarregandoStatus] = useState(true);
+  const [salvandoConclusao, setSalvandoConclusao] = useState(false);
+  const [erroConclusao, setErroConclusao] = useState("");
+  const [videoErro, setVideoErro] = useState(false);
 
-  const [respostaSelecionada, setRespostaSelecionada] = useState(null);
-  const [respostaConfirmada, setRespostaConfirmada] = useState(false);
-  const [acertos, setAcertos] = useState(() =>
-    Number(localStorage.getItem(chaveMiniCurso("Acertos")) || localStorage.getItem("pulsanMiniCursoChatAcertos") || 0)
-  );
-  const [concluido, setConcluido] = useState(
-    localStorage.getItem(chaveMiniCurso("Concluido")) === "true" || localStorage.getItem("pulsanMiniCursoChatConcluido") === "true"
-  );
+  useEffect(() => {
+    let ativo = true;
+    async function carregarStatus() {
+      try {
+        const { data, error } = await supabase.rpc("pulsan_status_minicurso_chat");
+        if (error) throw error;
+        if (!ativo) return;
+        if (data?.concluido === true && Number(data?.etapas_concluidas) === TOTAL_ETAPAS) {
+          setConcluido(true);
+          setEtapaAtual(TOTAL_ETAPAS);
+          localStorage.setItem(chave("Concluido"), "true");
+          localStorage.setItem(chave("ConcluidoEm"), data?.concluido_em || new Date().toISOString());
+          localStorage.setItem(chave("Etapa"), String(TOTAL_ETAPAS));
+        }
+      } catch (erro) {
+        console.error("Erro ao consultar progresso do minicurso:", erro);
+      } finally {
+        if (ativo) setCarregandoStatus(false);
+      }
+    }
+    carregarStatus();
+    return () => { ativo = false; };
+  }, []);
+
+  useEffect(() => { setVideoErro(false); }, [etapaAtual]);
 
   const etapa = ETAPAS[etapaAtual - 1];
+  const acertou = confirmada && selecionada !== null && etapa.opcoes[selecionada].correta;
+  const errou = confirmada && selecionada !== null && !etapa.opcoes[selecionada].correta;
+  const concluidas = etapaAtual - 1 + (acertou ? 1 : 0);
+  const progresso = useMemo(() => Math.round((concluidas / TOTAL_ETAPAS) * 100), [concluidas]);
 
-  const progresso = useMemo(
-    () => Math.round((etapaAtual / TOTAL_ETAPAS) * 100),
-    [etapaAtual]
-  );
+  const rolar = (id) => document.getElementById(id)?.scrollIntoView({ behavior: reduzir ? "auto" : "smooth", block: "start" });
 
-  function responder(index) {
-    if (respostaConfirmada) return;
-
-    setRespostaSelecionada(index);
+  function responder(indice) {
+    if (confirmada || salvandoConclusao) return;
+    setSelecionada(indice);
   }
 
   function confirmarResposta() {
-    if (respostaSelecionada === null) return;
-
-    const correta = etapa.opcoes[respostaSelecionada].correta;
-
-    setRespostaConfirmada(true);
-
-    if (correta) {
-      const novoTotal = acertos + 1;
-      setAcertos(novoTotal);
-      localStorage.setItem(
-        chaveMiniCurso("Acertos"),
-        String(novoTotal)
-      );
+    if (selecionada === null || confirmada) return;
+    setConfirmada(true);
+    if (etapa.opcoes[selecionada].correta) {
+      if (tentativasEtapa === 0) {
+        const total = acertos + 1;
+        setAcertos(total);
+        localStorage.setItem(chave("Acertos"), String(total));
+      }
+    } else {
+      const total = erros + 1;
+      setErros(total);
+      setTentativasEtapa((t) => t + 1);
+      localStorage.setItem(chave("Erros"), String(total));
     }
   }
 
-  function proximaEtapa() {
-    if (!respostaConfirmada) return;
+  // Resposta errada: a etapa não avança. A pessoa tenta de novo, com as opções em nova ordem.
+  function tentarNovamente() {
+    setSelecionada(null);
+    setConfirmada(false);
+    setOrdem(embaralhar(etapa.opcoes.length));
+    rolar("mc-pratique");
+  }
+
+  async function proximaEtapa() {
+    if (!acertou || salvandoConclusao) return;
+    setErroConclusao("");
 
     if (etapaAtual < TOTAL_ETAPAS) {
       const proxima = etapaAtual + 1;
-
       setEtapaAtual(proxima);
-      localStorage.setItem(
-        chaveMiniCurso("Etapa"),
-        String(proxima)
-      );
-
-      setRespostaSelecionada(null);
-      setRespostaConfirmada(false);
-
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      localStorage.setItem(chave("Etapa"), String(proxima));
+      setSelecionada(null);
+      setConfirmada(false);
+      setTentativasEtapa(0);
+      setOrdem(embaralhar(ETAPAS[proxima - 1].opcoes.length));
+      window.scrollTo({ top: 0, behavior: reduzir ? "auto" : "smooth" });
       return;
     }
 
-    localStorage.setItem(chaveMiniCurso("Concluido"), "true");
-    localStorage.setItem(
-      chaveMiniCurso("ConcluidoEm"),
-      new Date().toISOString()
-    );
-
-    setConcluido(true);
+    setSalvandoConclusao(true);
+    try {
+      const { error } = await supabase.rpc("pulsan_concluir_minicurso_chat");
+      if (error) throw error;
+      localStorage.setItem(chave("Concluido"), "true");
+      localStorage.setItem(chave("ConcluidoEm"), new Date().toISOString());
+      localStorage.setItem(chave("Etapa"), String(TOTAL_ETAPAS));
+      setConcluido(true);
+    } catch (erro) {
+      console.error("Erro ao registrar conclusão do minicurso:", erro);
+      setErroConclusao(erro?.message || "Não foi possível salvar sua conclusão. Verifique sua conexão e tente novamente.");
+    } finally {
+      setSalvandoConclusao(false);
+    }
   }
 
   function reiniciarCurso() {
-    ["Concluido", "ConcluidoEm", "Etapa", "Acertos"].forEach((nome) =>
-      localStorage.removeItem(chaveMiniCurso(nome))
-    );
-
+    ["Etapa", "Acertos", "Erros"].forEach((nome) => localStorage.removeItem(chave(nome)));
     setEtapaAtual(1);
-    setRespostaSelecionada(null);
-    setRespostaConfirmada(false);
+    setSelecionada(null);
+    setConfirmada(false);
+    setTentativasEtapa(0);
+    setOrdem(embaralhar(3));
     setAcertos(0);
+    setErros(0);
     setConcluido(false);
-
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    setErroConclusao("");
+    window.scrollTo({ top: 0, behavior: reduzir ? "auto" : "smooth" });
   }
 
-  const cores = {
-    fundo: tema === "escuro" ? "#081B35" : "#EAF3FF",
-    card: tema === "escuro" ? "#0F2D5B" : "#FFFFFF",
-    card2: tema === "escuro" ? "#15365F" : "#F7FAFF",
-    texto: tema === "escuro" ? "#FFFFFF" : "#0F2D5B",
-    secundario: tema === "escuro" ? "#C2D2E8" : "#5F7695",
-    borda: tema === "escuro" ? "#416DA4" : "#A8C7FF",
-    primaria: tema === "escuro" ? "#6EA0FF" : "#3A7DFF",
-  };
+  const css = (
+    <style>{`
+.mc{--bg:#f3f7fc;--card:#fff;--card2:#f6f9fe;--ink:#13284a;--mut:#5d7190;--line:#dbe5f2;--pri:#2f6fed;--pri2:#2559c4;--onpri:#fff;--soft:#e8f0fe;--okbg:#eaf7f0;--ok:#2e9d68;--nobg:#fdf0ef;--no:#d9534f;--sh:0 10px 30px #13284a10;min-height:100vh;padding:24px 20px 120px;background:var(--bg);color:var(--ink);font-family:inherit}
+.mc[data-tema="escuro"]{--bg:#0b1626;--card:#12233b;--card2:#162b46;--ink:#e8f0fb;--mut:#9fb3cf;--line:#26405f;--pri:#6ea0ff;--pri2:#8bb4ff;--onpri:#0a1a33;--soft:#1a3355;--okbg:#14382e;--ok:#4cc38a;--nobg:#3d2226;--no:#ef7b77;--sh:0 10px 30px #00000045}
+.mc *{box-sizing:border-box}
+.mc-top{max-width:1120px;margin:0 auto 20px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.mc-back{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:10px;padding:9px 14px;font:inherit;font-size:14px;font-weight:600;cursor:pointer}
+.mc-back:hover{background:var(--card2)}
+.mc-brand{font-size:13px;font-weight:700;letter-spacing:.08em;color:var(--mut)}
+.mc-wrap{max-width:1120px;margin:0 auto;display:grid;grid-template-columns:270px minmax(0,1fr);gap:24px;align-items:start}
+.mc-side{position:sticky;top:20px;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:var(--sh)}
+.mc-side h2{margin:0 0 4px;font-size:16px}
+.mc-side p{margin:0 0 14px;font-size:13px;color:var(--mut);line-height:1.5}
+.mc-bar{height:8px;border-radius:8px;background:var(--soft);overflow:hidden;margin-bottom:6px}
+.mc-bar span{display:block;height:100%;background:var(--pri);border-radius:8px;transition:width .35s ease}
+.mc-pct{display:flex;justify-content:space-between;font-size:12px;color:var(--mut);margin-bottom:16px}
+.mc-steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
+.mc-step{display:flex;align-items:center;gap:12px;padding:9px 10px;border-radius:12px;font-size:14px;color:var(--mut)}
+.mc-step i{flex:none;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-size:12px;font-weight:700;border:1.5px solid var(--line);background:var(--card)}
+.mc-step.done{color:var(--ink)}
+.mc-step.done i{background:var(--ok);border-color:var(--ok);color:#fff}
+.mc-step.cur{background:var(--soft);color:var(--ink);font-weight:700}
+.mc-step.cur i{border-color:var(--pri);color:var(--pri)}
+.mc-card{background:var(--card);border:1px solid var(--line);border-radius:22px;box-shadow:var(--sh);overflow:hidden}
+.mc-head{padding:clamp(22px,4vw,34px);border-bottom:1px solid var(--line);background:linear-gradient(135deg,var(--card),var(--soft))}
+.mc-eyebrow{font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--pri)}
+.mc-head h1{margin:8px 0 6px;font-size:clamp(26px,4vw,38px);line-height:1.12;letter-spacing:-.01em}
+.mc-head p{margin:0;color:var(--mut);font-size:16px;line-height:1.55}
+.mc-body{padding:clamp(18px,4vw,32px);display:flex;flex-direction:column;gap:24px}
+.mc-video{position:relative;aspect-ratio:16/9;border-radius:16px;overflow:hidden;background:#0b1626}
+.mc-video video{width:100%;height:100%;object-fit:cover;display:block}
+.mc-vfall{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:24px;text-align:center;color:#fff;background:linear-gradient(135deg,#13335f,#2f6fed)}
+.mc-vfall span{font-size:13px;opacity:.85;max-width:380px;line-height:1.5}
+.mc-sec{scroll-margin-top:16px}
+.mc-label{display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--pri)}
+.mc-learn{background:var(--card2);border:1px solid var(--line);border-left:4px solid var(--pri);border-radius:14px;padding:20px}
+.mc-learn strong{display:block;font-size:16px;line-height:1.6;margin-bottom:10px}
+.mc-learn p{margin:0;color:var(--mut);font-size:15px;line-height:1.7}
+.mc-q{margin:0 0 16px;font-size:clamp(19px,3vw,24px);line-height:1.35}
+.mc-ops{display:grid;gap:10px}
+.mc-op{display:flex;align-items:flex-start;gap:12px;width:100%;text-align:left;border:2px solid var(--line);border-radius:14px;padding:14px 16px;background:var(--card);color:var(--ink);font:inherit;font-size:15px;line-height:1.5;cursor:pointer;transition:border-color .15s,background .15s,transform .15s}
+.mc-op b{flex:none;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--card2);color:var(--mut);font-size:13px}
+.mc-op:hover:not(:disabled){border-color:var(--pri);transform:translateY(-1px)}
+.mc-op.sel{border-color:var(--pri);background:var(--soft)}
+.mc-op.sel b{background:var(--pri);color:var(--onpri)}
+.mc-op.ok{border-color:var(--ok);background:var(--okbg)}
+.mc-op.ok b{background:var(--ok);color:#fff}
+.mc-op.no{border-color:var(--no);background:var(--nobg)}
+.mc-op.no b{background:var(--no);color:#fff}
+.mc-op:disabled{cursor:default}
+.mc-fb{margin-top:16px;border-radius:14px;padding:18px;border:1px solid;font-size:15px;line-height:1.65}
+.mc-fb strong{display:block;margin-bottom:6px;font-size:16px}
+.mc-fb.ok{background:var(--okbg);border-color:var(--ok)}
+.mc-fb.no{background:var(--nobg);border-color:var(--no)}
+.mc-fb small{display:block;margin-top:10px;color:var(--mut);font-size:13px;line-height:1.55}
+.mc-act{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}
+.mc-btn{flex:1 1 220px;border:0;border-radius:12px;padding:15px 22px;background:var(--pri);color:var(--onpri);font:inherit;font-size:15px;font-weight:700;cursor:pointer;transition:background .15s,transform .15s}
+.mc-btn:hover:not(:disabled){background:var(--pri2);transform:translateY(-1px)}
+.mc-btn:disabled{opacity:.45;cursor:not-allowed}
+.mc-btn.sec{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.mc-btn.sec:hover:not(:disabled){background:var(--card2)}
+.mc-note{max-width:1120px;margin:0 auto 16px;padding:12px 16px;border-radius:12px;background:var(--soft);color:var(--ink);font-size:14px;line-height:1.5}
+.mc-err{border:1px solid var(--no);background:var(--nobg)}
+.mc-res{max-width:760px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:24px;box-shadow:var(--sh);padding:clamp(26px,5vw,48px)}
+.mc-res h1{margin:8px 0 12px;font-size:clamp(26px,5vw,38px);line-height:1.12}
+.mc-res>p{color:var(--mut);line-height:1.7;font-size:16px;margin:0 0 22px}
+.mc-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:22px}
+.mc-stats div{background:var(--card2);border:1px solid var(--line);border-radius:14px;padding:16px 10px;text-align:center}
+.mc-stats strong{display:block;font-size:26px;color:var(--pri)}
+.mc-stats span{font-size:12px;color:var(--mut)}
+.mc-learned{list-style:none;margin:0 0 24px;padding:0;display:grid;gap:8px}
+.mc-learned li{display:flex;gap:10px;font-size:14px;line-height:1.5;color:var(--mut)}
+.mc-learned li b{color:var(--ink)}
+.mc-learned li:before{content:"✓";color:var(--ok);font-weight:800}
+.mc button:focus-visible{outline:3px solid color-mix(in srgb,var(--pri) 45%,transparent);outline-offset:2px}
+@media(max-width:900px){.mc-wrap{grid-template-columns:1fr}.mc-side{position:static}.mc-steps{flex-direction:row;overflow-x:auto;padding-bottom:4px}.mc-step{flex:none;padding:6px}.mc-step span{display:none}.mc-step.cur span{display:inline}}
+@media(prefers-reduced-motion:reduce){.mc *{transition:none!important}}
+    `}</style>
+  );
+
+  if (carregandoStatus) {
+    return (
+      <main className="mc" data-tema={tema} style={{ display: "grid", placeItems: "center" }}>
+        {css}
+        <p style={{ color: "var(--mut)", fontWeight: 600 }}>Verificando seu progresso...</p>
+      </main>
+    );
+  }
 
   if (concluido) {
     return (
-      <main
-        className="pulsan-mini-curso"
-        style={{
-          minHeight: "100vh",
-          background: cores.fundo,
-          color: cores.texto,
-          padding: "28px 18px 110px",
-          boxSizing: "border-box",
-        }}
-      >
-        <div
-          style={{
-            width: "min(760px, 100%)",
-            margin: "0 auto",
-          }}
-        >
-          <button
-            type="button"
-            onClick={() => irPara("ambiente")}
-            style={botaoVoltar(cores)}
-          >
-            ← Voltar
-          </button>
-
-          <section
-            style={{
-              marginTop: 28,
-              background: cores.card,
-              border: `1px solid ${cores.borda}`,
-              borderRadius: 28,
-              padding: "clamp(28px, 6vw, 54px)",
-              textAlign: "center",
-              boxShadow: "0 18px 50px rgba(15,45,91,.12)",
-            }}
-          >
-            <div style={{ fontSize: 64, marginBottom: 12 }}>🌱</div>
-
-            <div
-              style={{
-                display: "inline-flex",
-                padding: "7px 13px",
-                borderRadius: 999,
-                background: tema === "escuro" ? "#15365F" : "#EAF3FF",
-                color: cores.primaria,
-                fontSize: 12,
-                fontWeight: 800,
-                marginBottom: 14,
-              }}
-            >
-              MINI CURSO CONCLUÍDO
-            </div>
-
-            <h1
-              style={{
-                margin: "0 0 14px",
-                fontSize: "clamp(28px, 6vw, 44px)",
-                lineHeight: 1.08,
-              }}
-            >
-              Você está preparado para acolher.
-            </h1>
-
-            <p
-              style={{
-                margin: "0 auto 24px",
-                maxWidth: 600,
-                color: cores.secundario,
-                lineHeight: 1.7,
-                fontSize: 16,
-              }}
-            >
-              Você aprendeu a perceber, se aproximar, escutar, acolher,
-              respeitar limites e reconhecer quando é necessário buscar apoio
-              adequado.
-            </p>
-
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-                gap: 12,
-                margin: "24px auto",
-                maxWidth: 430,
-              }}
-            >
-              <div style={resultadoCard(cores)}>
-                <strong>{TOTAL_ETAPAS}</strong>
-                <span>etapas</span>
-              </div>
-
-              <div style={resultadoCard(cores)}>
-                <strong>{acertos}</strong>
-                <span>respostas certas</span>
-              </div>
-            </div>
-
-            <p
-              style={{
-                color: cores.secundario,
-                fontSize: 14,
-                lineHeight: 1.6,
-              }}
-            >
-              O acolhimento não exige respostas perfeitas. Exige presença,
-              respeito e responsabilidade.
-            </p>
-
-            <button
-              type="button"
-              onClick={() => irPara("ambiente")}
-              style={{
-                width: "100%",
-                border: 0,
-                borderRadius: 16,
-                padding: "15px 20px",
-                background: cores.primaria,
-                color: "#FFFFFF",
-                fontWeight: 800,
-                fontSize: 15,
-                cursor: "pointer",
-                marginTop: 12,
-              }}
-            >
-              💙 Voltar para o PULSAN
-            </button>
-
-            <button
-              type="button"
-              onClick={reiniciarCurso}
-              style={{
-                width: "100%",
-                border: `1px solid ${cores.borda}`,
-                borderRadius: 16,
-                padding: "13px 20px",
-                background: "transparent",
-                color: cores.texto,
-                fontWeight: 700,
-                fontSize: 14,
-                cursor: "pointer",
-                marginTop: 10,
-              }}
-            >
-              Refazer mini curso
-            </button>
-          </section>
-        </div>
+      <main className="mc" data-tema={tema}>
+        {css}
+        <div className="mc-top"><button type="button" className="mc-back" onClick={() => irPara("ambiente")}>← Voltar</button><span className="mc-brand">PULSAN · MINI CURSO</span></div>
+        <section className="mc-res">
+          <div className="mc-eyebrow">Mini curso concluído</div>
+          <h1>Você completou todas as etapas do acolhimento.</h1>
+          <p>Você aprendeu a perceber, aproximar, escutar, acolher, respeitar a confiança e reconhecer seus limites. Acolher não exige respostas perfeitas. Exige presença, respeito e responsabilidade.</p>
+          <div className="mc-stats">
+            <div><strong>{TOTAL_ETAPAS}</strong><span>etapas concluídas</span></div>
+            <div><strong>{Math.min(acertos, TOTAL_ETAPAS)}</strong><span>acertos de primeira</span></div>
+            <div><strong>{erros}</strong><span>tentativas extras</span></div>
+          </div>
+          <div className="mc-label">O que você leva</div>
+          <ul className="mc-learned">
+            {ETAPAS.map((e) => <li key={e.id}><span><b>{e.titulo}.</b> {e.subtitulo}</span></li>)}
+          </ul>
+          <div className="mc-act">
+            <button type="button" className="mc-btn" onClick={() => irPara("ambiente")}>Voltar para o PULSAN</button>
+            <button type="button" className="mc-btn sec" onClick={reiniciarCurso}>Refazer mini curso</button>
+          </div>
+        </section>
       </main>
     );
   }
 
   return (
-    <main
-      className="pulsan-mini-curso"
-      style={{
-        minHeight: "100vh",
-        background: cores.fundo,
-        color: cores.texto,
-        padding: "22px 18px 110px",
-        boxSizing: "border-box",
-      }}
-    >
-      <div
-        style={{
-          width: "min(900px, 100%)",
-          margin: "0 auto",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 12,
-            marginBottom: 18,
-          }}
-        >
-          <button
-            type="button"
-            onClick={() => irPara("ambiente")}
-            style={botaoVoltar(cores)}
-          >
-            ← Voltar
-          </button>
+    <main className="mc" data-tema={tema}>
+      {css}
+      <div className="mc-top">
+        <button type="button" className="mc-back" onClick={() => irPara("ambiente")}>← Voltar</button>
+        <span className="mc-brand">PULSAN · MINI CURSO</span>
+      </div>
 
-          <span
-            style={{
-              fontSize: 13,
-              color: cores.secundario,
-              fontWeight: 700,
-            }}
-          >
-            Etapa {etapaAtual} de {TOTAL_ETAPAS}
-          </span>
-        </div>
+      {retomou && etapaAtual > 1 && !confirmada && tentativasEtapa === 0 && (
+        <div className="mc-note">Você continua de onde parou, na etapa {etapaAtual}. Seu progresso foi mantido.</div>
+      )}
+      {erroConclusao && <div role="alert" className="mc-note mc-err">{erroConclusao}</div>}
 
-        <header
-          style={{
-            background: cores.card,
-            border: `1px solid ${cores.borda}`,
-            borderRadius: 24,
-            padding: "20px 22px",
-            marginBottom: 16,
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              gap: 12,
-              marginBottom: 9,
-            }}
-          >
-            <strong
-              style={{
-                color: cores.texto,
-                fontSize: 14,
-              }}
-            >
-              Seu progresso
-            </strong>
+      <div className="mc-wrap">
+        <aside className="mc-side" aria-label="Progresso do curso">
+          <h2>Como acolher</h2>
+          <p>Aprenda cada princípio e aplique em uma situação real. Você avança ao acertar.</p>
+          <div className="mc-bar" role="progressbar" aria-valuenow={progresso} aria-valuemin={0} aria-valuemax={100}><span style={{ width: `${progresso}%` }} /></div>
+          <div className="mc-pct"><span>{concluidas} de {TOTAL_ETAPAS} etapas</span><span>{progresso}%</span></div>
+          <ol className="mc-steps">
+            {ETAPAS.map((e) => {
+              const feita = e.id < etapaAtual || (e.id === etapaAtual && acertou);
+              const atual = e.id === etapaAtual;
+              return (
+                <li key={e.id} className={`mc-step ${feita ? "done" : atual ? "cur" : ""}`} aria-current={atual ? "step" : undefined}>
+                  <i>{feita ? "✓" : e.id}</i><span>{e.titulo}</span>
+                </li>
+              );
+            })}
+          </ol>
+        </aside>
 
-            <strong
-              style={{
-                color: cores.primaria,
-                fontSize: 14,
-              }}
-            >
-              {progresso}%
-            </strong>
+        <section className="mc-card">
+          <div className="mc-head">
+            <div className="mc-eyebrow">Etapa {String(etapa.id).padStart(2, "0")} de {String(TOTAL_ETAPAS).padStart(2, "0")}</div>
+            <h1>{etapa.titulo}</h1>
+            <p>{etapa.subtitulo}</p>
           </div>
 
-          <div
-            style={{
-              height: 8,
-              borderRadius: 999,
-              background: cores.card2,
-              overflow: "hidden",
-            }}
-          >
-            <div
-              style={{
-                width: `${progresso}%`,
-                height: "100%",
-                background: cores.primaria,
-                borderRadius: 999,
-                transition: "width .25s ease",
-              }}
-            />
-          </div>
-        </header>
-
-        <section
-          style={{
-            background: cores.card,
-            border: `1px solid ${cores.borda}`,
-            borderRadius: 28,
-            overflow: "hidden",
-            boxShadow: "0 16px 44px rgba(15,45,91,.10)",
-          }}
-        >
-          <div
-            style={{
-              padding: "clamp(22px, 5vw, 42px)",
-              background:
-                tema === "escuro"
-                  ? "linear-gradient(135deg,#0F2D5B,#15365F)"
-                  : "linear-gradient(135deg,#FFFFFF,#EAF3FF)",
-            }}
-          >
-            <div
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 7,
-                padding: "7px 12px",
-                borderRadius: 999,
-                background: tema === "escuro" ? "#15365F" : "#EAF3FF",
-                color: cores.primaria,
-                fontSize: 11,
-                fontWeight: 900,
-                letterSpacing: ".04em",
-              }}
-            >
-              ETAPA {String(etapa.id).padStart(2, "0")}
+          <div className="mc-body">
+            <div className="mc-video">
+              {!videoErro ? (
+                <video key={etapa.video} controls playsInline preload="metadata"
+                  onError={() => { console.warn("Vídeo não encontrado:", etapa.video); setVideoErro(true); }}>
+                  <source src={etapa.video} type="video/mp4" />
+                </video>
+              ) : (
+                <div className="mc-vfall">
+                  <strong>Vídeo desta etapa em preparação</strong>
+                  <span>O conteúdo escrito abaixo cobre o mesmo tema. Leia com atenção antes de responder.</span>
+                </div>
+              )}
             </div>
 
-            <h1
-              style={{
-                margin: "14px 0 5px",
-                fontSize: "clamp(28px, 6vw, 46px)",
-                lineHeight: 1.05,
-              }}
-            >
-              {etapa.titulo}
-            </h1>
-
-            <p
-              style={{
-                margin: 0,
-                color: cores.secundario,
-                fontSize: 16,
-                lineHeight: 1.5,
-              }}
-            >
-              {etapa.subtitulo}
-            </p>
-          </div>
-
-          <div style={{ padding: "clamp(18px, 4vw, 34px)" }}>
-            <div
-              style={{
-                position: "relative",
-                width: "100%",
-                aspectRatio: "16 / 9",
-                borderRadius: 22,
-                overflow: "hidden",
-                background: "#081B35",
-                marginBottom: 24,
-              }}
-            >
-              <video
-                key={etapa.video}
-                controls
-                playsInline
-                preload="metadata"
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "cover",
-                  display: "block",
-                }}
-                onError={(event) => {
-                  event.currentTarget.style.display = "none";
-                  const fallback =
-                    event.currentTarget.parentElement?.querySelector(
-                      "[data-video-fallback]"
-                    );
-                  if (fallback) fallback.style.display = "flex";
-                }}
-              >
-                <source src={etapa.video} type="video/mp4" />
-              </video>
-
-              <div
-                data-video-fallback
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  display: "none",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flexDirection: "column",
-                  padding: 24,
-                  textAlign: "center",
-                  color: "#FFFFFF",
-                  background:
-                    "linear-gradient(135deg,#0F2D5B,#3A7DFF)",
-                }}
-              >
-                <div style={{ fontSize: 44, marginBottom: 10 }}>🎥</div>
-                <strong style={{ fontSize: 17 }}>
-                  Vídeo da apresentadora
-                </strong>
-                <span
-                  style={{
-                    marginTop: 7,
-                    maxWidth: 420,
-                    fontSize: 13,
-                    opacity: .85,
-                    lineHeight: 1.5,
-                  }}
-                >
-                  O espaço já está preparado. Adicione o vídeo da IA em:
-                  <br />
-                  <b>{etapa.video}</b>
-                </span>
+            <div className="mc-sec" id="mc-aprenda">
+              <div className="mc-label">1 · Aprenda</div>
+              <div className="mc-learn">
+                <strong>{etapa.abertura}</strong>
+                <p>{etapa.mensagem}</p>
               </div>
             </div>
 
-            <div
-              style={{
-                background: cores.card2,
-                border: `1px solid ${cores.borda}`,
-                borderRadius: 20,
-                padding: 20,
-                marginBottom: 24,
-              }}
-            >
-              <div
-                style={{
-                  color: cores.primaria,
-                  fontSize: 12,
-                  fontWeight: 900,
-                  textTransform: "uppercase",
-                  marginBottom: 8,
-                }}
-              >
-                O que você precisa entender
-              </div>
+            <div className="mc-sec" id="mc-pratique">
+              <div className="mc-label">2 · Pratique{tentativasEtapa > 0 ? ` · tentativa ${tentativasEtapa + 1}` : ""}</div>
+              <h2 className="mc-q">{etapa.situacao}</h2>
 
-              <p
-                style={{
-                  margin: "0 0 10px",
-                  fontWeight: 700,
-                  lineHeight: 1.55,
-                }}
-              >
-                {etapa.abertura}
-              </p>
-
-              <p
-                style={{
-                  margin: 0,
-                  color: cores.secundario,
-                  lineHeight: 1.65,
-                  fontSize: 14,
-                }}
-              >
-                {etapa.mensagem}
-              </p>
-            </div>
-
-            <div>
-              <div
-                style={{
-                  color: cores.primaria,
-                  fontSize: 12,
-                  fontWeight: 900,
-                  textTransform: "uppercase",
-                  marginBottom: 7,
-                }}
-              >
-                Situação prática
-              </div>
-
-              <h2
-                style={{
-                  margin: "0 0 18px",
-                  fontSize: "clamp(20px, 4vw, 27px)",
-                  lineHeight: 1.25,
-                }}
-              >
-                {etapa.situacao}
-              </h2>
-
-              <div style={{ display: "grid", gap: 10 }}>
-                {etapa.opcoes.map((opcao, index) => {
-                  const selecionada = respostaSelecionada === index;
-                  const mostrarCorreta =
-                    respostaConfirmada && opcao.correta;
-                  const mostrarErrada =
-                    respostaConfirmada &&
-                    selecionada &&
-                    !opcao.correta;
-
+              <div className="mc-ops" role="radiogroup" aria-label="Alternativas">
+                {ordem.map((indice, pos) => {
+                  const opcao = etapa.opcoes[indice];
+                  const sel = selecionada === indice;
+                  const cls = confirmada && sel ? (opcao.correta ? "ok" : "no") : sel ? "sel" : "";
                   return (
-                    <button
-                      key={opcao.texto}
-                      type="button"
-                      onClick={() => responder(index)}
-                      style={{
-                        width: "100%",
-                        textAlign: "left",
-                        border: `2px solid ${
-                          mostrarCorreta
-                            ? "#2E9D68"
-                            : mostrarErrada
-                            ? "#D9534F"
-                            : selecionada
-                            ? cores.primaria
-                            : cores.borda
-                        }`,
-                        borderRadius: 16,
-                        padding: "15px 16px",
-                        background:
-                          mostrarCorreta
-                            ? tema === "escuro"
-                              ? "#173F35"
-                              : "#EAF8F1"
-                            : mostrarErrada
-                            ? tema === "escuro"
-                              ? "#4A2424"
-                              : "#FFF0F0"
-                            : selecionada
-                            ? tema === "escuro"
-                              ? "#15365F"
-                              : "#EAF3FF"
-                            : cores.card,
-                        color: cores.texto,
-                        cursor: respostaConfirmada
-                          ? "default"
-                          : "pointer",
-                        fontSize: 14,
-                        fontWeight: selecionada ? 800 : 650,
-                        lineHeight: 1.45,
-                      }}
-                    >
-                      <span
-                        style={{
-                          display: "inline-flex",
-                          width: 28,
-                          height: 28,
-                          borderRadius: "50%",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          marginRight: 10,
-                          background: selecionada
-                            ? cores.primaria
-                            : cores.card2,
-                          color: selecionada
-                            ? "#FFFFFF"
-                            : cores.secundario,
-                          fontWeight: 900,
-                          verticalAlign: "middle",
-                        }}
-                      >
-                        {String.fromCharCode(65 + index)}
-                      </span>
-                      {opcao.texto}
+                    <button key={opcao.texto} type="button" role="radio" aria-checked={sel}
+                      className={`mc-op ${cls}`} onClick={() => responder(indice)} disabled={confirmada || salvandoConclusao}>
+                      <b>{String.fromCharCode(65 + pos)}</b><span>{opcao.texto}</span>
                     </button>
                   );
                 })}
               </div>
 
-              {respostaConfirmada && respostaSelecionada !== null && (
-                <div
-                  style={{
-                    marginTop: 16,
-                    borderRadius: 18,
-                    padding: 18,
-                    background: etapa.opcoes[respostaSelecionada].correta
-                      ? tema === "escuro"
-                        ? "#173F35"
-                        : "#EAF8F1"
-                      : tema === "escuro"
-                      ? "#4A2424"
-                      : "#FFF0F0",
-                    border: `1px solid ${
-                      etapa.opcoes[respostaSelecionada].correta
-                        ? "#2E9D68"
-                        : "#D9534F"
-                    }`,
-                  }}
-                >
-                  <strong style={{ display: "block", marginBottom: 6 }}>
-                    {etapa.opcoes[respostaSelecionada].correta
-                      ? "✓ Você entendeu!"
-                      : "Vamos refletir sobre essa escolha."}
-                  </strong>
-
-                  <span
-                    style={{
-                      color: cores.texto,
-                      fontSize: 14,
-                      lineHeight: 1.6,
-                    }}
-                  >
-                    {etapa.opcoes[respostaSelecionada].explicacao}
-                  </span>
+              {acertou && (
+                <div className="mc-fb ok" role="status">
+                  <strong>Resposta correta</strong>
+                  {etapa.opcoes[selecionada].explicacao}
+                  {tentativasEtapa > 0 && <small>Você acertou depois de {tentativasEtapa} {tentativasEtapa === 1 ? "tentativa" : "tentativas"}. Errar faz parte de aprender.</small>}
+                </div>
+              )}
+              {errou && (
+                <div className="mc-fb no" role="status">
+                  <strong>Ainda não foi desta vez</strong>
+                  {etapa.opcoes[selecionada].explicacao}
+                  <small>Você só avança ao acertar. Releia o conteúdo da etapa e tente novamente. Seu progresso está salvo nesta etapa.</small>
                 </div>
               )}
 
-              <div
-                style={{
-                  display: "flex",
-                  gap: 10,
-                  flexWrap: "wrap",
-                  marginTop: 20,
-                }}
-              >
-                {!respostaConfirmada ? (
-                  <button
-                    type="button"
-                    disabled={respostaSelecionada === null}
-                    onClick={confirmarResposta}
-                    style={{
-                      flex: "1 1 220px",
-                      border: 0,
-                      borderRadius: 16,
-                      padding: "15px 20px",
-                      background:
-                        respostaSelecionada === null
-                          ? cores.borda
-                          : cores.primaria,
-                      color: "#FFFFFF",
-                      fontWeight: 900,
-                      cursor:
-                        respostaSelecionada === null
-                          ? "not-allowed"
-                          : "pointer",
-                    }}
-                  >
-                    Confirmar resposta
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={proximaEtapa}
-                    style={{
-                      flex: "1 1 220px",
-                      border: 0,
-                      borderRadius: 16,
-                      padding: "15px 20px",
-                      background: cores.primaria,
-                      color: "#FFFFFF",
-                      fontWeight: 900,
-                      cursor: "pointer",
-                    }}
-                  >
-                    {etapaAtual === TOTAL_ETAPAS
-                      ? "Concluir mini curso"
-                      : "Próxima etapa →"}
+              <div className="mc-act">
+                {!confirmada && (
+                  <button type="button" className="mc-btn" disabled={selecionada === null} onClick={confirmarResposta}>Confirmar resposta</button>
+                )}
+                {errou && (
+                  <>
+                    <button type="button" className="mc-btn sec" onClick={() => rolar("mc-aprenda")}>Rever o conteúdo</button>
+                    <button type="button" className="mc-btn" onClick={tentarNovamente}>Tentar novamente</button>
+                  </>
+                )}
+                {acertou && (
+                  <button type="button" className="mc-btn" onClick={proximaEtapa} disabled={salvandoConclusao}>
+                    {etapaAtual === TOTAL_ETAPAS ? (salvandoConclusao ? "Salvando conclusão..." : "Concluir mini curso") : "Próxima etapa →"}
                   </button>
                 )}
               </div>
@@ -987,29 +467,4 @@ export default function MiniCursoChat({
       </div>
     </main>
   );
-}
-
-function botaoVoltar(cores) {
-  return {
-    border: `1px solid ${cores.borda}`,
-    background: cores.card,
-    color: cores.texto,
-    borderRadius: 12,
-    padding: "9px 13px",
-    fontWeight: 800,
-    fontSize: 13,
-    cursor: "pointer",
-  };
-}
-
-function resultadoCard(cores) {
-  return {
-    background: cores.card2,
-    border: `1px solid ${cores.borda}`,
-    borderRadius: 16,
-    padding: "14px 10px",
-    display: "flex",
-    flexDirection: "column",
-    gap: 3,
-  };
 }
