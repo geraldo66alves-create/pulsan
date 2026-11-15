@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { supabase } from "../lib/supabase";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
+const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? "http://localhost:3001" : "");
 
 /* Palavras e expressões bloqueadas. Frases que já contêm uma palavra da lista
    (ex.: "idiota de merda", "seu babaca") continuam bloqueadas pela palavra-base. */
@@ -265,7 +265,43 @@ min-height:100vh;padding-bottom:190px;color:var(--ink);font-family:inherit;backg
 .ds-nav button{border:0;background:transparent;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--mut);font:inherit;font-size:12px;font-weight:600;padding:8px 24px;border-radius:14px;transition:background .15s}
 .ds-nav button.a{color:var(--ac);background:var(--acs)}
 .ds button:focus-visible,.ds textarea:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
-@media(max-width:860px){.ds-main{grid-template-columns:1fr;padding:26px 16px 0;gap:22px}.ds-aside{position:static}.ds-head-in{padding:12px 16px}.ds-dock-in{padding:10px 16px}.ds-dock p{display:none}.ds-btn{width:100%}}
+@media(max-width:860px){
+.ds{min-height:100dvh;padding-bottom:calc(154px + env(safe-area-inset-bottom,0px));overflow-x:hidden}
+.ds-main{width:100%;max-width:680px;grid-template-columns:minmax(0,1fr);padding:24px 16px 0;gap:20px}
+.ds-main>section,.ds-aside{min-width:0;width:100%}
+.ds-aside{position:static;gap:10px}
+.ds-head-in{padding:12px 16px;gap:12px}
+.ds-back{flex:none;padding:9px 12px}
+.ds-logo{min-width:0}
+.ds-logo strong{font-size:16px}
+.ds-logo small{font-size:11px}
+.ds h1{font-size:clamp(25px,7vw,32px);overflow-wrap:anywhere}
+.ds-lead{font-size:15px;line-height:1.6;margin-bottom:20px}
+.ds-card{width:100%;border-radius:18px}
+.ds-cardtop{padding:13px 15px;align-items:flex-start;flex-wrap:wrap;font-size:12px}
+.ds-card textarea{min-height:220px;padding:17px 15px;font-size:16px;line-height:1.6}
+.ds-foot{padding:12px 15px;align-items:flex-start}
+.ds-sug{width:100%;gap:7px}
+.ds-chip{max-width:100%;white-space:normal;text-align:left;line-height:1.35}
+.ds-note{padding:14px;gap:11px;font-size:12.5px}
+.ds-ic{width:34px;height:34px}
+.ds-dock{bottom:calc(70px + env(safe-area-inset-bottom,0px));}
+.ds-dock-in{width:100%;padding:10px 14px;gap:10px}
+.ds-dock p{display:none}
+.ds-btn{width:100%;min-width:0;padding:14px 16px;font-size:15px}
+.ds-nav{height:calc(70px + env(safe-area-inset-bottom,0px));padding:6px 8px env(safe-area-inset-bottom,0px)}
+.ds-nav button{flex:1;min-width:0;padding:7px 4px;font-size:11px}
+.ds-nav button svg{width:21px;height:21px}
+}
+@media(max-width:380px){
+.ds-main{padding-left:12px;padding-right:12px}
+.ds-head-in{padding-left:12px;padding-right:12px}
+.ds-cardtop{gap:7px}
+.ds-cardtop>span:last-child{font-size:11px}
+.ds-foot{gap:8px}
+.ds-note{padding:12px}
+.ds-dock-in{padding-left:10px;padding-right:10px}
+}
 @media(prefers-reduced-motion:reduce){.ds *{transition:none!important;animation:none!important}}
       `}</style>
 

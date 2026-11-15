@@ -301,6 +301,89 @@ textarea.pa-in{min-height:84px;resize:vertical}
 @media(max-width:1000px){.pa-grid{grid-template-columns:1fr}}
 @media(max-width:600px){.pa-top{flex-direction:column}.pa-scale button{width:38px}}
 @media(prefers-reduced-motion:reduce){.pa *{animation:none!important;transition:none!important}}
+
+/* Responsividade adicional */
+.pa{width:100%;min-width:0;overflow-x:hidden;padding-left:clamp(12px,2.5vw,40px);padding-right:clamp(12px,2.5vw,40px);padding-bottom:max(28px,env(safe-area-inset-bottom))}
+.pa-wrap,.pa-panel,.pa-grid,.pa-side,.pa-detail,.pa-body{min-width:0}
+.pa-wrap{width:100%}
+.pa-panel{padding:clamp(12px,1.6vw,20px);min-width:0}
+.pa-grid{grid-template-columns:minmax(0,1.65fr) minmax(270px,.85fr);gap:clamp(12px,1.5vw,20px)}
+.pa-atlas-scroll{width:100%;max-width:100%;overflow-x:auto;overscroll-behavior-inline:contain}
+.pa-atlas{width:100%;min-width:0;height:auto}
+.pa-sound{min-width:0;flex-wrap:wrap}
+.pa-sound label{margin-left:auto}
+.pa-ucards{grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr))}
+.pa-emos{grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr))}
+.pa-row>*{max-width:100%}
+.pa-nav{align-items:center}
+.pa-nav button{max-width:100%;white-space:normal}
+.pa-chk{overflow-wrap:anywhere}
+.pa-in{min-width:0;max-width:100%}
+.pa-trail{max-width:100%}
+@media(max-width:1100px){
+ .pa-grid{grid-template-columns:minmax(0,1fr)}
+ .pa-side{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}
+ .pa-side>.pa-panel:first-child,.pa-side>.pa-panel:last-child{grid-column:1/-1}
+}
+@media(max-width:760px){
+ .pa{padding:14px 12px max(26px,env(safe-area-inset-bottom))}
+ .pa-head{align-items:flex-start}
+ .pa-logo{font-size:16px;gap:7px;flex-wrap:wrap}
+ .pa-logo small{font-size:12px}
+ .pa h1{font-size:clamp(24px,6vw,32px);margin:20px 0 7px;overflow-wrap:anywhere}
+ .pa-lead{font-size:14px;line-height:1.6}
+ .pa-sound{gap:7px;padding:10px;border-radius:13px}
+ .pa-sound button{font-size:12px;padding:8px 10px}
+ .pa-sound label{margin:0;flex:1 1 100%;justify-content:space-between}
+ .pa-sound input[type=range]{max-width:55%}
+ .pa-side{grid-template-columns:minmax(0,1fr)}
+ .pa-side>.pa-panel:first-child,.pa-side>.pa-panel:last-child{grid-column:auto}
+ .pa-atlas-scroll{padding-bottom:5px}
+ .pa-atlas{min-width:620px;width:620px;max-width:none}
+ .pa-trail{min-width:560px}
+ .pa-detail{overflow:hidden}
+ .pa-top{gap:10px}
+ .pa-top>div{min-width:0}
+ .pa-top button{flex-shrink:0}
+ .pa-body{max-width:none}
+ .pa-body h3{font-size:19px}
+ .pa-body p{overflow-wrap:anywhere}
+ .pa-row{gap:7px}
+ .pa-row button{flex:1 1 auto;min-width:0}
+ .pa-scale{display:grid;grid-template-columns:repeat(6,minmax(0,1fr))}
+ .pa-scale button{width:100%;padding:10px 0}
+ .pa-nav{display:grid;grid-template-columns:1fr;gap:9px}
+ .pa-nav button{width:100%;min-height:42px}
+ .pa-warm{align-items:flex-start;padding:12px;gap:9px}
+ .pa-warm p{font-size:14px}
+ .pa-compare{gap:12px}
+ .pa-foot{font-size:11px}
+}
+@media(max-width:420px){
+ .pa{padding-left:10px;padding-right:10px}
+ .pa-panel{padding:12px;border-radius:15px}
+ .pa-logo svg{width:30px}
+ .pa-head>button{padding:8px 10px;font-size:12px}
+ .pa-ucards{grid-template-columns:1fr}
+ .pa-emos{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+ .pa .pa-emo{padding:11px 9px;font-size:12px;gap:7px;overflow-wrap:anywhere}
+ .pa .pa-ucard{padding:13px}
+ .pa-row button{font-size:12px;padding:8px 9px}
+ .pa-sense{align-items:flex-start}
+ .pa-sense div{gap:5px}
+ .pa .pa-dot{width:27px;height:27px}
+ .pa-breath{width:136px;height:136px}
+ .pa-nav{margin-top:16px;padding-top:12px}
+ .pa-compare b{font-size:28px}
+}
+@media(max-width:340px){
+ .pa-emos{grid-template-columns:1fr}
+ .pa-scale{grid-template-columns:repeat(4,minmax(0,1fr))}
+ .pa-top{flex-direction:column}
+ .pa-top button{align-self:flex-start}
+}
+@media(prefers-reduced-motion:reduce){.pa *{scroll-behavior:auto!important}}
+
 `}</style>
 <div className="pa-wrap">
 <header className="pa-head">
@@ -331,7 +414,7 @@ textarea.pa-in{min-height:84px;resize:vertical}
 
 {!emocao&&<div className="pa-grid">
 <section className="pa-panel" aria-label="Mapa">
-{Atlas()}
+<div className="pa-atlas-scroll">{Atlas()}</div>
 <small className="pa-muted pa-center">Toque em um território ou em qualquer emoção. Ponto preenchido: já percorrida. O ponto azul mostra onde você está.</small>
 </section>
 <aside className="pa-side">

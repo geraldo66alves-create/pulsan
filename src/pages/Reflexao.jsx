@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
-
+import { AmbienteEmocao, temaDe } from "./TemaEmocao";
 
 /* =========================================================
    ÍCONES — sem emojis, usando SVG inline
@@ -1766,6 +1766,7 @@ function Reflexao({ irPara, tema, alterarTema }) {
   if (!sentimento) {
     return (
       <div className="pulsan-reflexao-page" style={styles.page}>
+        <AmbienteEmocao id={sentimentoSelecionado} />
         <Header irPara={irPara} />
 
         <main style={styles.container}>
@@ -1793,7 +1794,11 @@ function Reflexao({ irPara, tema, alterarTema }) {
                   escolherSentimento(item.id)
                 }
                 className="pulsan-sentimento-card"
-                 style={styles.sentimentoCard}
+                style={{
+  ...styles.sentimentoCard,
+  background: `linear-gradient(145deg, #fff, ${temaDe(item.id).suave})`,
+  borderColor: `${temaDe(item.id).cor}55`,
+}}
               >
                 <span style={styles.sentimentoEmoji}>
                   <Icon name={iconesSentimento[item.id] || "heart"} size={25} strokeWidth={1.8} />
@@ -1833,6 +1838,7 @@ function Reflexao({ irPara, tema, alterarTema }) {
   if (mostrarMomento) {
     return (
       <div className="pulsan-reflexao-page" style={styles.page}>
+         <AmbienteEmocao id={sentimentoSelecionado} />
         <Header irPara={irPara} />
 
         <main style={styles.container}>
@@ -2108,7 +2114,10 @@ function Reflexao({ irPara, tema, alterarTema }) {
               type="button"
               onClick={continuarReflexoes}
               className="pulsan-continuar"
-              style={styles.continuar}
+             style={{
+  ...styles.continuar,
+  background: `linear-gradient(135deg, ${temaDe(sentimento.id).cor}, ${temaDe(sentimento.id).texto})`,
+}}
             >
               Continuar reflexões <Icon name="arrowRight" size={18} />
             </button>
@@ -2135,6 +2144,7 @@ function Reflexao({ irPara, tema, alterarTema }) {
   if (carregandoReflexoes) {
     return (
       <div className="pulsan-reflexao-page" style={styles.page}>
+        <AmbienteEmocao id={sentimentoSelecionado} />
         <Header irPara={irPara} />
         <main style={styles.container}>
           <div style={styles.fraseInicio}>
@@ -2149,6 +2159,7 @@ function Reflexao({ irPara, tema, alterarTema }) {
   if (erroReflexoes) {
     return (
       <div className="pulsan-reflexao-page" style={styles.page}>
+        <AmbienteEmocao id={sentimentoSelecionado} />
         <Header irPara={irPara} />
         <main style={styles.container}>
           <button
@@ -2170,6 +2181,7 @@ function Reflexao({ irPara, tema, alterarTema }) {
   if (!sentimentoComReflexoes?.reflexoes?.length) {
     return (
       <div className="pulsan-reflexao-page" style={styles.page}>
+         <AmbienteEmocao id={sentimentoSelecionado} />
         <Header irPara={irPara} />
         <main style={styles.container}>
           <button type="button" onClick={voltarSentimentos} style={styles.voltar}>
@@ -2500,6 +2512,8 @@ function Reflexao({ irPara, tema, alterarTema }) {
           key={`reflexao-${cardAtual}-${reflexaoAtual}`}
           style={{
             ...styles.flashCard,
+            borderColor: `${temaDe(sentimento.id).cor}55`,
+boxShadow: `0 20px 55px ${temaDe(sentimento.id).cor}30`,
 
             transform: `
               translateX(${posicaoX}px)
@@ -2532,7 +2546,10 @@ function Reflexao({ irPara, tema, alterarTema }) {
             </span>
           </div>
 
-          <p style={styles.flashFrase}>
+          <p style={{
+  ...styles.flashFrase,
+  color: temaDe(sentimento.id).texto,
+}}>
             “{reflexaoAtual}”
           </p>
 
@@ -2544,6 +2561,15 @@ function Reflexao({ irPara, tema, alterarTema }) {
             </small>
           </div>
         </section>
+        <p style={{
+  textAlign: "center",
+  color: temaDe(sentimento.id).texto,
+  opacity: 0.8,
+  fontSize: 13,
+  margin: "14px 0 0",
+}}>
+  {temaDe(sentimento.id).clima}
+</p>
 
         {/* =================================================
             INDICAÇÃO
@@ -2821,12 +2847,14 @@ const styles = {
     boxShadow: "0 5px 15px rgba(15,45,91,0.07)",
   },
 
-  container: {
-    width: "min(92%, 1080px)",
-    margin: "0 auto",
-    paddingTop: "clamp(30px, 5vw, 58px)",
-    boxSizing: "border-box",
-  },
+ container: {
+  position: "relative",
+  zIndex: 1,
+  width: "min(92%, 1080px)",
+  margin: "0 auto",
+  paddingTop: "clamp(30px, 5vw, 58px)",
+  boxSizing: "border-box",
+},
 
   topo: {
     textAlign: "center",

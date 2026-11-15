@@ -1216,6 +1216,70 @@ function Ambiente({ irPara, tema = "claro" }) {
             font-size: 14px;
           }
         }
+
+        .ambiente-pulsan,.ambiente-pulsan *{box-sizing:border-box}
+        .ambiente-pulsan{width:100%;max-width:100%;overflow-x:clip}
+        .ambiente-shell{width:min(100% - 32px,1180px);min-width:0}
+        .ambiente-grid{grid-template-columns:minmax(0,1fr) minmax(260px,310px);gap:22px}
+        .ambiente-grid>section,.ambiente-side{min-width:0}
+        .ambiente-post,.ambiente-card{min-width:0;overflow-wrap:anywhere}
+        .ambiente-post p{max-width:100%}
+        .ambiente-actions>*{min-width:0}
+        .ambiente-fab{max-width:calc(100vw - 32px)}
+        @media(max-width:900px){
+          .ambiente-shell{width:min(100% - 28px,720px)}
+          .ambiente-grid{grid-template-columns:minmax(0,1fr)}
+          .ambiente-side{position:static;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:8px}
+          .ambiente-side>.ambiente-card{margin:0!important;min-width:0}
+          .ambiente-side>.ambiente-card:last-child{grid-column:1/-1}
+        }
+        @media(max-width:600px){
+          .ambiente-pulsan{padding-bottom:calc(112px + env(safe-area-inset-bottom,0px))!important}
+          .ambiente-header-inner{width:calc(100% - 24px);min-height:64px;gap:8px;flex-wrap:wrap;padding:8px 0}
+          .ambiente-logo{width:38px;height:38px;flex:0 0 38px}
+          .ambiente-brand{gap:8px}
+          .ambiente-brand-text>div{font-size:18px!important}
+          .ambiente-nav{flex:1;justify-content:flex-end;min-width:0;gap:5px}
+          .ambiente-nav-btn{display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:8px 9px;font-size:11px;white-space:nowrap;min-height:38px}
+          .ambiente-shell{width:calc(100% - 24px);max-width:560px}
+          .ambiente-hero{padding:12px 0 8px}
+          .ambiente-hero-card{padding:16px;border-radius:18px}
+          .ambiente-hero-card h1{font-size:clamp(23px,6vw,30px)!important;letter-spacing:-.6px!important}
+          .ambiente-hero-card p{font-size:13px!important}
+          .ambiente-hero-card>div[style*="marginTop: 22px"]{padding:14px!important;gap:12px!important}
+          .ambiente-minicurso{padding:14px!important;margin-bottom:12px!important;border-radius:17px!important;gap:12px!important}
+          .ambiente-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:16px}
+          .ambiente-grid>section{width:100%;min-width:0}
+          .ambiente-grid>section>div:first-child h2{font-size:19px!important}
+          .ambiente-post{padding:15px!important;margin-bottom:12px!important;border-radius:18px!important}
+          .ambiente-post>div:first-child{gap:9px!important}
+          .ambiente-post>div:first-child>div:first-child{width:40px!important;height:40px!important;flex-basis:40px!important}
+          .ambiente-post p{font-size:16px!important;line-height:1.6!important}
+          .ambiente-actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:14px}
+          .ambiente-action{padding:10px 11px;font-size:12px;min-height:40px;border-radius:12px}
+          .ambiente-action.primary{flex:1 1 100%;justify-content:center}
+          .ambiente-comment-form{display:flex;flex-direction:row;align-items:stretch}
+          .ambiente-comment-input{width:100%;min-width:0;font-size:16px}
+          .ambiente-comment-form button{flex:0 0 auto;min-height:44px}
+          .ambiente-side{display:flex;flex-direction:column;gap:12px;margin-top:0}
+          .ambiente-side>.ambiente-card{padding:16px!important;border-radius:18px!important}
+          .ambiente-fab{right:14px!important;bottom:calc(82px + env(safe-area-inset-bottom,0px))!important;min-width:0;min-height:48px;padding:0 17px;font-size:13px}
+          .ambiente-mini-fab{right:14px!important;bottom:calc(140px + env(safe-area-inset-bottom,0px))!important}
+        }
+        @media(max-width:380px){
+          .ambiente-header-inner{width:calc(100% - 18px)}
+          .ambiente-nav-btn{padding:7px 7px;font-size:10px;gap:3px}
+          .ambiente-nav-btn svg{width:14px;height:14px}
+          .ambiente-shell{width:calc(100% - 18px)}
+          .ambiente-hero-card{padding:13px}
+          .ambiente-post{padding:13px!important}
+          .ambiente-actions .ambiente-action{font-size:11px;padding:9px 8px}
+          .ambiente-fab{right:10px!important}
+        }
+        @media(prefers-reduced-motion:reduce){
+          .ambiente-pulsan .ambiente-post,.ambiente-pulsan .ambiente-comment{animation:none!important}
+          .ambiente-pulsan *{scroll-behavior:auto!important;transition:none!important}
+        }
       `}</style>
             <header className="ambiente-header">
         <div className="ambiente-header-inner">

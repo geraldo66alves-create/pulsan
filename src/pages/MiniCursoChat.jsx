@@ -310,6 +310,82 @@ export default function MiniCursoChat({ irPara, tema = "claro", acessibilidade =
 .mc-learned li:before{content:"✓";color:var(--ok);font-weight:800}
 .mc button:focus-visible{outline:3px solid color-mix(in srgb,var(--pri) 45%,transparent);outline-offset:2px}
 @media(max-width:900px){.mc-wrap{grid-template-columns:1fr}.mc-side{position:static}.mc-steps{flex-direction:row;overflow-x:auto;padding-bottom:4px}.mc-step{flex:none;padding:6px}.mc-step span{display:none}.mc-step.cur span{display:inline}}
+
+.mc{width:100%;min-width:0;overflow-x:hidden;padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right));padding-bottom:calc(40px + env(safe-area-inset-bottom))}
+.mc-top,.mc-wrap,.mc-note{width:100%;min-width:0}
+.mc-wrap{grid-template-columns:minmax(230px,270px) minmax(0,1fr);gap:clamp(14px,2.2vw,24px)}
+.mc-side,.mc-card,.mc-res{min-width:0}
+.mc-head h1,.mc-head p,.mc-q,.mc-learn,.mc-op,.mc-fb,.mc-res p,.mc-learned li{overflow-wrap:anywhere}
+.mc-video{width:100%;max-width:100%}
+.mc-op span{min-width:0;overflow-wrap:anywhere}
+.mc-btn{min-width:0;white-space:normal;overflow-wrap:anywhere}
+@media(max-width:900px){
+  .mc{padding-top:18px}
+  .mc-wrap{grid-template-columns:minmax(0,1fr);max-width:760px}
+  .mc-side{padding:16px}
+  .mc-steps{gap:6px;scrollbar-width:thin}
+  .mc-step{min-width:34px;justify-content:center}
+  .mc-step.cur{padding-right:12px}
+  .mc-step.cur span{white-space:nowrap}
+}
+@media(max-width:600px){
+  .mc{padding:14px 12px calc(28px + env(safe-area-inset-bottom))}
+  .mc-top{margin-bottom:14px;gap:8px}
+  .mc-back{padding:9px 11px;font-size:13px;flex:none}
+  .mc-brand{font-size:10px;letter-spacing:.06em;text-align:right}
+  .mc-wrap{gap:12px}
+  .mc-side{border-radius:14px;padding:13px}
+  .mc-side h2{font-size:15px}
+  .mc-side p{font-size:12px;margin-bottom:10px}
+  .mc-pct{font-size:11px;margin-bottom:10px}
+  .mc-steps{margin-right:-4px}
+  .mc-step{gap:6px;padding:5px}
+  .mc-step i{width:25px;height:25px}
+  .mc-step.cur span{font-size:11px}
+  .mc-card{border-radius:16px}
+  .mc-head{padding:21px 18px}
+  .mc-eyebrow,.mc-label{font-size:10px;letter-spacing:.08em}
+  .mc-head h1{font-size:clamp(24px,7vw,31px)}
+  .mc-head p{font-size:14px;line-height:1.5}
+  .mc-body{padding:16px;gap:20px}
+  .mc-video{border-radius:12px}
+  .mc-learn{padding:15px;border-radius:12px}
+  .mc-learn strong{font-size:14px;line-height:1.55}
+  .mc-learn p{font-size:14px;line-height:1.6}
+  .mc-q{font-size:19px;line-height:1.4;margin-bottom:13px}
+  .mc-ops{gap:9px}
+  .mc-op{gap:9px;padding:12px;font-size:14px;line-height:1.45;border-radius:12px}
+  .mc-op b{width:25px;height:25px;font-size:12px}
+  .mc-fb{padding:14px;font-size:14px;line-height:1.55}
+  .mc-fb strong{font-size:15px}
+  .mc-act{display:grid;grid-template-columns:minmax(0,1fr);gap:9px;margin-top:15px}
+  .mc-btn{width:100%;min-height:46px;padding:12px 15px;font-size:14px;flex:auto}
+  .mc-note{font-size:13px;padding:11px 12px;margin-bottom:12px}
+  .mc-res{padding:22px 17px;border-radius:17px}
+  .mc-res h1{font-size:clamp(24px,7vw,32px)}
+  .mc-res>p{font-size:14px}
+  .mc-stats{gap:7px}
+  .mc-stats div{padding:12px 5px}
+  .mc-stats strong{font-size:22px}
+  .mc-stats span{font-size:10px}
+  .mc-learned li{font-size:13px}
+}
+@media(max-width:380px){
+  .mc{padding-left:9px;padding-right:9px}
+  .mc-top{gap:5px}
+  .mc-brand{font-size:9px}
+  .mc-head{padding:18px 14px}
+  .mc-body{padding:13px}
+  .mc-step.cur span{display:none}
+  .mc-op{padding:11px 10px;font-size:13px}
+  .mc-stats{grid-template-columns:1fr}
+  .mc-stats div{display:flex;align-items:center;justify-content:center;gap:8px}
+  .mc-stats strong{font-size:20px}
+}
+@media(min-width:901px) and (max-width:1100px){
+  .mc-wrap{grid-template-columns:230px minmax(0,1fr);gap:16px}
+  .mc-side{padding:16px}
+}
 @media(prefers-reduced-motion:reduce){.mc *{transition:none!important}}
     `}</style>
   );
