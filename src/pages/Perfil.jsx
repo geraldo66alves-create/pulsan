@@ -87,32 +87,51 @@ function usePerfil() {
   }, []);
 
   /** Salva nome, foto e e-mail. Lança erro em caso de falha; devolve um aviso extra sobre o e-mail. */
-  async function salvar(nomeLimpo, emailLimpo, novaFoto) {
+  async function salvar(nomeLimpo, emailLimpo, novaFoto, campos = {}) {
     const { data: { user }, error: erroUsuario } = await supabase.auth.getUser();
     if (erroUsuario || !user) throw new Error("Usuário não autenticado.");
+    const atualizarNome = campos.nome === true;
+    const atualizarFoto = campos.foto === true;
+    const atualizarEmail = campos.email === true;
+    if (!atualizarNome && !atualizarFoto && !atualizarEmail) throw new Error("Selecione pelo menos uma informação para alterar.");
 
-    const { error: erroPerfil } = await supabase.from("perfis").update({ nome: nomeLimpo, foto_url: novaFoto || null }).eq("id", user.id);
-    if (erroPerfil) throw erroPerfil;
+    const atualizacao = {};
+    if (atualizarNome) atualizacao.nome = nomeLimpo;
+    if (atualizarFoto) atualizacao.foto_url = novaFoto || null;
+    if (Object.keys(atualizacao).length) {
+      const { error: erroPerfil } = await supabase.from("perfis").update(atualizacao).eq("id", user.id);
+      if (erroPerfil) throw erroPerfil;
+    }
 
     let aviso = "";
-    if (emailLimpo !== (user.email || "").toLowerCase()) {
+    if (atualizarEmail && emailLimpo !== (user.email || "").toLowerCase()) {
       const { error: erroEmail } = await supabase.auth.updateUser({ email: emailLimpo });
       if (erroEmail) throw erroEmail;
       aviso = " O novo e-mail poderá precisar de confirmação.";
     }
 
-    setNome(nomeLimpo); setFoto(novaFoto || ""); setEmail(emailLimpo);
-    localStorage.setItem("pulsanNome", nomeLimpo);
-    if (novaFoto) localStorage.setItem("pulsanFoto", novaFoto); else localStorage.removeItem("pulsanFoto");
+    const nomeFinal = atualizarNome ? nomeLimpo : nome;
+    const fotoFinal = atualizarFoto ? (novaFoto || "") : foto;
+    const emailFinal = atualizarEmail ? emailLimpo : email;
+    if (atualizarNome) { setNome(nomeFinal); localStorage.setItem("pulsanNome", nomeFinal); }
+    if (atualizarFoto) { setFoto(fotoFinal); if (fotoFinal) localStorage.setItem("pulsanFoto", fotoFinal); else localStorage.removeItem("pulsanFoto"); }
+    if (atualizarEmail) setEmail(emailFinal);
 
-    try { await supabase.auth.updateUser({ data: { nome: nomeLimpo, foto_url: novaFoto || "" } }); }
-    catch (e) { console.warn("Não foi possível atualizar a foto no metadata:", e); }
-
+    const metadata = {};
+    if (atualizarNome) metadata.nome = nomeFinal;
+    if (atualizarFoto) metadata.foto_url = fotoFinal;
+    if (Object.keys(metadata).length) {
+      try { await supabase.auth.updateUser({ data: metadata }); }
+      catch (e) { console.warn("Não foi possível atualizar os dados complementares:", e); }
+    }
     try {
       const logado = JSON.parse(localStorage.getItem("usuarioLogado") || "{}");
-      localStorage.setItem("usuarioLogado", JSON.stringify({ ...logado, id: user.id, nome: nomeLimpo, email: emailLimpo, foto: novaFoto || "", foto_url: novaFoto || "" }));
+      const cache = { ...logado, id: user.id };
+      if (atualizarNome) cache.nome = nomeFinal;
+      if (atualizarEmail) cache.email = emailFinal;
+      if (atualizarFoto) { cache.foto = fotoFinal; cache.foto_url = fotoFinal; }
+      localStorage.setItem("usuarioLogado", JSON.stringify(cache));
     } catch { /* cache local é complementar */ }
-
     return aviso;
   }
 
@@ -259,14 +278,19 @@ function AbaDados({ perfil, media, quantidade, editando, setEditando, aviso, set
   const [novoNome, setNovoNome] = useState(perfil.nome);
   const [novoEmail, setNovoEmail] = useState(perfil.email);
   const [novaFoto, setNovaFoto] = useState(perfil.foto);
+  const [campos, setCampos] = useState({ nome: false, email: false, foto: false });
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState("");
 
   useEffect(() => {
-    if (editando) { setNovoNome(perfil.nome); setNovoEmail(perfil.email); setNovaFoto(perfil.foto); setErro(""); }
+    if (editando) {
+      setNovoNome(perfil.nome); setNovoEmail(perfil.email); setNovaFoto(perfil.foto);
+      setCampos({ nome: false, email: false, foto: false }); setErro("");
+    }
   }, [editando]); // eslint-disable-line
 
   const estrelas = quantidade ? "★".repeat(Math.max(0, Math.min(5, Math.round(Number(media))))).padEnd(5, "☆") : "☆☆☆☆☆";
+  const selecionarCampo = (campo) => setCampos((atual) => ({ ...atual, [campo]: !atual[campo] }));
 
   function selecionarFoto(e) {
     const arquivo = e.target.files?.[0];
@@ -280,12 +304,13 @@ function AbaDados({ perfil, media, quantidade, editando, setEditando, aviso, set
   }
 
   async function salvar() {
+    if (!Object.values(campos).some(Boolean)) { setErro("Escolha pelo menos uma informação que deseja alterar."); return; }
     const nomeLimpo = novoNome.trim(), emailLimpo = novoEmail.trim().toLowerCase();
-    if (!nomeLimpo) { setErro("Digite seu nome."); return; }
-    if (!emailLimpo) { setErro("Digite seu e-mail."); return; }
+    if (campos.nome && !nomeLimpo) { setErro("Digite seu nome."); return; }
+    if (campos.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailLimpo)) { setErro("Digite um e-mail válido."); return; }
     try {
       setSalvando(true); setErro(""); setAviso("");
-      const extra = await perfil.salvar(nomeLimpo, emailLimpo, novaFoto);
+      const extra = await perfil.salvar(nomeLimpo, emailLimpo, novaFoto, campos);
       setEditando(false);
       setAviso(`Perfil atualizado com sucesso!${extra}`);
     } catch (e) {
@@ -296,30 +321,40 @@ function AbaDados({ perfil, media, quantidade, editando, setEditando, aviso, set
 
   const dados = [["Nome", perfil.nome], ["E-mail", perfil.email || "Não informado"], ["Tipo de perfil", perfil.tipoUsuario],
     ["Reputação", media === "—" ? "Ainda sem avaliações" : `${media}/5 ${estrelas}`]];
+  const opcoes = [{ id: "nome", titulo: "Nome", descricao: "Altere como seu nome aparece no Pulsan." },
+    { id: "email", titulo: "E-mail", descricao: "Atualize o endereço usado para entrar na sua conta." },
+    { id: "foto", titulo: "Foto do perfil", descricao: "Troque ou remova sua imagem." }];
 
   return (
-    <Cartao icone="editar" titulo={editando ? "Editar meu perfil" : "Meus dados"} subtitulo="Informações da sua conta"
+    <Cartao icone="editar" titulo={editando ? "Editar meu perfil" : "Meus dados"} subtitulo={editando ? "Escolha somente as informações que deseja modificar." : "Informações da sua conta"}
       acao={!editando && <button type="button" className="pf-btn suave" onClick={() => setEditando(true)}><Icone nome="editar" tamanho={16} /> Editar</button>}>
       {aviso && !editando && <div className="pf-aviso ok" role="status">{aviso}</div>}
       {!editando ? (
         <div className="pf-dados">{dados.map(([r, v]) => <div className="pf-dado" key={r}><small>{r}</small><span>{v}</span></div>)}</div>
       ) : (
-        <div className="pf-edit">
-          <div className="pf-edit-foto">
-            <div className="pf-foto-grande">{novaFoto ? <img src={novaFoto} alt="Pré-visualização" /> : <Icone nome="usuario" tamanho={48} />}</div>
-            <label className="pf-btn cheio"><Icone nome="imagem" tamanho={16} /> Trocar imagem
-              <input type="file" accept="image/png,image/jpeg,image/webp" onChange={selecionarFoto} hidden /></label>
-            {novaFoto && <button type="button" className="pf-link" onClick={() => setNovaFoto("")}>Remover imagem</button>}
+        <div className="pf-campos">
+          <div className="pf-selecao-campos">
+            <strong>O que você deseja editar?</strong>
+            <p style={{ margin: "5px 0 12px", color: "var(--mut)", fontSize: 13 }}>Marque uma ou mais opções. As informações não selecionadas serão mantidas como estão.</p>
+            {opcoes.map((opcao) => (
+              <label key={opcao.id} className="pf-opcao-edicao" style={{ display: "flex", alignItems: "center", gap: 11, padding: 13, border: `1px solid ${campos[opcao.id] ? "#3a7dff" : "var(--line)"}`, borderRadius: 13, background: campos[opcao.id] ? "#3a7dff0d" : "var(--card)", cursor: "pointer", letterSpacing: 0 }}>
+                <input type="checkbox" checked={campos[opcao.id]} onChange={() => selecionarCampo(opcao.id)} style={{ width: 18, height: 18, minHeight: 18, margin: 0, accentColor: "#3a7dff" }} />
+                <span style={{ display: "grid", gap: 3 }}><strong style={{ color: "var(--ink)", fontSize: 14 }}>{opcao.titulo}</strong><small style={{ color: "var(--mut)", fontSize: 12, letterSpacing: 0 }}>{opcao.descricao}</small></span>
+              </label>
+            ))}
           </div>
-          <div className="pf-campos">
-            <label>NOME<input value={novoNome} onChange={(e) => setNovoNome(e.target.value)} placeholder="Seu nome" maxLength={100} /></label>
-            <label>E-MAIL<input type="email" value={novoEmail} onChange={(e) => setNovoEmail(e.target.value)} placeholder="seu@email.com" maxLength={150} /></label>
-            <div className="pf-aviso"><Icone nome="cadeado" tamanho={15} /> A alteração do e-mail usa a autenticação do Supabase. Dependendo da configuração da conta, pode ser necessário confirmar o novo endereço.</div>
-            {erro && <div className="pf-aviso erro" role="alert">{erro}</div>}
-            <div className="pf-linha">
-              <button type="button" className="pf-btn suave" onClick={() => { setEditando(false); setErro(""); }} disabled={salvando}>Cancelar</button>
-              <button type="button" className="pf-btn cheio" onClick={salvar} disabled={salvando}>{salvando ? "Salvando..." : <><Icone nome="salvar" tamanho={16} /> Salvar alterações</>}</button>
-            </div>
+          {campos.nome && <label>NOME<input value={novoNome} onChange={(e) => setNovoNome(e.target.value)} placeholder="Seu nome" maxLength={100} /></label>}
+          {campos.email && <><label>E-MAIL<input type="email" value={novoEmail} onChange={(e) => setNovoEmail(e.target.value)} placeholder="seu@email.com" maxLength={150} /></label><div className="pf-aviso"><Icone nome="cadeado" tamanho={15} /> A alteração do e-mail usa a autenticação do Supabase e poderá exigir confirmação no novo endereço.</div></>}
+          {campos.foto && <div className="pf-edit-foto">
+            <div className="pf-foto-grande">{novaFoto ? <img src={novaFoto} alt="Pré-visualização da foto" /> : <Icone nome="usuario" tamanho={48} />}</div>
+            <label className="pf-btn cheio"><Icone nome="imagem" tamanho={16} /> Escolher imagem<input type="file" accept="image/png,image/jpeg,image/webp" onChange={selecionarFoto} hidden /></label>
+            {novaFoto && <button type="button" className="pf-link" onClick={() => setNovaFoto("")}>Remover imagem</button>}
+            <small style={{ color: "var(--mut)" }}>PNG, JPG ou WEBP. Tamanho máximo: 3 MB.</small>
+          </div>}
+          {erro && <div className="pf-aviso erro" role="alert">{erro}</div>}
+          <div className="pf-linha">
+            <button type="button" className="pf-btn suave" onClick={() => { setEditando(false); setErro(""); }} disabled={salvando}>Cancelar</button>
+            <button type="button" className="pf-btn cheio" onClick={salvar} disabled={salvando || !Object.values(campos).some(Boolean)}>{salvando ? "Salvando..." : <><Icone nome="salvar" tamanho={16} /> Salvar alterações</>}</button>
           </div>
         </div>
       )}

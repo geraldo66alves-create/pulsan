@@ -862,6 +862,25 @@ function ConversaPrincipal({ irPara, tema = "claro" }) {
         conversa = novaConversa;
       }
 
+      // Notifica quem solicitou. A solicitação só chega aqui após a
+      // transição protegida de "pendente" para "aceita", evitando duplicidade.
+      let erroAoNotificar = null;
+      const { error: erroNotificacao } = await supabase
+        .from("notificacoes")
+        .insert({
+          usuario_id: aceita.solicitante_id,
+          titulo: "Pedido de conversa aceito!",
+          mensagem: "Seu pedido de conversa foi aceito. A conversa já está disponível em Recentes no Pulsan.",
+          lida: false,
+          enviada: false,
+          data_envio: null
+        });
+
+      if (erroNotificacao) {
+        erroAoNotificar = erroNotificacao;
+        console.error("A conversa foi aceita, mas a notificação não pôde ser gravada:", erroNotificacao);
+      }
+
       const dadosRecentes = {
         ...conversa,
         outraPessoaId: aceita.solicitante_id,
@@ -904,6 +923,10 @@ function ConversaPrincipal({ irPara, tema = "claro" }) {
       setConversaAtual(dadosRecentes);
       setMensagens([]);
       setTela("chat");
+
+      if (erroAoNotificar) {
+        setErro("A conversa foi aceita e criada, mas não conseguimos registrar a notificação. Verifique as permissões de INSERT da tabela notificacoes no Supabase.");
+      }
     } catch (erro) {
       console.error("Erro ao aceitar solicitação:", erro);
       setErro(erro?.message || "Não foi possível aceitar esta solicitação.");
@@ -1872,7 +1895,7 @@ function Avatar({ foto, nome, pequeno = false }) {
 }
 
 /* CSS — A CONTINUAÇÃO ESTÁ NA PARTE 3 */
-const CSS = `<CodeBlock id="conversa-css-final" language="css" editable>
+const CSS = `
 .pulsan-conversas,
 .pulsan-chat-page {
   --pulsan-blue:#3A7DFF;
@@ -3327,4 +3350,332 @@ const CSS = `<CodeBlock id="conversa-css-final" language="css" editable>
     transition:none!important;
   }
 }
+
+/* AJUSTES FINAIS — CARTÕES DE SOLICITAÇÃO E TEMA */
+.pulsan-dark .pulsan-panel-request,
+.pulsan-dark .pulsan-panel-recent {
+  background:linear-gradient(150deg,#102744 0%,#0d203b 100%) !important;
+  color:#edf5ff;
+}
+.pulsan-dark .pulsan-conversation-card,
+.pulsan-dark .pulsan-conversation-card.request,
+.pulsan-dark .pulsan-conversation-card.is-unread,
+.pulsan-dark .pulsan-conversation-card.is-viewed {
+  background:linear-gradient(145deg,#15365f 0%,#102b4c 100%) !important;
+  color:#edf5ff !important;
+  border-color:rgba(168,199,255,.24) !important;
+}
+.pulsan-dark .pulsan-conversation-card .pulsan-card-content strong,
+.pulsan-dark .pulsan-conversation-card .pulsan-card-content,
+.pulsan-dark .pulsan-conversation-card .pulsan-card-action {
+  color:#edf5ff !important;
+}
+.pulsan-dark .pulsan-conversation-card .pulsan-card-content p,
+.pulsan-dark .pulsan-conversation-card .pulsan-person-meta {
+  color:#c2d2e8 !important;
+}
+.pulsan-dark .pulsan-request-desabafo {
+  background:rgba(7,24,46,.58) !important;
+  border-color:rgba(168,199,255,.22) !important;
+}
+.pulsan-dark .pulsan-request-desabafo p {
+  color:#edf5ff !important;
+}
+.pulsan-request-actions {
+  display:flex !important;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:9px;
+  width:100%;
+}
+.pulsan-request-actions button {
+  min-height:40px;
+  flex:0 0 auto;
+  white-space:nowrap;
+}
+.pulsan-request-reject {
+  background:rgba(15,45,91,.10);
+  color:#0F2D5B;
+  border:1px solid rgba(15,45,91,.12) !important;
+}
+.pulsan-request-accept {
+  background:#3A7DFF !important;
+  color:#fff !important;
+  border:1px solid #3A7DFF !important;
+}
+.pulsan-dark .pulsan-request-reject {
+  background:rgba(234,243,255,.10) !important;
+  color:#edf5ff !important;
+  border-color:rgba(168,199,255,.24) !important;
+}
+.pulsan-dark .pulsan-request-accept {
+  background:#3A7DFF !important;
+  color:#fff !important;
+}
+@media (max-width:700px) {
+  .pulsan-request-actions {
+    display:grid !important;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+  .pulsan-request-actions button {
+    width:100%;
+    min-width:0;
+    min-height:42px;
+    padding:10px 8px;
+    font-size:12px;
+  }
+}
+
+
+/* REFINAMENTO VISUAL DA CONVERSA */
+.pulsan-chat-page {
+  min-height:100dvh;
+  height:100dvh;
+  overflow:hidden;
+  color:#0F2D5B;
+}
+.pulsan-chat-header {
+  min-height:76px;
+  padding:11px max(22px,calc((100vw - 1040px)/2));
+  gap:13px;
+  box-shadow:0 5px 22px rgba(15,45,91,.045);
+}
+.pulsan-chat-header .pulsan-back {
+  width:40px;
+  height:40px;
+  flex:0 0 40px;
+  padding:0;
+  border-radius:13px;
+  background:#EAF3FF;
+  transition:background .18s,transform .18s;
+}
+.pulsan-chat-header .pulsan-back:hover {
+  background:#dceaff;
+  transform:translateX(-2px);
+}
+.pulsan-chat-header .pulsan-avatar {
+  width:46px;
+  height:46px;
+  flex-basis:46px;
+  border:2px solid #fff;
+  box-shadow:0 3px 12px rgba(15,45,91,.12);
+}
+.pulsan-chat-person strong {
+  font-size:15px;
+  letter-spacing:-.01em;
+}
+.pulsan-chat-person span {
+  font-size:10px;
+  font-weight:750;
+}
+.pulsan-chat-main {
+  width:min(820px,calc(100% - 40px));
+  height:calc(100dvh - 76px);
+  padding:20px 0 190px;
+}
+.pulsan-chat-security {
+  align-items:center;
+  gap:13px;
+  margin:0 auto 14px;
+  width:100%;
+  box-sizing:border-box;
+  padding:13px 17px;
+  border:1px solid rgba(58,125,255,.13);
+  border-radius:17px;
+  background:linear-gradient(110deg,rgba(234,243,255,.96),rgba(255,255,255,.88));
+  box-shadow:0 6px 20px rgba(15,45,91,.045);
+}
+.pulsan-chat-security>span {
+  width:38px;
+  height:38px;
+  flex:0 0 38px;
+  align-items:center;
+  border-radius:13px;
+  background:#fff;
+  box-shadow:0 4px 12px rgba(58,125,255,.10);
+}
+.pulsan-chat-security strong {font-size:12px;letter-spacing:.01em}
+.pulsan-chat-security p {font-size:10px;line-height:1.45}
+.pulsan-desabafo-origin {
+  margin:0 0 13px;
+  padding:12px 15px;
+  border:1px solid rgba(58,125,255,.12);
+  border-left:3px solid #3A7DFF;
+  border-radius:14px;
+  box-shadow:0 5px 16px rgba(15,45,91,.035);
+}
+.pulsan-desabafo-origin p {font-size:12px}
+.pulsan-messages {
+  padding:20px 22px 190px;
+  margin:0;
+  border:1px solid rgba(58,125,255,.09);
+  border-radius:23px;
+  background:rgba(255,255,255,.36);
+  gap:12px;
+}
+.pulsan-message-row.other {padding-right:18%;padding-left:2px}
+.pulsan-message-row.mine {padding-left:18%;padding-right:2px}
+.pulsan-message-bubble {
+  max-width:min(74%,560px);
+  padding:13px 16px 10px;
+  border-radius:19px;
+}
+.pulsan-message-row.other .pulsan-message-bubble {
+  background:rgba(255,255,255,.98);
+  border-color:rgba(58,125,255,.10);
+  box-shadow:0 5px 17px rgba(15,45,91,.065);
+}
+.pulsan-message-row.mine .pulsan-message-bubble {
+  background:linear-gradient(135deg,#3478f6 0%,#4f75ed 100%);
+  box-shadow:0 7px 19px rgba(58,125,255,.19);
+}
+.pulsan-message-bubble>span {font-size:13px;line-height:1.55}
+.pulsan-message-bubble small {font-size:9px;margin-top:6px}
+.pulsan-chat-empty {
+  flex:1;
+  min-height:190px;
+  padding:20px;
+}
+.pulsan-chat-empty>div {
+  width:58px;
+  height:58px;
+  display:grid;
+  place-items:center;
+  border-radius:20px;
+  background:rgba(234,243,255,.85);
+}
+.pulsan-chat-empty strong {font-size:14px}
+.pulsan-chat-empty span {font-size:11px}
+.pulsan-composer-wrap {
+  width:min(760px,calc(100% - 40px));
+  bottom:88px;
+  gap:8px;
+}
+.pulsan-composer {
+  padding:9px 10px 10px;
+  gap:6px;
+  border:1px solid rgba(58,125,255,.16);
+  border-radius:20px;
+  box-shadow:0 12px 34px rgba(15,45,91,.13);
+}
+.pulsan-composer-topline {
+  padding:1px 7px 0;
+  font-size:9px;
+}
+.pulsan-composer-row {gap:9px}
+.pulsan-composer input {
+  min-height:46px;
+  padding:11px 13px;
+  border-radius:13px;
+  background:rgba(234,243,255,.43);
+  font-size:13px;
+}
+.pulsan-composer-row>button {
+  width:46px;
+  height:46px;
+  flex-basis:46px;
+  border-radius:15px;
+}
+.pulsan-btn-finalizar-chat {
+  min-height:52px;
+  padding:8px 12px;
+  border-radius:16px;
+  background:rgba(255,255,255,.97);
+}
+.pulsan-helper-status {
+  min-height:29px;
+  padding:0 12px;
+  font-size:9px;
+}
+.pulsan-dark .pulsan-chat-security {
+  background:linear-gradient(110deg,rgba(16,39,68,.98),rgba(18,48,80,.94));
+  border-color:rgba(168,199,255,.15);
+}
+.pulsan-dark .pulsan-chat-security>span,
+.pulsan-dark .pulsan-chat-empty>div {
+  background:rgba(58,125,255,.16);
+}
+.pulsan-dark .pulsan-messages {
+  background:rgba(8,26,49,.25);
+  border-color:rgba(168,199,255,.09);
+}
+.pulsan-dark .pulsan-composer input {
+  background:rgba(7,24,46,.38);
+}
+@media (min-width:701px) {
+  .pulsan-chat-main {padding-bottom:205px}
+  .pulsan-composer-wrap {bottom:88px}
+}
+@media (max-width:700px) {
+  .pulsan-chat-page {height:100dvh;min-height:100dvh}
+  .pulsan-chat-header {
+    min-height:62px;
+    padding:8px 13px;
+    gap:9px;
+  }
+  .pulsan-chat-header .pulsan-back {
+    width:35px;height:35px;flex-basis:35px;border-radius:11px;
+  }
+  .pulsan-chat-header .pulsan-avatar {
+    width:39px;height:39px;flex-basis:39px;border-radius:13px;
+  }
+  .pulsan-chat-person strong {font-size:13px}
+  .pulsan-chat-main {
+    width:calc(100% - 18px);
+    height:calc(100dvh - 62px);
+    padding:12px 0 190px;
+  }
+  .pulsan-chat-security {
+    padding:10px 11px;
+    gap:9px;
+    margin-bottom:10px;
+    border-radius:14px;
+  }
+  .pulsan-chat-security>span {
+    width:32px;height:32px;flex-basis:32px;border-radius:11px;
+  }
+  .pulsan-chat-security>span svg {width:19px;height:19px}
+  .pulsan-chat-security strong {font-size:10px}
+  .pulsan-chat-security p {font-size:9px}
+  .pulsan-desabafo-origin {padding:10px 12px;margin-bottom:10px}
+  .pulsan-desabafo-origin p {font-size:11px}
+  .pulsan-messages {
+    padding:13px 9px 225px;
+    margin:0;
+    border-radius:17px;
+    gap:9px;
+  }
+  .pulsan-message-row.other {padding-right:9%;padding-left:1px}
+  .pulsan-message-row.mine {padding-left:9%;padding-right:1px}
+  .pulsan-message-bubble {
+    max-width:88%;
+    padding:10px 12px 8px;
+    border-radius:16px;
+  }
+  .pulsan-message-bubble>span {font-size:13px}
+  .pulsan-composer-wrap {
+    bottom:calc(66px + env(safe-area-inset-bottom,0px));
+    width:calc(100% - 14px);
+    gap:6px;
+  }
+  .pulsan-composer {
+    padding:6px 7px 7px;
+    border-radius:17px;
+  }
+  .pulsan-composer input {
+    min-height:42px;
+    background:transparent;
+    padding:9px 10px;
+  }
+  .pulsan-composer-row>button {
+    width:42px;height:42px;flex-basis:42px;border-radius:13px;
+  }
+  .pulsan-btn-finalizar-chat {min-height:47px}
+  .pulsan-helper-status {font-size:8px;min-height:27px}
+  .pulsan-dark .pulsan-composer input {background:transparent}
+}
+@media (prefers-reduced-motion:reduce) {
+  .pulsan-chat-header .pulsan-back {transition:none}
+}
+
 `;

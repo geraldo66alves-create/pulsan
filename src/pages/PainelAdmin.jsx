@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
 
 function Icon({ name, size = 18, strokeWidth = 1.9, className = "" }) {
@@ -55,6 +55,9 @@ function PainelAdmin({ irPara, tema, alterarTema }) {
   });
 
   const [paginaAdmin, setPaginaAdmin] = useState("inicio");
+  const [carregandoDados, setCarregandoDados] = useState(false);
+  const [erroCarregamento, setErroCarregamento] = useState("");
+  const [ultimaAtualizacaoAdmin, setUltimaAtualizacaoAdmin] = useState(null);
 
   const [usuarios, setUsuarios] = useState([]);
   const [buscaUsuario, setBuscaUsuario] = useState("");
@@ -82,21 +85,6 @@ function PainelAdmin({ irPara, tema, alterarTema }) {
 
   useEffect(() => {
     carregarDados();
-
-    try {
-      const configuracoesSalvas = JSON.parse(
-        localStorage.getItem("pulsanConfiguracoesAdmin") || "null"
-      );
-
-      if (configuracoesSalvas && typeof configuracoesSalvas === "object") {
-        setConfiguracoes((atual) => ({
-          ...atual,
-          ...configuracoesSalvas,
-        }));
-      }
-    } catch (erro) {
-      console.error("Erro ao carregar configurações administrativas:", erro);
-    }
   }, []);
 
   function lerLocalStorage(chave) {
@@ -109,6 +97,8 @@ function PainelAdmin({ irPara, tema, alterarTema }) {
   }
 
   async function carregarDados() {
+    setCarregandoDados(true);
+    setErroCarregamento("");
     try {
       const [
         perfisResult,
@@ -119,6 +109,9 @@ function PainelAdmin({ irPara, tema, alterarTema }) {
         solicitacoesChatResult,
         denunciasResult,
         alertasResult,
+        escolasResult,
+        empresasResult,
+        configuracoesResult,
       ] = await Promise.all([
         supabase
           .from("perfis")
@@ -147,6 +140,9 @@ function PainelAdmin({ irPara, tema, alterarTema }) {
           .from("alertas_ia")
           .select("id,publicacao_id,classificacao,tipo_situacao,motivo,prioridade,ambiente,resolvido,created_at,texto,visualizado,visualizado_em")
           .order("created_at", { ascending: false }),
+        supabase.from("escolas").select("id,nome,email,telefone,cidade,estado,responsavel,responsavel_id,status,criado_em,atualizado_em").order("criado_em", { ascending: false }),
+        supabase.from("empresas").select("id,nome,email,telefone,cnpj,responsavel,responsavel_id,status,criado_em,atualizado_em").order("criado_em", { ascending: false }),
+        supabase.from("configuracoes_pulsan").select("chave,valor,atualizado_por,atualizado_em"),
       ]);
 
       if (perfisResult.error) throw perfisResult.error;
@@ -157,6 +153,9 @@ function PainelAdmin({ irPara, tema, alterarTema }) {
       if (solicitacoesChatResult.error) throw solicitacoesChatResult.error;
       if (denunciasResult.error) throw denunciasResult.error;
       if (alertasResult.error) throw alertasResult.error;
+      if (escolasResult.error) throw escolasResult.error;
+      if (empresasResult.error) throw empresasResult.error;
+      if (configuracoesResult.error) throw configuracoesResult.error;
 
       const perfis = perfisResult.data || [];
       const usuariosAuth = usuariosAuthResult.data || [];
@@ -167,6 +166,15 @@ function PainelAdmin({ irPara, tema, alterarTema }) {
       const solicitacoesChat = solicitacoesChatResult.data || [];
       const denuncias = denunciasResult.data || [];
       const alertas = alertasResult.data || [];
+      const escolasSalvas = escolasResult.data || [];
+      const empresasSalvas = empresasResult.data || [];
+      const configuracoesBanco = (configuracoesResult.data || []).find((item) => item.chave === "painel_admin");
+      if (configuracoesBanco?.valor) {
+        try {
+          const valores = JSON.parse(configuracoesBanco.valor);
+          if (valores && typeof valores === "object") setConfiguracoes((atual) => ({ ...atual, ...valores }));
+        } catch (erroConfig) { console.error("Configuração administrativa inválida:", erroConfig); }
+      }
 
       // A tabela perfis não possui tipo_usuario. Para não inventar
       // uma coluna no banco, o tipo de psicólogo é identificado pela
@@ -280,9 +288,6 @@ function PainelAdmin({ irPara, tema, alterarTema }) {
         ...moderacoesDeAlertas,
       ];
 
-      const escolasSalvas = lerLocalStorage("pulsanEscolas");
-      const empresasSalvas = lerLocalStorage("pulsanEmpresas");
-
       setUsuarios(contas);
       setEscolas(escolasSalvas);
       setEmpresas(empresasSalvas);
@@ -311,13 +316,15 @@ function PainelAdmin({ irPara, tema, alterarTema }) {
         moderacoes: moderacoesSalvas.length,
         conversas: chats.length,
       });
+      setUltimaAtualizacaoAdmin(new Date());
+      return true;
     } catch (erro) {
       console.error("Erro ao carregar dados administrativos:", erro);
+      setErroCarregamento(erro?.message || "Não foi possível carregar os dados administrativos. Verifique a conexão e as permissões do Supabase.");
+      return false;
+    } finally {
+      setCarregandoDados(false);
     }
-  }
-
-  function salvarLista(chave, lista) {
-    localStorage.setItem(chave, JSON.stringify(lista));
   }
 
   async function sair() {
@@ -456,108 +463,121 @@ if (typeof irPara === "function") {
     );
   }, [moderacoes, buscaModeracao]);
 
-  function adicionarEscola() {
+  async function adicionarEscola() {
     const nome = window.prompt("Nome da escola:");
-
     if (!nome || !nome.trim()) return;
-
-    const novaEscola = {
-      id: Date.now(),
-      nome: nome.trim(),
-      email: "",
-      cidade: "",
-      responsavel: "",
-      status: "ativa",
-      criado_em: new Date().toISOString(),
-    };
-
-    const novaLista = [...escolas, novaEscola];
-
-    salvarLista("pulsanEscolas", novaLista);
-    setEscolas(novaLista);
-    carregarDados();
+    const email = window.prompt("E-mail institucional (opcional):") || "";
+    const telefone = window.prompt("Telefone (opcional):") || "";
+    const cidade = window.prompt("Cidade (opcional):") || "";
+    const estado = window.prompt("Estado (opcional):") || "";
+    const responsavel = window.prompt("Nome do responsável (opcional):") || "";
+    try {
+      const { error } = await supabase.from("escolas").insert({ nome: nome.trim(), email: email.trim() || null, telefone: telefone.trim() || null, cidade: cidade.trim() || null, estado: estado.trim() || null, responsavel: responsavel.trim() || null, status: "ativa" });
+      if (error) throw error;
+      await carregarDados();
+      alert("Escola cadastrada com sucesso.");
+    } catch (erro) { console.error("Erro ao cadastrar escola:", erro); alert(erro?.message || "Não foi possível cadastrar a escola."); }
   }
 
-  function alterarStatusEscola(id) {
-    const novaLista = escolas.map((escola) =>
-      escola.id === id
-        ? {
-            ...escola,
-            status:
-              escola.status === "ativa"
-                ? "inativa"
-                : "ativa",
-          }
-        : escola
-    );
-
-    salvarLista("pulsanEscolas", novaLista);
-    setEscolas(novaLista);
-    carregarDados();
+  async function editarEscola(id) {
+    const escola = escolas.find((item) => item.id === id);
+    if (!escola) return;
+    const nome = window.prompt("Nome da escola:", escola.nome || "");
+    if (nome === null) return;
+    if (!nome.trim()) return alert("Informe o nome da escola.");
+    const email = window.prompt("E-mail institucional:", escola.email || "");
+    if (email === null) return;
+    const telefone = window.prompt("Telefone:", escola.telefone || "");
+    if (telefone === null) return;
+    const cidade = window.prompt("Cidade:", escola.cidade || "");
+    if (cidade === null) return;
+    const estado = window.prompt("Estado:", escola.estado || "");
+    if (estado === null) return;
+    const responsavel = window.prompt("Responsável:", escola.responsavel || "");
+    if (responsavel === null) return;
+    try {
+      const { error } = await supabase.from("escolas").update({ nome: nome.trim(), email: email.trim() || null, telefone: telefone.trim() || null, cidade: cidade.trim() || null, estado: estado.trim() || null, responsavel: responsavel.trim() || null, atualizado_em: new Date().toISOString() }).eq("id", id);
+      if (error) throw error;
+      await carregarDados();
+      alert("Cadastro da escola atualizado.");
+    } catch (erro) { console.error(erro); alert(erro?.message || "Não foi possível editar a escola."); }
   }
 
-  function excluirEscola(id) {
-    if (!window.confirm("Deseja excluir esta escola?")) return;
-
-    const novaLista = escolas.filter(
-      (escola) => escola.id !== id
-    );
-
-    salvarLista("pulsanEscolas", novaLista);
-    setEscolas(novaLista);
-    carregarDados();
+  async function alterarStatusEscola(id) {
+    const escola = escolas.find((item) => item.id === id);
+    if (!escola) return;
+    const status = escola.status === "ativa" ? "inativa" : "ativa";
+    try {
+      const { error } = await supabase.from("escolas").update({ status, atualizado_em: new Date().toISOString() }).eq("id", id);
+      if (error) throw error;
+      await carregarDados();
+    } catch (erro) { console.error(erro); alert(erro?.message || "Não foi possível alterar o status da escola."); }
   }
 
-  function adicionarEmpresa() {
+  async function excluirEscola(id) {
+    if (!window.confirm("Deseja excluir esta escola permanentemente?")) return;
+    try {
+      const { error } = await supabase.from("escolas").delete().eq("id", id);
+      if (error) throw error;
+      await carregarDados();
+    } catch (erro) { console.error(erro); alert(erro?.message || "Não foi possível excluir a escola."); }
+  }
+
+  async function adicionarEmpresa() {
     const nome = window.prompt("Nome da empresa:");
-
     if (!nome || !nome.trim()) return;
-
-    const novaEmpresa = {
-      id: Date.now(),
-      nome: nome.trim(),
-      email: "",
-      cnpj: "",
-      responsavel: "",
-      status: "ativa",
-      criado_em: new Date().toISOString(),
-    };
-
-    const novaLista = [...empresas, novaEmpresa];
-
-    salvarLista("pulsanEmpresas", novaLista);
-    setEmpresas(novaLista);
-    carregarDados();
+    const cnpj = window.prompt("CNPJ (opcional):") || "";
+    const email = window.prompt("E-mail institucional (opcional):") || "";
+    const telefone = window.prompt("Telefone (opcional):") || "";
+    const responsavel = window.prompt("Nome do responsável (opcional):") || "";
+    try {
+      const { error } = await supabase.from("empresas").insert({ nome: nome.trim(), cnpj: cnpj.trim() || null, email: email.trim() || null, telefone: telefone.trim() || null, responsavel: responsavel.trim() || null, status: "ativa" });
+      if (error) throw error;
+      await carregarDados();
+      alert("Empresa cadastrada com sucesso.");
+    } catch (erro) { console.error("Erro ao cadastrar empresa:", erro); alert(erro?.message || "Não foi possível cadastrar a empresa."); }
   }
 
-  function alterarStatusEmpresa(id) {
-    const novaLista = empresas.map((empresa) =>
-      empresa.id === id
-        ? {
-            ...empresa,
-            status:
-              empresa.status === "ativa"
-                ? "inativa"
-                : "ativa",
-          }
-        : empresa
-    );
-
-    salvarLista("pulsanEmpresas", novaLista);
-    setEmpresas(novaLista);
-    carregarDados();
+  async function editarEmpresa(id) {
+    const empresa = empresas.find((item) => item.id === id);
+    if (!empresa) return;
+    const nome = window.prompt("Nome da empresa:", empresa.nome || "");
+    if (nome === null) return;
+    if (!nome.trim()) return alert("Informe o nome da empresa.");
+    const cnpj = window.prompt("CNPJ:", empresa.cnpj || "");
+    if (cnpj === null) return;
+    const email = window.prompt("E-mail institucional:", empresa.email || "");
+    if (email === null) return;
+    const telefone = window.prompt("Telefone:", empresa.telefone || "");
+    if (telefone === null) return;
+    const responsavel = window.prompt("Responsável:", empresa.responsavel || "");
+    if (responsavel === null) return;
+    try {
+      const { error } = await supabase.from("empresas").update({ nome: nome.trim(), cnpj: cnpj.trim() || null, email: email.trim() || null, telefone: telefone.trim() || null, responsavel: responsavel.trim() || null, atualizado_em: new Date().toISOString() }).eq("id", id);
+      if (error) throw error;
+      await carregarDados();
+      alert("Cadastro da empresa atualizado.");
+    } catch (erro) { console.error(erro); alert(erro?.message || "Não foi possível editar a empresa."); }
   }
 
-  function excluirEmpresa(id) {
-    if (!window.confirm("Deseja excluir esta empresa?")) return;
+  async function alterarStatusEmpresa(id) {
+    const empresa = empresas.find((item) => item.id === id);
+    if (!empresa) return;
+    const status = empresa.status === "ativa" ? "inativa" : "ativa";
+    try {
+      const { error } = await supabase.from("empresas").update({ status, atualizado_em: new Date().toISOString() }).eq("id", id);
+      if (error) throw error;
+      await carregarDados();
+    } catch (erro) { console.error(erro); alert(erro?.message || "Não foi possível alterar o status da empresa."); }
+  }
 
-    const novaLista = empresas.filter(
-      (empresa) => empresa.id !== id
-    );
-
-    salvarLista("pulsanEmpresas", novaLista);
-    setEmpresas(novaLista);
-    carregarDados();
+  async function excluirEmpresa(id) {
+    if (!window.confirm("Deseja excluir esta empresa permanentemente?")) return;
+    try {
+      const { error } = await supabase.from("empresas").delete().eq("id", id);
+      if (error) throw error;
+      await carregarDados();
+    } catch (erro) { console.error(erro); alert(erro?.message || "Não foi possível excluir a empresa."); }
   }
 
   async function alterarModeracao(id, status) {
@@ -669,18 +689,23 @@ if (typeof irPara === "function") {
     }
   }
 
-  function alterarConfiguracao(chave) {
-    const novaConfiguracao = {
-      ...configuracoes,
-      [chave]: !configuracoes[chave],
-    };
-
+  async function alterarConfiguracao(chave) {
+    const novaConfiguracao = { ...configuracoes, [chave]: !configuracoes[chave] };
     setConfiguracoes(novaConfiguracao);
-
-    localStorage.setItem(
-      "pulsanConfiguracoesAdmin",
-      JSON.stringify(novaConfiguracao)
-    );
+    try {
+      const { data: usuarioAtual } = await supabase.auth.getUser();
+      const registro = { valor: JSON.stringify(novaConfiguracao), atualizado_por: usuarioAtual?.user?.id || null, atualizado_em: new Date().toISOString() };
+      const { data: existente, error: erroBusca } = await supabase.from("configuracoes_pulsan").select("chave").eq("chave", "painel_admin").maybeSingle();
+      if (erroBusca) throw erroBusca;
+      const resultado = existente
+        ? await supabase.from("configuracoes_pulsan").update(registro).eq("chave", "painel_admin")
+        : await supabase.from("configuracoes_pulsan").insert({ chave: "painel_admin", ...registro });
+      if (resultado.error) throw resultado.error;
+    } catch (erro) {
+      setConfiguracoes(configuracoes);
+      console.error("Erro ao salvar configurações administrativas:", erro);
+      alert(erro?.message || "Não foi possível salvar as configurações no Supabase.");
+    }
   }
 
   if (paginaAdmin === "conteudo") {
@@ -720,6 +745,7 @@ if (typeof irPara === "function") {
         setBusca={setBuscaEscola}
         voltarInicio={voltarInicio}
         adicionarEscola={adicionarEscola}
+        editarEscola={editarEscola}
         alterarStatus={alterarStatusEscola}
         excluirEscola={excluirEscola}
       />
@@ -734,6 +760,7 @@ if (typeof irPara === "function") {
         setBusca={setBuscaEmpresa}
         voltarInicio={voltarInicio}
         adicionarEmpresa={adicionarEmpresa}
+        editarEmpresa={editarEmpresa}
         alterarStatus={alterarStatusEmpresa}
         excluirEmpresa={excluirEmpresa}
       />
@@ -773,6 +800,10 @@ if (typeof irPara === "function") {
         conversas={conversas}
         solicitacoes={solicitacoesChat}
         voltarInicio={voltarInicio}
+        onRefresh={carregarDados}
+        carregando={carregandoDados}
+        erroCarregamento={erroCarregamento}
+        ultimaAtualizacaoAdmin={ultimaAtualizacaoAdmin}
       />
     );
   }
@@ -1492,7 +1523,7 @@ function PaginaConteudoPulsan({ voltarInicio }) {
     setCarregando(true);
     const [r, m] = await Promise.all([
       supabase.from("reflexoes").select("id,sentimento,mensagem,pergunta,acao,categoria,nivel,ativa,ativo").order("id", { ascending: false }),
-      supabase.from("momentos_pulsan").select("id,sentimento,titulo,descricao,reflexao,video_url,audio_url,ordem,ativo,created_at,updated_at").order("ordem", { ascending: true }),
+      supabase.from("momentos_pulsan").select("id,sentimento_id,sentimento,titulo,descricao,reflexao,video_url,audio_url,imagem_url,ativo,criado_em").order("criado_em", { ascending: false }),
     ]);
     if (r.error) console.error("Erro ao carregar reflexões:", r.error);
     if (m.error) console.error("Erro ao carregar Momentos Pulsan:", m.error);
@@ -1525,7 +1556,7 @@ function PaginaConteudoPulsan({ voltarInicio }) {
   }
 
   async function alternarMomento(item) {
-    const { error } = await supabase.from("momentos_pulsan").update({ ativo: !item.ativo, updated_at: new Date().toISOString() }).eq("id", item.id);
+    const { error } = await supabase.from("momentos_pulsan").update({ ativo: !item.ativo }).eq("id", item.id);
     if (error) return alert("Não foi possível alterar o status do momento.");
     carregar();
   }
@@ -1543,6 +1574,7 @@ function PaginaConteudoPulsan({ voltarInicio }) {
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
         <button type="button" style={aba === "reflexoes" ? botaoPrimario : botaoPequeno} onClick={() => setAba("reflexoes")}>Reflexões / Cards</button>
         <button type="button" style={aba === "momentos" ? botaoPrimario : botaoPequeno} onClick={() => setAba("momentos")}>Momentos Pulsan</button>
+        <button type="button" style={botaoPrimario} onClick={() => setEditando({ tipo: aba === "momentos" ? "momento" : "reflexao", item: null })}>+ Novo {aba === "momentos" ? "momento" : "conteúdo"}</button>
         <button type="button" style={botaoPequeno} onClick={carregar}><Icon name="refresh" size={16} /> Atualizar</button>
       </div>
       {carregando ? <EstadoVazio icone="pending" titulo="Carregando conteúdo" texto="Buscando os conteúdos no Supabase." /> : aba === "reflexoes" ? (
@@ -1563,7 +1595,7 @@ function PaginaConteudoPulsan({ voltarInicio }) {
           {momentos.length === 0 ? <EstadoVazio icone="video" titulo="Nenhum Momento Pulsan" texto="Cadastre o primeiro momento no painel." /> : momentos.map((item) => (
             <div key={item.id} style={cardLista}>
               <strong>{item.titulo}</strong><div style={textoSecundario}>{item.sentimento}</div><p style={textoSecundario}>{item.descricao || item.reflexao || "Sem descrição"}</p>
-              <div style={detalhes}><span style={badgeNeutro}>Ordem: {item.ordem}</span><span style={badgeNeutro}>Vídeo {item.video_url ? "✓" : "—"}</span><span style={badgeNeutro}>Áudio {item.audio_url ? "✓" : "—"}</span><span style={item.ativo ? badgeVerde : badgeVermelho}>{item.ativo ? "Ativo" : "Inativo"}</span></div>
+              <div style={detalhes}><span style={badgeNeutro}>Criado em: {item.criado_em ? new Date(item.criado_em).toLocaleDateString("pt-BR") : "—"}</span><span style={badgeNeutro}>Vídeo {item.video_url ? "✓" : "—"}</span><span style={badgeNeutro}>Áudio {item.audio_url ? "✓" : "—"}</span><span style={item.ativo ? badgeVerde : badgeVermelho}>{item.ativo ? "Ativo" : "Inativo"}</span></div>
               <div style={acoes}><button type="button" style={botaoPequeno} onClick={() => setEditando({ tipo: "momento", item })}>Editar</button><button type="button" style={botaoPequeno} onClick={() => alternarMomento(item)}>{item.ativo ? "Desativar" : "Ativar"}</button><button type="button" style={botaoPerigo} onClick={() => excluirMomento(item.id)}>Excluir</button></div>
             </div>
           ))}
@@ -1575,7 +1607,7 @@ function PaginaConteudoPulsan({ voltarInicio }) {
 
 function EditorConteudoPulsan({ item, tipo, cancelar, salvo }) {
   const [form, setForm] = useState(tipo === "momento" ? {
-    sentimento: item?.sentimento || "Cansado", titulo: item?.titulo || "", descricao: item?.descricao || "", reflexao: item?.reflexao || "", video_url: item?.video_url || "", audio_url: item?.audio_url || "", ordem: item?.ordem || 1, ativo: item?.ativo !== false,
+    sentimento: item?.sentimento || "Cansado", sentimento_id: item?.sentimento_id || "", titulo: item?.titulo || "", descricao: item?.descricao || "", reflexao: item?.reflexao || "", video_url: item?.video_url || "", audio_url: item?.audio_url || "", imagem_url: item?.imagem_url || "", ativo: item?.ativo !== false,
   } : {
     sentimento: item?.sentimento || "Cansado", mensagem: item?.mensagem || "", pergunta: item?.pergunta || "", acao: item?.acao || "", categoria: item?.categoria || "geral", nivel: item?.nivel || "normal", ativa: item?.ativa !== false, ativo: item?.ativo !== false,
   });
@@ -1584,7 +1616,7 @@ function EditorConteudoPulsan({ item, tipo, cancelar, salvo }) {
   const alterar = (campo, valor) => setForm((f) => ({ ...f, [campo]: valor }));
   async function salvar() {
     setSalvando(true);
-    const payload = tipo === "momento" ? { ...form, ordem: Number(form.ordem) || 1, updated_at: new Date().toISOString() } : { ...form, ativa: Boolean(form.ativa), ativo: Boolean(form.ativo) };
+    const payload = tipo === "momento" ? { sentimento: form.sentimento, sentimento_id: form.sentimento_id || null, titulo: form.titulo.trim(), descricao: form.descricao || null, reflexao: form.reflexao || null, video_url: form.video_url || null, audio_url: form.audio_url || null, imagem_url: form.imagem_url || null, ativo: Boolean(form.ativo) } : { sentimento: form.sentimento, mensagem: form.mensagem.trim(), pergunta: form.pergunta || null, acao: form.acao || null, categoria: form.categoria || null, nivel: Number(form.nivel) || 1, ativa: Boolean(form.ativa), ativo: Boolean(form.ativo) };
     const q = item?.id ? supabase.from(tipo === "momento" ? "momentos_pulsan" : "reflexoes").update(payload).eq("id", item.id) : supabase.from(tipo === "momento" ? "momentos_pulsan" : "reflexoes").insert(payload);
     const { error } = await q;
     setSalvando(false);
@@ -1600,14 +1632,14 @@ function EditorConteudoPulsan({ item, tipo, cancelar, salvo }) {
         <label>Reflexão<textarea value={form.reflexao} onChange={(e) => alterar("reflexao", e.target.value)} style={{ ...inputStyle, minHeight: 90 }} /></label>
         <label>URL do vídeo<input value={form.video_url} onChange={(e) => alterar("video_url", e.target.value)} style={inputStyle} /></label>
         <label>URL do áudio<input value={form.audio_url} onChange={(e) => alterar("audio_url", e.target.value)} style={inputStyle} /></label>
-        <label>Ordem<input type="number" value={form.ordem} onChange={(e) => alterar("ordem", e.target.value)} style={inputStyle} /></label>
+        <label>URL da imagem<input value={form.imagem_url} onChange={(e) => alterar("imagem_url", e.target.value)} style={inputStyle} /></label>
         <label><input type="checkbox" checked={form.ativo} onChange={(e) => alterar("ativo", e.target.checked)} /> Ativo</label>
       </> : <>
         <label>Mensagem<textarea value={form.mensagem} onChange={(e) => alterar("mensagem", e.target.value)} style={{ ...inputStyle, minHeight: 120 }} /></label>
         <label>Pergunta<textarea value={form.pergunta} onChange={(e) => alterar("pergunta", e.target.value)} style={{ ...inputStyle, minHeight: 80 }} /></label>
         <label>Ação<textarea value={form.acao} onChange={(e) => alterar("acao", e.target.value)} style={{ ...inputStyle, minHeight: 80 }} /></label>
         <label>Categoria<input value={form.categoria} onChange={(e) => alterar("categoria", e.target.value)} style={inputStyle} /></label>
-        <label>Nível<input value={form.nivel} onChange={(e) => alterar("nivel", e.target.value)} style={inputStyle} /></label>
+        <label>Nível (1 a 5)<input type="number" min="1" max="5" value={form.nivel} onChange={(e) => alterar("nivel", e.target.value)} style={inputStyle} /></label>
         <label><input type="checkbox" checked={form.ativa} onChange={(e) => alterar("ativa", e.target.checked)} /> Ativa</label>
         <label><input type="checkbox" checked={form.ativo} onChange={(e) => alterar("ativo", e.target.checked)} /> Ativo</label>
       </>}
@@ -1777,6 +1809,7 @@ function PaginaEscolas({
   setBusca,
   voltarInicio,
   adicionarEscola,
+  editarEscola,
   alterarStatus,
   excluirEscola,
 }) {
@@ -1825,8 +1858,9 @@ function PaginaEscolas({
                   <strong>{escola.nome}</strong>
 
                   <div style={textoSecundario}>
-                    {escola.email || "E-mail não informado"}
+                    {escola.email || "E-mail não informado"}{escola.telefone ? ` · ${escola.telefone}` : ""}
                   </div>
+                  {escola.responsavel && <div style={textoSecundario}>Responsável: {escola.responsavel}</div>}
 
                   <div style={detalhes}>
                     {escola.cidade && (
@@ -1851,6 +1885,7 @@ function PaginaEscolas({
               </div>
 
               <div style={acoes}>
+                <button type="button" onClick={() => editarEscola(escola.id)} style={botaoPequeno}>Editar</button>
                 <button
                   type="button"
                   onClick={() => alterarStatus(escola.id)}
@@ -1887,6 +1922,7 @@ function PaginaEmpresas({
   setBusca,
   voltarInicio,
   adicionarEmpresa,
+  editarEmpresa,
   alterarStatus,
   excluirEmpresa,
 }) {
@@ -1935,8 +1971,9 @@ function PaginaEmpresas({
                   <strong>{empresa.nome}</strong>
 
                   <div style={textoSecundario}>
-                    {empresa.email || "E-mail não informado"}
+                    {empresa.email || "E-mail não informado"}{empresa.telefone ? ` · ${empresa.telefone}` : ""}
                   </div>
+                  {empresa.responsavel && <div style={textoSecundario}>Responsável: {empresa.responsavel}</div>}
 
                   <div style={detalhes}>
                     {empresa.cnpj && (
@@ -1961,6 +1998,7 @@ function PaginaEmpresas({
               </div>
 
               <div style={acoes}>
+                <button type="button" onClick={() => editarEmpresa(empresa.id)} style={botaoPequeno}>Editar</button>
                 <button
                   type="button"
                   onClick={() => alterarStatus(empresa.id)}
@@ -2211,107 +2249,195 @@ function mascararIdConversa(id) {
   return `Participante ••••${valor.slice(-6)}`;
 }
 
-function PaginaConversas({ conversas, solicitacoes = [], voltarInicio }) {
-  const pendentes = solicitacoes.filter(
-    (solicitacao) => String(solicitacao.status || "").toLowerCase() === "pendente"
-  );
+function PaginaConversas({ conversas = [], solicitacoes = [], voltarInicio, onRefresh, carregando = false, erroCarregamento = "", ultimaAtualizacaoAdmin = null }) {
+  const [aba, setAba] = useState("conversas");
+  const [busca, setBusca] = useState("");
+  const [filtroStatus, setFiltroStatus] = useState("todas");
+  const [atualizando, setAtualizando] = useState(false);
+  const [ultimaAtualizacao, setUltimaAtualizacao] = useState(ultimaAtualizacaoAdmin || null);
+  const [estadoRealtime, setEstadoRealtime] = useState("conectando");
+  const onRefreshRef = useRef(onRefresh);
+  useEffect(() => { onRefreshRef.current = onRefresh; }, [onRefresh]);
+  useEffect(() => { if (ultimaAtualizacaoAdmin) setUltimaAtualizacao(ultimaAtualizacaoAdmin); }, [ultimaAtualizacaoAdmin]);
+
+  const normalizar = (valor) => String(valor || "").trim().toLowerCase();
+  const dataFormatada = (valor) => {
+    if (!valor) return "Data não informada";
+    const data = new Date(valor);
+    return Number.isNaN(data.getTime()) ? "Data não informada" : data.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
+  };
+  const statusConversa = (valor) => {
+    const status = normalizar(valor);
+    if (["ativa", "ativo", "aberta", "em_andamento", "em andamento"].includes(status)) return "ativa";
+    if (["encerrada", "encerrado", "finalizada", "finalizado", "concluida", "concluída"].includes(status)) return "encerrada";
+    return status || "não informado";
+  };
+  const statusSolicitacao = (valor) => {
+    const status = normalizar(valor);
+    if (["pendente", "aguardando", "aguardando_resposta"].includes(status)) return "pendente";
+    if (["aceita", "aceito", "aprovada", "aprovado"].includes(status)) return "aceita";
+    if (["recusada", "recusado", "rejeitada", "rejeitado"].includes(status)) return "recusada";
+    if (["cancelada", "cancelado"].includes(status)) return "cancelada";
+    return status || "não informado";
+  };
+
+  useEffect(() => {
+    let ativo = true;
+    const atualizar = () => {
+      if (typeof onRefreshRef.current === "function") onRefreshRef.current();
+    };
+    const canal = supabase
+      .channel("painel-admin-conversas-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "conversas" }, atualizar)
+      .on("postgres_changes", { event: "*", schema: "public", table: "solicitacoes_chat" }, atualizar)
+      .subscribe((status) => {
+        if (!ativo) return;
+        setEstadoRealtime(status === "SUBSCRIBED" ? "conectado" : status === "CHANNEL_ERROR" || status === "TIMED_OUT" ? "indisponível" : "conectando");
+      });
+    return () => { ativo = false; supabase.removeChannel(canal); };
+  }, []);
+
+  const conversasOrdenadas = useMemo(() => [...conversas].sort((a, b) => {
+    const da = new Date(a.ultima_mensagem_em || a.criada_em || a.iniciada_em || 0).getTime();
+    const db = new Date(b.ultima_mensagem_em || b.criada_em || b.iniciada_em || 0).getTime();
+    return db - da;
+  }), [conversas]);
+
+  const solicitacoesOrdenadas = useMemo(() => [...solicitacoes].sort((a, b) => {
+    return new Date(b.criado_em || 0).getTime() - new Date(a.criado_em || 0).getTime();
+  }), [solicitacoes]);
+
+  const conversasFiltradas = conversasOrdenadas.filter((item) => {
+    const status = statusConversa(item.status);
+    const termo = normalizar(busca);
+    const correspondeBusca = !termo || [item.id, item.solicitante_id, item.destinatario_id, item.solicitacao_id].some((v) => normalizar(v).includes(termo));
+    const correspondeStatus = filtroStatus === "todas" || (filtroStatus === "ativas" ? status === "ativa" : status === "encerrada");
+    return correspondeBusca && correspondeStatus;
+  });
+
+  const solicitacoesFiltradas = solicitacoesOrdenadas.filter((item) => {
+    const termo = normalizar(busca);
+    const correspondeBusca = !termo || [item.id, item.solicitante_id, item.destinatario_id, item.categoria].some((v) => normalizar(v).includes(termo));
+    return correspondeBusca && (filtroStatus === "todas" || statusSolicitacao(item.status) === (filtroStatus === "ativas" ? "pendente" : filtroStatus));
+  });
+
+  const ativas = conversas.filter((item) => statusConversa(item.status) === "ativa").length;
+  const encerradas = conversas.filter((item) => statusConversa(item.status) === "encerrada").length;
+  const pendentes = solicitacoes.filter((item) => statusSolicitacao(item.status) === "pendente").length;
+
+  async function atualizarAgora() {
+    if (typeof onRefresh !== "function" || atualizando) return;
+    setAtualizando(true);
+    try {
+      const resultado = await onRefresh();
+      if (resultado === false) throw new Error("A atualização não foi concluída. Confira a mensagem de erro exibida na tela.");
+      setUltimaAtualizacao(new Date());
+    } catch (erro) {
+      console.error("Falha ao atualizar a gestão de conversas:", erro);
+    } finally {
+      setAtualizando(false);
+    }
+  }
+
+  const botaoAba = (id, titulo, quantidade) => ({
+    display: "inline-flex", alignItems: "center", gap: 8, border: "1px solid", borderColor: aba === id ? "#3A7DFF" : "rgba(148,163,184,.25)", background: aba === id ? "rgba(58,125,255,.14)" : "transparent", color: "inherit", borderRadius: 12, padding: "10px 14px", fontWeight: 800, cursor: "pointer", whiteSpace: "nowrap"
+  });
 
   return (
-    <PaginaBase
-      titulo="Conversas privadas"
-      icone="chat"
-      voltarInicio={voltarInicio}
-    >
-      <div style={gridResumo}>
-        <div style={resumoCard}>
-          <span style={resumoNumero}>{conversas.length}</span>
-          <span style={resumoLabel}>Conversas iniciadas</span>
+    <PaginaBase titulo="Gestão de conversas" icone="chat" voltarInicio={voltarInicio}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 18 }}>
+        <div>
+          <div style={{ fontSize: 13, opacity: .72 }}>Acompanhamento administrativo</div>
+          <div style={{ fontSize: 12, opacity: .68, marginTop: 4 }}>Dados consultados diretamente do Supabase · {ultimaAtualizacao ? `Atualizado ${dataFormatada(ultimaAtualizacao)}` : carregando ? "Carregando dados..." : "Aguardando primeira consulta"}</div>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, marginTop: 7, color: estadoRealtime === "conectado" ? "#16A36A" : estadoRealtime === "indisponível" ? "#D97706" : "inherit" }}><span style={{ width: 7, height: 7, borderRadius: 99, background: estadoRealtime === "conectado" ? "#16A36A" : estadoRealtime === "indisponível" ? "#D97706" : "#94A3B8" }} /> Realtime: {estadoRealtime}</div>
         </div>
-        <div style={resumoCard}>
-          <span style={resumoNumero}>{pendentes.length}</span>
-          <span style={resumoLabel}>Solicitações pendentes</span>
-        </div>
-        <div style={resumoCard}>
-          <span style={resumoNumero}>2</span>
-          <span style={resumoLabel}>Pessoas por conversa</span>
-        </div>
+        <button type="button" onClick={atualizarAgora} disabled={atualizando || carregando} style={{ display: "inline-flex", alignItems: "center", gap: 8, border: "1px solid rgba(58,125,255,.35)", background: "rgba(58,125,255,.12)", color: "inherit", borderRadius: 12, padding: "10px 14px", fontWeight: 800, cursor: atualizando ? "wait" : "pointer", opacity: atualizando ? .65 : 1 }}>
+          <Icon name="refresh" size={16} /> {atualizando || carregando ? "Atualizando..." : "Atualizar dados"}
+        </button>
       </div>
 
-      {conversas.length === 0 ? (
-        <EstadoVazio
-          icone="chat"
-          titulo="Nenhuma conversa registrada"
-          texto="As conversas privadas aparecerão aqui quando duas pessoas iniciarem um atendimento entre si."
-        />
-      ) : (
-        <div style={lista}>
-          {conversas.map((conversa, index) => {
-            const status = String(conversa.status || "ativa").toLowerCase();
-            const statusTexto =
-              status === "ativa"
-                ? "Ativa"
-                : status === "encerrada"
-                ? "Encerrada"
-                : status;
+      {erroCarregamento && <div role="alert" style={{ border: "1px solid rgba(220,38,38,.35)", background: "rgba(220,38,38,.08)", color: "inherit", borderRadius: 12, padding: 13, marginBottom: 16, fontSize: 13 }}><strong>Não foi possível atualizar todos os dados.</strong><div style={{ marginTop: 4, opacity: .85 }}>{erroCarregamento}</div></div>}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(155px,1fr))", gap: 12, marginBottom: 20 }}>
+        {[
+          ["Total de conversas", conversas.length, "chat", "rgba(58,125,255,.13)"],
+          ["Em andamento", ativas, "pending", "rgba(34,197,94,.12)"],
+          ["Encerradas", encerradas, "check", "rgba(148,163,184,.14)"],
+          ["Solicitações pendentes", pendentes, "alert", "rgba(245,158,11,.13)"],
+        ].map(([titulo, valor, icone, fundo]) => (
+          <div key={titulo} style={{ border: "1px solid rgba(148,163,184,.2)", background: fundo, borderRadius: 16, padding: 16, minWidth: 0 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}><span style={{ fontSize: 12, opacity: .75, fontWeight: 700 }}>{titulo}</span><Icon name={icone} size={17} /></div>
+            <div style={{ fontSize: 27, fontWeight: 900, marginTop: 8, fontVariantNumeric: "tabular-nums" }}>{valor}</div>
+          </div>
+        ))}
+      </div>
 
-            return (
-              <div
-                key={conversa.id || index}
-                style={cardLista}
-              >
-                <div style={linhaPrincipal}>
-                  <div style={avatarGrande}><Icon name="lock" size={16} /></div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
+        <button type="button" style={botaoAba("conversas")} onClick={() => { setAba("conversas"); setFiltroStatus("todas"); }}>Conversas <span style={{ opacity: .7 }}>{conversas.length}</span></button>
+        <button type="button" style={botaoAba("solicitacoes")} onClick={() => { setAba("solicitacoes"); setFiltroStatus("todas"); }}>Solicitações <span style={{ opacity: .7 }}>{solicitacoes.length}</span></button>
+      </div>
 
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <strong>Conversa privada</strong>
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(220px,1fr) minmax(150px,220px)", gap: 10, marginBottom: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 9, border: "1px solid rgba(148,163,184,.25)", borderRadius: 12, padding: "0 12px", minHeight: 44 }}>
+          <Icon name="search" size={17} />
+          <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por identificador ou categoria..." aria-label="Buscar conversas" style={{ border: 0, outline: 0, background: "transparent", color: "inherit", width: "100%", minWidth: 0, font: "inherit", fontSize: 13 }} />
+        </div>
+        <select value={filtroStatus} onChange={(e) => setFiltroStatus(e.target.value)} aria-label="Filtrar por status" style={{ border: "1px solid rgba(148,163,184,.25)", borderRadius: 12, padding: "0 12px", background: "transparent", color: "inherit", minHeight: 44, font: "inherit" }}>
+          <option value="todas">Todos os status</option>
+          {aba === "conversas" ? <><option value="ativas">Em andamento</option><option value="encerradas">Encerradas</option></> : <><option value="ativas">Pendentes</option><option value="aceita">Aceitas</option><option value="recusada">Recusadas</option><option value="cancelada">Canceladas</option></>}
+        </select>
+      </div>
 
-                    <div style={textoSecundario}>
-                      Somente os dois participantes possuem acesso ao conteúdo desta conversa.
-                    </div>
-
-                    <div style={participantesConversa}>
-                      <span style={participanteChip}>
-                        {mascararIdConversa(conversa.solicitante_id)}
-                      </span>
-                      <span style={separadorParticipantes}>↔</span>
-                      <span style={participanteChip}>
-                        {mascararIdConversa(conversa.destinatario_id)}
-                      </span>
-                    </div>
-
-                    <div style={metaConversa}>
-                      <span style={statusChip(status)}>{statusTexto}</span>
-                      <span>
-                        {conversa.ultima_mensagem_em
-                          ? `Última mensagem: ${new Date(conversa.ultima_mensagem_em).toLocaleString("pt-BR")}`
-                          : conversa.criada_em
-                          ? `Criada: ${new Date(conversa.criada_em).toLocaleString("pt-BR")}`
-                          : "Data não informada"}
-                      </span>
-                    </div>
+      {aba === "conversas" ? (
+        conversasFiltradas.length === 0 ? <EstadoVazio icone="chat" titulo={conversas.length ? "Nenhum resultado encontrado" : "Nenhuma conversa registrada"} texto={conversas.length ? "Altere a busca ou o filtro para localizar uma conversa." : "As conversas aparecerão aqui quando forem iniciadas pelos participantes."} /> :
+        <div style={{ display: "grid", gap: 10 }}>
+          {conversasFiltradas.map((conversa) => {
+            const status = statusConversa(conversa.status);
+            const data = conversa.ultima_mensagem_em || conversa.criada_em || conversa.iniciada_em;
+            return <article key={conversa.id} style={{ border: "1px solid rgba(148,163,184,.2)", borderRadius: 16, padding: 16, background: "rgba(148,163,184,.045)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
+                <div style={{ display: "flex", gap: 12, minWidth: 0 }}>
+                  <div style={{ width: 42, height: 42, flex: "0 0 42px", display: "grid", placeItems: "center", borderRadius: 13, background: "rgba(58,125,255,.13)", color: "#6EA1FF" }}><Icon name="lock" size={19} /></div>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontWeight: 850 }}>Conversa privada</div>
+                    <div style={{ fontSize: 12, opacity: .65, marginTop: 3 }}>ID: {String(conversa.id || "—").slice(0, 8)}...</div>
                   </div>
                 </div>
+                <span style={statusChip(status)}>{status === "ativa" ? "Em andamento" : status === "encerrada" ? "Encerrada" : status}</span>
               </div>
-            );
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginTop: 14 }}>
+                <span style={participanteChip}>{mascararIdConversa(conversa.solicitante_id)}</span><span style={{ opacity: .55 }}>↔</span><span style={participanteChip}>{mascararIdConversa(conversa.destinatario_id)}</span>
+              </div>
+              <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginTop: 13, fontSize: 11, opacity: .72 }}>
+                <span>Última atividade: {dataFormatada(data)}</span>
+                {conversa.desabafo_post_id && <span>Desabafo vinculado: {String(conversa.desabafo_post_id).slice(0, 8)}...</span>}
+              </div>
+            </article>;
+          })}
+        </div>
+      ) : (
+        solicitacoesFiltradas.length === 0 ? <EstadoVazio icone="pending" titulo={solicitacoes.length ? "Nenhum resultado encontrado" : "Nenhuma solicitação registrada"} texto={solicitacoes.length ? "Altere a busca ou o filtro para localizar uma solicitação." : "As solicitações de conversa aparecerão aqui quando forem enviadas pelos usuários."} /> :
+        <div style={{ display: "grid", gap: 10 }}>
+          {solicitacoesFiltradas.map((solicitacao) => {
+            const status = statusSolicitacao(solicitacao.status);
+            return <article key={solicitacao.id} style={{ border: "1px solid rgba(148,163,184,.2)", borderRadius: 16, padding: 16, background: "rgba(148,163,184,.045)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
+                <div><div style={{ fontWeight: 850 }}>Solicitação de conversa</div><div style={{ fontSize: 12, opacity: .65, marginTop: 3 }}>ID: {String(solicitacao.id || "—").slice(0, 8)}...</div></div>
+                <span style={statusChip(status === "pendente" ? "ativa" : status)}>{status.charAt(0).toUpperCase() + status.slice(1)}</span>
+              </div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginTop: 13 }}><span style={participanteChip}>{mascararIdConversa(solicitacao.solicitante_id)}</span><span style={{ opacity: .55 }}>→</span><span style={participanteChip}>{mascararIdConversa(solicitacao.destinatario_id)}</span></div>
+              <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginTop: 12, fontSize: 11, opacity: .72 }}><span>Enviada: {dataFormatada(solicitacao.criado_em)}</span>{solicitacao.categoria && <span>Categoria: {solicitacao.categoria}</span>}{solicitacao.urgencia && <span>Urgência: {solicitacao.urgencia}</span>}</div>
+            </article>;
           })}
         </div>
       )}
 
-      <div style={infoBox}>
-        <strong style={{display:"inline-flex",alignItems:"center",gap:7}}><Icon name="lock" size={17} /> Privacidade das conversas</strong>
-        <p style={textoSecundario}>
-          Cada conversa é vinculada a exatamente dois participantes: o solicitante e o destinatário.
-          O painel administrativo não carrega nem exibe o conteúdo das mensagens privadas.
-        </p>
-        <p style={textoSecundario}>
-          As mensagens permanecem na tabela de mensagens da conversa e o acesso é controlado pelas
-          políticas de segurança do Supabase, permitindo leitura e envio somente aos participantes daquela conversa.
-        </p>
+      <div style={{ ...infoBox, marginTop: 20 }}>
+        <strong style={{ display: "inline-flex", alignItems: "center", gap: 7 }}><Icon name="lock" size={17} /> Privacidade e limites de acesso</strong>
+        <p style={textoSecundario}>Esta área apresenta somente metadados administrativos das conversas e solicitações. O painel não consulta nem exibe o texto das mensagens privadas, preservando o espaço de apoio entre os participantes.</p>
       </div>
     </PaginaBase>
   );
 }
-
 
 const gridResumo = {
   display: "grid",

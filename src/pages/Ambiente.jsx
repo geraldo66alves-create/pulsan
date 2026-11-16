@@ -669,24 +669,43 @@ function Ambiente({ irPara, tema = "claro" }) {
     localStorage.setItem("pulsanNotificacoes", JSON.stringify(notificacoes));
   }, [notificacoes]);
 
-  function notificarNovoComentario(post, textoComentario) {
-    const souDono = post.souAutor === true;
-    if (!souDono) return;
-    const novaNotificacao = {
-      id: Date.now(),
-      tipo: "comentario",
-      mensagem: "Alguém comentou no seu desabafo.",
-      texto: textoComentario,
-      postId: post.id,
-      data: new Date().toISOString(),
+  async function criarNotificacaoPersistente({ usuarioIdDestino, titulo, mensagem }) {
+    if (!usuarioIdDestino || usuarioIdDestino === usuarioAuthId()) return false;
+    const { error } = await supabase.from("notificacoes").insert({
+      usuario_id: usuarioIdDestino,
+      titulo,
+      mensagem,
       lida: false,
-    };
-    setNotificacoes((lista) => [novaNotificacao, ...lista]);
-    if ("Notification" in window && Notification.permission === "granted") {
-      new Notification("Novo comentário no Pulsan", {
-        body: "Alguém comentou no seu desabafo.",
-      });
+      enviada: false,
+    });
+    if (error) {
+      console.error("Erro ao gravar notificação persistente:", error);
+      return false;
     }
+    return true;
+  }
+
+  async function obterAutorDesabafo(postId) {
+    const { data, error } = await supabase
+      .from("posts_ambiente")
+      .select("usuario_id")
+      .eq("id", postId)
+      .maybeSingle();
+    if (error) {
+      console.error("Erro ao identificar autor do desabafo:", error);
+      return null;
+    }
+    return data?.usuario_id || null;
+  }
+
+  async function notificarNovoComentario(post) {
+    const autorId = await obterAutorDesabafo(post.id);
+    if (!autorId || autorId === usuarioAuthId()) return;
+    await criarNotificacaoPersistente({
+      usuarioIdDestino: autorId,
+      titulo: "Novo comentário no seu desabafo!",
+      mensagem: "Alguém comentou no seu desabafo. Entre para conferir.",
+    });
   }
 
   function registrarApoioDiario() {
@@ -800,7 +819,8 @@ function Ambiente({ irPara, tema = "claro" }) {
     ));
     setComentario("");
     setEnviandoComentario(false);
-    notificarNovoComentario(desabafos.find((item) => item.id === id) || {}, textoComentario);
+    const postComentado = desabafos.find((item) => item.id === id);
+    if (postComentado) await notificarNovoComentario(postComentado);
   }
 
   async function solicitarChat(desabafo) {
@@ -820,6 +840,7 @@ function Ambiente({ irPara, tema = "claro" }) {
         irPara("mini-curso-chat");
         return;
       }
+      const autorDesabafoId = await obterAutorDesabafo(desabafo.id);
       const { data, error } = await supabase.rpc("pulsan_solicitar_chat_post", {
         p_post_id: desabafo.id,
       });
@@ -840,6 +861,22 @@ function Ambiente({ irPara, tema = "claro" }) {
       if (resultado?.status === "solicitacao_existente") {
         alert("Você já enviou uma solicitação para este desabafo.");
         return;
+      }
+      if (autorDesabafoId && autorDesabafoId !== user.id) {
+        const titulo = "Você recebeu uma solicitação de ajuda!";
+        const mensagem = "Alguém gostaria de conversar com você. Acesse para responder.";
+        const { error: erroNotificacao } = await supabase.from("notificacoes").insert({
+          usuario_id: autorDesabafoId,
+          titulo,
+          mensagem,
+          lida: false,
+          enviada: false,
+        });
+        if (erroNotificacao) {
+          console.error("Erro ao gravar notificação da solicitação de ajuda:", erroNotificacao);
+          alert("A solicitação foi enviada, mas não foi possível registrar a notificação. Verifique as permissões da tabela notificacoes.");
+          return;
+        }
       }
       alert("Solicitação de chat enviada!");
     } catch (erro) {
@@ -988,6 +1025,20 @@ function Ambiente({ irPara, tema = "claro" }) {
           color: var(--ambiente-text);
           background: var(--ambiente-input);
           border-color: var(--ambiente-border-strong);
+        }
+        .ambiente-pulsan .ambiente-comment-input {
+          direction: ltr;
+          unicode-bidi: plaintext;
+          text-align: left;
+          flex: 1 1 auto;
+          min-width: 0;
+        }
+        .ambiente-pulsan .ambiente-comment-text {
+          direction: ltr;
+          unicode-bidi: plaintext;
+          text-align: left;
+          white-space: pre-wrap;
+          overflow-wrap: anywhere;
         }
         .ambiente-pulsan .ambiente-comment-input::placeholder {
           color: var(--ambiente-muted);
@@ -1258,9 +1309,9 @@ function Ambiente({ irPara, tema = "claro" }) {
           .ambiente-actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:14px}
           .ambiente-action{padding:10px 11px;font-size:12px;min-height:40px;border-radius:12px}
           .ambiente-action.primary{flex:1 1 100%;justify-content:center}
-          .ambiente-comment-form{display:flex;flex-direction:row;align-items:stretch}
-          .ambiente-comment-input{width:100%;min-width:0;font-size:16px}
-          .ambiente-comment-form button{flex:0 0 auto;min-height:44px}
+          .ambiente-comment-form{display:flex;flex-direction:row;align-items:stretch;gap:8px;width:100%;min-width:0}
+          .ambiente-comment-input{flex:1 1 0;width:1%;min-width:0;font-size:16px}
+          .ambiente-comment-form button.ambiente-action.primary{flex:0 0 auto;width:auto;min-width:76px;min-height:44px;white-space:nowrap}
           .ambiente-side{display:flex;flex-direction:column;gap:12px;margin-top:0}
           .ambiente-side>.ambiente-card{padding:16px!important;border-radius:18px!important}
           .ambiente-fab{right:14px!important;bottom:calc(82px + env(safe-area-inset-bottom,0px))!important;min-width:0;min-height:48px;padding:0 17px;font-size:13px}
@@ -1524,13 +1575,13 @@ function Ambiente({ irPara, tema = "claro" }) {
                             <strong style={{ fontSize: 12, color: "#365A82" }}>{coment.nome || "Anônimo"}</strong>
                             {coment.data && <span style={{ color: "#8AA0B9", fontSize: 10 }}>• {formatarTempoRelativo(coment.data)}</span>}
                           </div>
-                          <div style={{ marginTop: 7, color: "#36506F", fontSize: 13.5, lineHeight: 1.55 }}>{coment.texto}</div>
+                          <div className="ambiente-comment-text" dir="auto" style={{ marginTop: 7, color: "#36506F", fontSize: 13.5, lineHeight: 1.55 }}>{coment.texto}</div>
                         </div>
                       ))}
 
                       <div className="ambiente-comment-form">
-                        <input className="ambiente-comment-input" value={comentario} onChange={(e) => setComentario(e.target.value)} placeholder="Escreva uma palavra de apoio..." disabled={enviandoComentario} />
-                        <button className="ambiente-action primary" onClick={() => enviarComentario(item.id)} disabled={enviandoComentario}>
+                        <input className="ambiente-comment-input" type="text" dir="ltr" autoComplete="off" value={comentario} onChange={(e) => setComentario(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); enviarComentario(item.id); } }} placeholder="Escreva uma palavra de apoio..." disabled={enviandoComentario} />
+                        <button type="button" className="ambiente-action primary" onClick={() => enviarComentario(item.id)} disabled={enviandoComentario}>
                           {enviandoComentario ? "Enviando..." : "Enviar"}
                         </button>
                       </div>
